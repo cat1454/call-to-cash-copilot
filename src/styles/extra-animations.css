@@ -1,0 +1,93 @@
+/* Tactile button active click state overrides */
+.btn-primary:active, 
+.btn-payment:active, 
+.btn-secondary:active, 
+.btn-danger:active, 
+.view-tab:active,
+.mic-button:active {
+  transform: scale(0.95) translateY(1px) !important;
+}
+
+/* Active breathing call-to-action glow for Microphone button */
+@keyframes mic-breath {
+  0%, 100% {
+    box-shadow: 0 8px 24px rgba(5, 150, 105, 0.25);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 8px 32px rgba(5, 150, 105, 0.45), 0 0 0 6px rgba(5, 150, 105, 0.08);
+    transform: scale(1.04);
+  }
+}
+
+.mic-button:not(:disabled):not(.animating) {
+  animation: mic-breath 2s infinite ease-in-out;
+}
+
+/* Rapid scaling pulse ring when mic is active/simulating */
+.mic-button.animating {
+  animation: none;
+}
+
+/* MISSING KEYFRAMES */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ticket-slide-in {
+  0% {
+    opacity: 0;
+    transform: translateY(32px) scale(0.94);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes scan {
+  0% { top: 0%; }
+  50% { top: 100%; }
+  100% { top: 0%; }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-5px); }
+  40%, 80% { transform: translateX(5px); }
+}
+
+@keyframes bubble-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes typing-dots {
+  0%, 100% {
+    transform: translateY(0);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translateY(-5px);
+    opacity: 1;
+  }
+}
+
+@keyframes float-icon {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}

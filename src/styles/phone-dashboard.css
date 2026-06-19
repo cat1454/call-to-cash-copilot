@@ -1,0 +1,262 @@
+/* Slider layout for smooth native-like tab transitions on mobile */
+.phone-slider-viewport {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.phone-slider-track {
+  display: flex;
+  width: 300%;
+  height: 100%;
+  transition: transform 0.45s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.phone-slide-pane {
+  width: 33.333%;
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Hide scrollbar on Firefox */
+  -ms-overflow-style: none; /* Hide scrollbar on IE/Edge */
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Hide scrollbar for Chrome/Safari/Webkit */
+.phone-slide-pane::-webkit-scrollbar {
+  display: none;
+}
+
+.phone-view-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  animation: fadeIn 0.35s cubic-bezier(0.215, 0.61, 0.355, 1) both;
+}
+
+.phone-dashboard-view {
+  gap: 10px;
+  padding-bottom: 96px;
+}
+
+.phone-dashboard-section {
+  background: #ffffff;
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.phone-dashboard-section.success {
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.phone-dashboard-section.danger {
+  border-color: rgba(244, 63, 94, 0.4);
+}
+
+.phone-dashboard-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #111827;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.phone-dashboard-gate {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  padding: 10px;
+}
+
+.phone-dashboard-gate.locked {
+  background: var(--error-red-glow);
+  border-color: rgba(244, 63, 94, 0.24);
+  color: var(--error-red);
+}
+
+.phone-dashboard-gate.unlocked {
+  background: var(--success-green-glow);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: var(--success-green);
+}
+
+.phone-dashboard-gate div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.phone-dashboard-gate strong {
+  color: #111827;
+  font-size: 12px;
+}
+
+.phone-dashboard-gate span {
+  color: var(--text-muted);
+  font-size: 10.5px;
+  overflow-wrap: anywhere;
+}
+
+.phone-dashboard-next {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: #f9fafb;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: 9px 10px;
+}
+
+.phone-dashboard-next span,
+.phone-dashboard-mini-meta,
+.phone-dashboard-threshold {
+  color: var(--text-muted);
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.phone-dashboard-next strong {
+  color: #111827;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.phone-dashboard-mini-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  line-height: 1.35;
+  text-transform: none;
+}
+
+.phone-dashboard-score {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.phone-dashboard-score-meta,
+.phone-dashboard-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.phone-dashboard-score-meta span,
+.phone-dashboard-row span {
+  color: var(--text-muted);
+  font-size: 10.5px;
+}
+
+.phone-dashboard-score-meta strong,
+.phone-dashboard-row strong {
+  color: #111827;
+  font-size: 11.5px;
+  font-weight: 800;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.phone-dashboard-bar-bg {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e5e7eb;
+}
+
+.phone-dashboard-bar-fill {
+  height: 100%;
+  max-width: 100%;
+  border-radius: inherit;
+  background: var(--error-red);
+  transition: width 0.3s ease;
+}
+
+.phone-dashboard-score.passed .phone-dashboard-bar-fill {
+  background: var(--success-green);
+}
+
+.phone-dashboard-threshold {
+  text-align: right;
+}
+
+.phone-dashboard-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+}
+
+.phone-dashboard-prefetch,
+.phone-dashboard-ledger-status,
+.phone-dashboard-warning {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 10px;
+  padding: 9px 10px;
+}
+
+.phone-dashboard-prefetch {
+  background: rgba(6, 182, 212, 0.06);
+  border: 1px dashed rgba(6, 182, 212, 0.24);
+  color: var(--accent-cyan);
+}
+
+.phone-dashboard-prefetch span {
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.phone-dashboard-prefetch strong {
+  color: #374151;
+  font-size: 10.5px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.phone-dashboard-ledger-status {
+  justify-content: center;
+  background: #f9fafb;
+  border: 1px solid var(--card-border);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.phone-dashboard-ledger-status.success {
+  background: var(--success-green-glow);
+  border-color: rgba(16, 185, 129, 0.28);
+  color: var(--success-green);
+}
+
+.phone-dashboard-ledger-status.danger,
+.phone-dashboard-warning {
+  background: var(--error-red-glow);
+  border: 1px solid rgba(244, 63, 94, 0.24);
+  color: var(--error-red);
+}
+
+.phone-dashboard-warning span {
+  color: #991b1b;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1.35;
+}

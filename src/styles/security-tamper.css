@@ -1,0 +1,117 @@
+/* Secure Boarding Pass Barcode Section */
+.ticket-barcode-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 14px;
+  background: #ffffff;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1.5px solid #f1f5f9;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.01);
+}
+
+.ticket-barcode {
+  max-width: 220px;
+  height: 40px;
+}
+
+.barcode-number {
+  font-size: 9.5px;
+  font-family: monospace;
+  letter-spacing: 0.3em;
+  color: #64748b;
+  margin-top: 6px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+/* Security Tamper Simulation Explanation Card */
+.tamper-explanation-banner {
+  background: rgba(244, 63, 94, 0.03) !important;
+  border: 1.5px solid var(--error-red) !important;
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 4px 20px rgba(244, 63, 94, 0.05);
+  animation: shake 0.5s ease-in-out both;
+}
+
+.tamper-banner-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--error-red);
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: -0.01em;
+}
+
+.tamper-explanation-banner p {
+  font-size: 11px;
+  color: #334155;
+  line-height: 1.5;
+}
+
+.tamper-comparison {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  gap: 8px;
+}
+
+.hash-block {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.hash-block span {
+  font-size: 8px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  margin-bottom: 2px;
+}
+
+.hash-block code {
+  font-size: 10.5px;
+  font-family: monospace;
+  font-weight: 700;
+  word-break: break-all;
+}
+
+.hash-block.archived code {
+  color: var(--success-green);
+}
+
+.hash-block.computed code {
+  color: var(--error-red);
+}
+
+.hash-block.divider {
+  flex: 0;
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--error-red);
+  padding: 0 6px;
+  user-select: none;
+}
+
+.tamper-conclusion {
+  font-size: 10px !important;
+  color: var(--error-red) !important;
+  font-weight: 800;
+  text-align: center;
+  background: rgba(244, 63, 94, 0.08);
+  padding: 6px;
+  border-radius: 6px;
+  letter-spacing: 0.02em;
+}

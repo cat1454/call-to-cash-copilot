@@ -17,13 +17,19 @@ export default function App() {
               className={`view-tab ${sim.mobileTab === "call" ? "active" : ""}`}
               onClick={() => sim.setMobileTab("call")}
             >
-              Cuộc Gọi Điện Thoại
+              Call
+            </button>
+            <button
+              className={`view-tab ${sim.mobileTab === "dashboard" ? "active" : ""}`}
+              onClick={() => sim.setMobileTab("dashboard")}
+            >
+              Dashboard
             </button>
             <button
               className={`view-tab ${sim.mobileTab === "receipt" ? "active" : ""}`}
               onClick={() => sim.setMobileTab("receipt")}
             >
-              Vé Xe Điện Tử
+              Receipt
             </button>
           </div>
         </div>
@@ -48,6 +54,13 @@ export default function App() {
           startSimulation={sim.startSimulation}
           resetSimulation={sim.resetSimulation}
           isTampered={sim.isTampered}
+          scores={sim.scores}
+          performance={sim.performance}
+          brainMode={sim.brainMode}
+          showPrefetch={sim.showPrefetch}
+          prefetchContent={sim.prefetchContent}
+          timelineSteps={sim.timelineSteps}
+          ledgerLogs={sim.ledgerLogs}
         />
 
         {/* Bottom fixed control action bar on mobile */}
@@ -113,6 +126,13 @@ export default function App() {
             startSimulation={sim.startSimulation}
             resetSimulation={sim.resetSimulation}
             isTampered={sim.isTampered}
+            scores={sim.scores}
+            performance={sim.performance}
+            brainMode={sim.brainMode}
+            showPrefetch={sim.showPrefetch}
+            prefetchContent={sim.prefetchContent}
+            timelineSteps={sim.timelineSteps}
+            ledgerLogs={sim.ledgerLogs}
           />
         </div>
 

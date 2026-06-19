@@ -2,6 +2,9 @@
 
 The Call-to-Cash Risk Copilot represents an automated transaction decision loop powered by three specialized AI agents collaborating in real-time. This document defines their roles, inputs, decisions, and system boundaries.
 
+## 0. Agent Operating Rule
+- Before starting any task, do a lightweight scan of the local `ECC/` repository, especially its skills, commands, rules, and context docs, to choose the most relevant skill/workflow and understand the user's requirement more accurately before editing or answering.
+
 ```mermaid
 graph TD
     A[Customer Voice Call] -->|Agora RT Stream| B(Call Agent)

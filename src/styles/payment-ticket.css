@@ -1,0 +1,251 @@
+/* Smartphone Ticket Mockup */
+.phone-ticket {
+  background: #ffffff;
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.phone-ticket-title {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--primary-blue);
+  border-bottom: 1px solid #f3f4f6;
+  padding-bottom: 6px;
+  margin-bottom: 2px;
+  letter-spacing: 0.05em;
+}
+
+.phone-ticket-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.phone-ticket-row .label {
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.phone-ticket-row .val {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #111827;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.3s ease;
+}
+
+.phone-ticket-row.price-row {
+  border-top: 1px dashed #e5e7eb;
+  padding-top: 8px;
+  margin-top: 4px;
+}
+
+/* Sliding payment drawer */
+.phone-payment-drawer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border-top: 1.5px solid var(--card-border);
+  border-top-left-radius: 24px;
+  border-top-right-radius: 24px;
+  padding: 20px 16px 16px 16px;
+  transform: translateY(100%);
+  transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+  z-index: 99;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 -8px 30px rgba(0,0,0,0.06);
+}
+
+.phone-payment-drawer.active {
+  transform: translateY(0);
+}
+
+.drawer-drag-handle {
+  width: 36px;
+  height: 4px;
+  background: #d1d5db;
+  border-radius: 2px;
+  align-self: center;
+  margin-bottom: 4px;
+}
+
+.drawer-header {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #111827;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.drawer-header span {
+  color: var(--primary-blue);
+}
+
+.drawer-deposit-summary {
+  background: #f9fafb;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  font-size: 11px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.drawer-deposit-amount {
+  color: var(--primary-blue);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.drawer-qr-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.drawer-qr-box {
+  width: 125px;
+  height: 125px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  padding: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.drawer-qr-box img {
+  width: 100%;
+  height: 100%;
+}
+
+.qr-scan-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2.5px;
+  background: var(--primary-blue);
+  box-shadow: 0 0 6px var(--primary-blue-glow);
+  animation: scan 2s linear infinite;
+}
+
+.drawer-timer {
+  font-size: 10.5px;
+  color: var(--warning-amber);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.drawer-disclaimer {
+  font-size: 9px;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.35;
+  text-wrap: pretty;
+}
+
+/* Smartphone Boarding pass ticket receipt */
+.phone-boarding-pass {
+  background: #ffffff;
+  color: #1f2937;
+  border-radius: 16px;
+  padding: 16px 14px;
+  font-family: monospace;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--card-border);
+  position: relative;
+  animation: ticket-slide-in 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+  font-size: 10.5px;
+}
+
+.phone-boarding-pass::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--primary-blue);
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+}
+
+.ticket-notch-left, .ticket-notch-right {
+  position: absolute;
+  top: 100px;
+  width: 12px;
+  height: 12px;
+  background: #f9fafb; /* matches phone screen background */
+  border-radius: 50%;
+  border: 1px solid var(--card-border);
+  z-index: 10;
+}
+.ticket-notch-left {
+  left: -7px;
+  border-left-color: transparent;
+  border-top-color: transparent;
+}
+.ticket-notch-right {
+  right: -7px;
+  border-right-color: transparent;
+  border-top-color: transparent;
+}
+
+.phone-boarding-pass h4 {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 800;
+  margin-bottom: 10px;
+  color: #111827;
+  letter-spacing: 0.05em;
+}
+
+.phone-boarding-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.phone-boarding-row .lbl { color: #6b7280; }
+.phone-boarding-row .val { font-weight: 700; color: #111827; }
+
+.boarding-divider {
+  border-top: 1px dashed #e5e7eb;
+  margin: 10px 0;
+}
+
+.phone-boarding-status {
+  text-align: center;
+  padding: 6px;
+  font-weight: 800;
+  font-size: 10.5px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  margin-top: 8px;
+}
+
+.phone-boarding-status.verified {
+  background: rgba(16, 185, 129, 0.08);
+  color: #065f46;
+  border: 1px solid #10b981;
+}
+
+.phone-boarding-status.mismatch {
+  background: rgba(239, 68, 68, 0.08);
+  color: #991b1b;
+  border: 1px solid #ef4444;
+  animation: shake 0.5s ease-in-out;
+}

@@ -1,0 +1,101 @@
+/* TIMELINE PANEL */
+.timeline-panel {
+  margin-top: 16px;
+}
+
+.timeline-steps {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+
+.timeline-step {
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  background: #f9fafb;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  transition: var(--transition-smooth);
+}
+
+.timeline-step-num {
+  font-size: 8px;
+  font-weight: 800;
+  color: var(--text-muted);
+}
+
+.timeline-step-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #111827;
+  margin-top: 2px;
+}
+
+.timeline-step-desc {
+  font-size: 9.5px;
+  color: var(--text-muted);
+  line-height: 1.35;
+  margin-top: 4px;
+  text-wrap: pretty;
+}
+
+.timeline-step.active {
+  border-color: var(--primary-blue);
+  background: rgba(37, 99, 235, 0.03);
+}
+.timeline-step.active .timeline-step-num {
+  color: var(--primary-blue);
+}
+
+.timeline-step.done {
+  border-color: var(--success-green);
+  background: rgba(16, 185, 129, 0.02);
+}
+.timeline-step.done .timeline-step-num {
+  color: var(--success-green);
+}
+
+/* Guided voice layout (V6 main view) */
+.guided-voice-container {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 20px;
+  align-items: start;
+}
+
+/* Center card style receipt view */
+.centered-receipt-container {
+  display: flex;
+  justify-content: center;
+  padding: 24px 0;
+  background: #f9fafb;
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+}
+
+.centered-receipt-card {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.collapsible-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding: 8px 12px;
+  background: #f3f4f6;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-top: 10px;
+}
+
+/* ==========================================================================
+   MOBILE VIEW VIEWPORT OVERRIDES
+   When window width <= 768px (represents standard smartphones / PWAs)
+   ========================================================================== */

@@ -1,10 +1,11 @@
 import PhoneCallView from "../features/simulation/components/PhoneCallView";
+import PhoneDashboardView from "../features/simulation/components/PhoneDashboardView";
 import PhoneReceiptView from "../features/ticket/components/PhoneReceiptView";
 import PhonePaymentDrawer from "../features/payment/components/PhonePaymentDrawer";
 
 export default function PhoneScreen({
   isMobileLayout, // true if screen <= 768px
-  activeTab, // 'call' | 'receipt' (only applicable for mobile view switcher)
+  activeTab, // 'call' | 'dashboard' | 'receipt' (only applicable for mobile view switcher)
   isSimulating,
   simStatus,
   phoneCallStatusText,
@@ -20,7 +21,14 @@ export default function PhoneScreen({
   btnPhonePayBg,
   simulateWalletPayment,
   startSimulation,
-  isTampered
+  isTampered,
+  scores,
+  performance,
+  brainMode,
+  showPrefetch,
+  prefetchContent,
+  timelineSteps,
+  ledgerLogs
 }) {
   
   // Render Call View content
@@ -47,21 +55,43 @@ export default function PhoneScreen({
     />
   );
 
+  const renderDashboardView = () => (
+    <PhoneDashboardView
+      scores={scores}
+      performance={performance}
+      brainMode={brainMode}
+      showPrefetch={showPrefetch}
+      prefetchContent={prefetchContent}
+      timelineSteps={timelineSteps}
+      ledgerLogs={ledgerLogs}
+      bookingData={bookingData}
+      simStatus={simStatus}
+      isTampered={isTampered}
+      showPaymentDrawer={showPaymentDrawer}
+    />
+  );
+
+  const mobileSliderOffset = {
+    call: "translateX(0)",
+    dashboard: "translateX(-33.333%)",
+    receipt: "translateX(-66.666%)"
+  }[activeTab] || "translateX(0)";
+
   return (
     <div className={`phone-mockup-wrapper ${isMobileLayout ? "is-mobile-native" : ""}`}>
       <div className="phone-mockup">
         {/* Phone Screen Container */}
         <div className="phone-screen">
           {isMobileLayout ? (
-            /* Slide transitions between Call and Receipt tabs on Mobile */
             <div className="phone-slider-viewport">
               <div
                 className="phone-slider-track"
                 style={{
-                  transform: activeTab === "receipt" ? "translateX(-50%)" : "translateX(0)"
+                  transform: mobileSliderOffset
                 }}
               >
                 <div className="phone-slide-pane">{renderCallView()}</div>
+                <div className="phone-slide-pane">{renderDashboardView()}</div>
                 <div className="phone-slide-pane">{renderReceiptView()}</div>
               </div>
             </div>

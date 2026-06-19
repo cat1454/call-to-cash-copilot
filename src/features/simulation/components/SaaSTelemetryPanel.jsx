@@ -16,7 +16,7 @@ export default function SaaSTelemetryPanel({
     <div className="right-sidebar panel">
       <div className="panel-header">
         <h2>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style={{ color: "var(--success-green)" }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--success-green)" }}>
             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
           </svg>
           Trình Quản Trị Hệ Thống (SaaS Telemetry)
@@ -63,7 +63,7 @@ export default function SaaSTelemetryPanel({
         {/* Prefetch Context Widget */}
         <div className={`prefetch-card ${showPrefetch ? "active" : ""}`} style={{ marginTop: "6px" }}>
           <div className="prefetch-header">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
             </svg>
             Dữ liệu tải trước (Predictive Prefetch)

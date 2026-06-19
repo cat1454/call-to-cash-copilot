@@ -1,0 +1,250 @@
+/* Telemetry Dashboard */
+.gauges-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gauge-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gauge-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.gauge-label { color: var(--text-main); }
+.gauge-value { font-family: monospace; }
+
+.gauge-bar-bg {
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+.gauge-bar-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 3px;
+  transition: width 0.6s cubic-bezier(0.1, 0.8, 0.2, 1);
+}
+
+.completeness .gauge-bar-fill {
+  background: linear-gradient(90deg, #059669 0%, #10b981 100%);
+}
+
+.dispute-risk .gauge-bar-fill.low-risk { background: linear-gradient(90deg, #10b981 0%, #059669 100%); }
+.dispute-risk .gauge-bar-fill.medium-risk { background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%); }
+.dispute-risk .gauge-bar-fill.high-risk { background: linear-gradient(90deg, #f43f5e 0%, #e11d48 100%); }
+
+.payment-readiness .gauge-bar-fill {
+  background: linear-gradient(90deg, #059669 0%, #0d9488 100%);
+}
+
+/* Gate decision widget */
+.gate-widget {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f9fafb;
+  border: 1px solid var(--card-border);
+  padding: 12px 16px;
+  border-radius: 12px;
+}
+
+.gate-widget.unlocked {
+  background: rgba(16, 185, 129, 0.05);
+  border-color: var(--success-green);
+}
+
+.gate-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.gate-status-text {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.gate-widget.unlocked .gate-status-text span {
+  color: var(--success-green);
+  font-weight: 700;
+}
+
+.gate-widget.locked .gate-status-text span {
+  color: var(--error-red);
+  font-weight: 700;
+}
+
+.gate-visual {
+  font-size: 20px;
+}
+
+/* Performance metrics */
+.performance-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.metric-card {
+  background: #f9fafb;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+.metric-label {
+  font-size: 9px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.metric-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1f2937;
+  margin-top: 4px;
+  font-family: monospace;
+}
+
+.metric-value span {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-left: 1px;
+}
+
+.brain-mode-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+}
+
+.brain-mode-badge {
+  font-size: 9px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.brain-mode-badge.fast {
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--primary-blue);
+}
+.brain-mode-badge.slow {
+  background: rgba(245, 158, 11, 0.08);
+  color: var(--warning-amber);
+}
+.brain-mode-badge.human {
+  background: rgba(239, 68, 68, 0.08);
+  color: var(--error-red);
+}
+
+/* Prefetch panel */
+.prefetch-card {
+  display: none;
+  background: rgba(6, 182, 212, 0.05);
+  border: 1px dashed rgba(6, 182, 212, 0.2);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.prefetch-card.active {
+  display: block;
+}
+
+.prefetch-header {
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--accent-cyan);
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.prefetch-content {
+  font-size: 11px;
+  color: #374151;
+  margin-top: 4px;
+  line-height: 1.35;
+  text-wrap: pretty;
+}
+
+/* Developer Solana receipt logs */
+.dev-receipt-log {
+  background: #f9fafb;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 10px;
+  font-family: monospace;
+}
+
+.dev-receipt-log-header {
+  font-weight: 700;
+  color: #111827;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--card-border);
+  padding-bottom: 4px;
+}
+
+.dev-log-sig {
+  color: var(--primary-blue);
+  word-break: break-all;
+}
+
+.dev-log-hash {
+  word-break: break-all;
+}
+
+.dev-receipt-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+/* View switcher tabs for demo */
+.view-tabs {
+  display: flex;
+  background: #f3f4f6;
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  gap: 4px;
+}
+
+.view-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.view-tab.active {
+  background: #ffffff;
+  color: var(--primary-blue);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}

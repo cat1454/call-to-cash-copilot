@@ -14,7 +14,7 @@ export default function DecisionTimeline({
     <div className="panel timeline-panel">
       <div className="panel-header">
         <h2>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style={{ color: "var(--primary-blue)" }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--primary-blue)" }}>
             <line x1="4" y1="9" x2="20" y2="9"></line>
             <line x1="4" y1="15" x2="20" y2="15"></line>
             <line x1="10" y1="3" x2="8" y2="21"></line>
