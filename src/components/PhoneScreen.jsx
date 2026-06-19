@@ -71,18 +71,18 @@ export default function PhoneScreen({
               {showBoardingPass ? renderReceiptView() : renderCallView()}
             </div>
           )}
-
-          {/* Solana Pay style slide-up checkout sheet */}
-          <PhonePaymentDrawer
-            showPaymentDrawer={showPaymentDrawer}
-            bookingData={bookingData}
-            drawerTimerText={drawerTimerText}
-            simulateWalletPayment={simulateWalletPayment}
-            btnPhonePayDisabled={btnPhonePayDisabled}
-            btnPhonePayBg={btnPhonePayBg}
-            btnPhonePayText={btnPhonePayText}
-          />
         </div>
+
+        {/* Solana Pay style slide-up checkout sheet */}
+        <PhonePaymentDrawer
+          showPaymentDrawer={showPaymentDrawer}
+          bookingData={bookingData}
+          drawerTimerText={drawerTimerText}
+          simulateWalletPayment={simulateWalletPayment}
+          btnPhonePayDisabled={btnPhonePayDisabled}
+          btnPhonePayBg={btnPhonePayBg}
+          btnPhonePayText={btnPhonePayText}
+        />
       </div>
     </div>
   );
