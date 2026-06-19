@@ -1,0 +1,446 @@
+
+CALL-TO-CASH RISK COPILOT
+Hackathon Solution-First Proposal V6 - Updated with Pipeline, Data Capture and UI/UX Flow
+Voice AI that turns messy booking calls into risk-scored, deposit-backed, verifiable transactions.
+
+Câu định vị chốt
+Mọi cuộc gọi đặt chỗ lộn xộn được biến thành một booking đã được chấm điểm rủi ro, có cọc, có biên nhận xác minh và có thể kiểm tra lại khi xảy ra tranh chấp.
+
+Hạng mục
+Định nghĩa chốt
+Tên sản phẩm
+Call-to-Cash Risk Copilot
+Ngành demo
+Nhà xe khách / tour liên tỉnh, ví dụ tuyến Hà Nội -> Sa Pa. Có thể chuyển sang spa/clinic nếu cần UX dễ hiểu hơn.
+Core loop
+Messy Voice -> Risk Score -> Agreement -> Payment Gate -> Solana Proof -> Trust Receipt
+Vai trò Agora
+Voice realtime, AI nghe/nói, transcript sống, turn-taking, interruption handling, latency/performance metrics.
+Vai trò AI
+Extraction, scoring, agreement generation, payment gate decision, next-best-action.
+Vai trò Solana
+Payment confirmation, transaction reference/memo, proof hash anchoring, Trust Receipt verification. Không token/trading/lending/prediction.
+Vai trò Database
+Lưu transcript, conversation turns, metrics, booking data, scores, receipt và audio recording optional ở off-chain.
+UX principle
+Customer flow first, technical proof second. Khách chỉ thấy đặt chỗ, cọc tiền và biên nhận xác minh; Solana nằm phía sau.
+
+Mục lục
+1. Executive Summary - Điểm chốt sau mentoring
+2. Problem & Insight
+3. Product Positioning
+4. End-to-End Pipeline
+5. Vai trò Agora - AI - Solana - Database
+6. Conversation Data Capture & Storage
+7. Risk Scoring & Payment Gate
+8. Payment Flow & Trust Receipt
+9. UI/UX Best Practice cho Lovable Demo
+10. Demo Screens & Interaction Design
+11. MVP Scope & 2-Day Implementation Plan
+12. Demo Script & Q&A
+13. Guardrails
+14. Appendix A - Lovable Master Prompt V3
+15. References
+
+1. Executive Summary - Điểm chốt sau mentoring
+Bản V6 cập nhật lại toàn bộ hướng sản phẩm sau phần trao đổi về pipeline, Agora/Solana, data hội thoại và UI/UX demo. Trọng tâm của proposal không còn là “AI tổng đài + QR payment”, mà là một Risk Copilot biết quyết định khi nào cuộc gọi đủ rõ, đủ an toàn và đủ xác nhận để mở cổng cọc tiền.
+Call-to-Cash rõ ràng hơn hướng Anti-scam vì gắn trực tiếp với giao dịch thật: cuộc gọi -> booking -> cọc tiền -> biên nhận xác minh.
+Khách không cần biết Solana/blockchain. Trong customer UX, khách chỉ thấy link cọc, trạng thái đã nhận cọc và Trust Receipt.
+Agora là voice + transcript + performance layer; AI là extraction + scoring + payment gate decision; Solana là payment confirmation + reference/memo + proof hash.
+Dữ liệu hội thoại được lưu off-chain dưới dạng transcript text, conversation turns/history JSON, performance metrics JSON và optional audio recording. Không lưu full audio, full transcript hoặc PII lên chain.
+UI demo nên voice-first, ít chữ, nền trắng, primary xanh, có nút mic lớn để bắt đầu cuộc trò chuyện, và dùng AI Decision panel thay vì debug dashboard.
+Big picture
+Agora biến cuộc gọi thành dữ liệu có thể xử lý. AI biến dữ liệu đó thành quyết định booking/payment. Solana biến payment và agreement thành bằng chứng có thể xác minh.
+
+2. Problem & Insight
+Nhiều doanh nghiệp dịch vụ vừa và nhỏ, đặc biệt là nhà xe khách, tour liên tỉnh, spa, clinic hoặc resort nhỏ, vẫn nhận booking qua điện thoại. Cuộc gọi thường không sạch: khách nói lộn xộn, đổi ý giữa cuộc gọi, thiếu số điện thoại, chưa rõ số khách, lo về tiền cọc hoặc chưa hiểu chính sách hoàn/hủy.
+Vấn đề lõi không phải là thiếu một bot trả lời điện thoại. Vấn đề lõi là thiếu một lớp quyết định biết khi nào cuộc gọi đã đủ rõ, đủ an toàn và đủ xác nhận để trở thành một giao dịch thật.
+Pain point
+Tác động vận hành
+Cơ hội giải pháp
+Thông tin booking thiếu/sai
+Nhỡ chuyến, sai số khách, sai giờ đi, mất công gọi lại.
+AI trích xuất field từ lời nói và hỏi đúng phần còn thiếu.
+Cọc không rõ ràng
+Tranh chấp đã cọc/chưa cọc, hiểu nhầm điều kiện hoàn/hủy.
+Agreement đọc lại trước khi cọc + Payment Gate chỉ mở khi khách xác nhận rõ.
+Không có hồ sơ chuẩn hóa
+Khó đối chiếu khi khiếu nại.
+Trust Receipt + proof verification + transcript summary.
+Voicebot chỉ trả lời
+Không biết khi nào nên chốt hoặc nên dừng.
+Risk-aware decision layer: chấm điểm và khuyến nghị next action.
+
+3. Product Positioning
+Call-to-Cash Risk Copilot nên được định vị là “AI Revenue Operator” cho doanh nghiệp dịch vụ voice-first, không chỉ là hotline AI. Nếu hotline AI thông thường trả lời cuộc gọi, Risk Copilot quyết định khi nào cuộc gọi đủ điều kiện để mở cọc tiền và tạo bằng chứng.
+Không nên pitch
+Nên pitch
+“Chúng tôi làm AI tổng đài đặt vé.”
+“Chúng tôi biến cuộc gọi đặt chỗ thành giao dịch có cọc và biên nhận xác minh.”
+“Khách dùng Solana để thanh toán.”
+“Khách nhận link cọc bình thường; Solana chỉ là lớp xác nhận payment/proof phía sau.”
+“AI tự động chốt booking.”
+“AI chỉ mở payment gate khi thông tin đủ rõ, rủi ro thấp và khách xác nhận rõ.”
+“Blockchain lưu cuộc gọi.”
+“Database lưu hội thoại off-chain; Solana chỉ neo proof hash và payment reference tối thiểu.”
+
+Câu chốt
+Customer sees: Đặt chỗ -> Cọc tiền -> Biên nhận xác minh. Judge sees: Agora voice -> AI risk scoring -> Solana payment/proof -> Trust Receipt.
+
+4. End-to-End Pipeline
+Pipeline chính cần được trình bày rõ ràng để mentor thấy chỗ nào dùng Agora, chỗ nào dùng Solana và dữ liệu hội thoại được lấy/lưu ở dạng nào.
+Voice Call-> Agora Realtime Voice + Live Transcript-> AI Extraction-> Risk Scoring-> Agreement Draft-> Payment Gate-> Solana Pay Deposit-> Payment Confirmation-> Proof Hash-> Trust Receipt-> Dashboard Replay / QA
+
+Step
+Việc xảy ra
+Công nghệ chính
+Data sinh ra
+1. Customer Call
+Khách gọi và nói nhu cầu tự nhiên: “Đặt 3 vé Hà Nội -> Sa Pa tối nay.”
+Customer UX
+Raw voice intent.
+2. Agora Voice Layer
+Nhận voice realtime, AI nghe/nói, turn-taking, interruption, transcript sống.
+Agora
+Audio stream, live transcript, latency/turn metrics.
+3. AI Agent Brain
+AI hiểu intent, trích xuất field, hỏi phần còn thiếu, gọi function.
+AI + backend
+Structured booking JSON, missing fields.
+4. Risk Copilot
+Tính Completeness, Dispute Risk, Payment Readiness, Agent Quality.
+AI scoring engine
+Scores, blockers, next-best-action.
+5. Agreement Draft
+AI đọc lại tuyến, giờ, số khách, tiền cọc, chính sách hoàn/hủy.
+AI + Booking Service
+Agreement payload v1, booking draft.
+6. Payment Gate
+Chỉ unlock khi đủ thông tin, rủi ro thấp, khách xác nhận rõ.
+Rule-based decision
+Gate status, lock/unlock reason.
+7. Solana Payment
+Tạo QR/link cọc, gắn reference/memo với booking.
+Solana Pay
+Payment URL/QR, reference, memo.
+8. Confirm Payment
+Backend verify đúng amount/recipient/reference và trạng thái transaction.
+Backend + Solana
+Tx signature, payment status.
+9. Proof Hash
+Backend hash agreement payload và neo/gắn với transaction/memo/reference.
+Backend + Solana
+Proof hash, proof status.
+10. Trust Receipt
+Khách nhận biên nhận xác minh MATCH/MISMATCH dễ hiểu.
+Frontend + DB + Solana data
+Receipt, verification result, support route.
+
+
+4.1. Sơ đồ pipeline cập nhật
+
+Figure: Flow chi tiết cho Call-to-Cash Risk Copilot - Agora, AI, Solana và storage.
+
+5. Vai trò Agora - AI - Solana - Database
+Lớp
+Vai trò
+Không làm
+Agora
+Voice service + AI interaction layer: realtime voice, transcript sống, turn-taking, interruption, latency/performance metrics.
+Không xử lý payment, không neo proof, không thay database nghiệp vụ.
+AI Agent
+Hiểu intent, trích xuất field booking, hỏi thông tin thiếu, tính score, tạo agreement, quyết định payment gate, gợi ý next action.
+Không mở payment khi xác nhận mơ hồ hoặc thiếu thông tin.
+Booking Service / DB
+Lưu booking, transcript, summary, scores, conversation history, payment status, receipt, optional audio URL.
+Không phải audit trail độc lập; không thay Solana proof.
+Solana
+Payment confirmation + transaction reference/memo + proof hash anchoring + Trust Receipt verification.
+Không xử lý AI, không lưu full transcript/audio/PII, không token/trading/lending/prediction.
+
+Diễn giải chuẩn
+Backend tạo hash từ agreement/booking data. Solana dùng để neo/gắn hash đó với transaction hoặc memo/reference để sau này verify. Solana không tự “lưu cả cuộc gọi” và cũng không cần xuất hiện trong customer UX.
+
+6. Conversation Data Capture & Storage
+Mentor đã hỏi đúng trọng tâm: nếu hệ thống xử lý cuộc gọi thì cần biết lấy được data hội thoại dưới dạng nào. Thiết kế V6 chia data thành 4 lớp chính.
+Dạng data
+Lấy được gì
+Dùng để làm gì
+Lưu ở đâu
+Transcript dạng chữ
+User transcript, agent transcript, realtime hoặc post-call.
+Extraction, scoring, agreement, summary, proof payload.
+Off-chain database.
+Conversation turns/history JSON
+speaker, content, timestamp, turn duration, role user/assistant.
+Replay, QA, debug AI decision, phân tích sau call.
+Off-chain database.
+Performance metrics JSON
+response time, turn gap, interruptions, clarification count, payment unlock time.
+Agent Quality Score, Performance Center, pitch performance.
+Off-chain database.
+Audio recording optional
+Cloud recording audio/video nếu bật recording.
+Replay tranh chấp, training/evaluation sau này.
+Cloud storage off-chain, cần consent.
+
+6.1. Off-chain vs On-chain
+Off-chain database/cloud storage
+On-chain / Solana
+Full transcript, transcript summary, conversation turns, booking data, phone masked, scores, AI recommendation, metrics, optional audio recording URL.
+Payment transaction, transaction signature, reference/memo, proof hash.
+Trả lời câu hỏi: “Cuộc gọi diễn ra như thế nào?”
+Trả lời câu hỏi: “Payment/proof này đã tồn tại và có khớp với snapshot đã xác nhận không?”
+Có thể sửa/xóa theo policy, access control, retention, privacy.
+Chỉ lưu bằng chứng tối thiểu, không đưa full audio/full transcript/PII lên chain.
+
+{  "call_id": "CALL-2026-001",  "intent": "book_bus_ticket",  "route_from": "Ha Noi",  "route_to": "Sa Pa",  "departure_time": "22:30",  "passenger_count": 3,  "phone_masked": "0912***678",  "total_amount": 1050000,  "deposit_amount": 300000,  "refund_policy_confirmed": true,  "explicit_confirmation": true,  "payment_reference": "REF-BK-1028-001",  "tx_signature": "5x9a...q2Lp",  "proof_hash": "8df2...9ab1"}
+
+7. Risk Scoring & Payment Gate
+Risk Scoring là lớp giúp sản phẩm khác voicebot thường. AI không được chốt bừa. Payment Gate chỉ mở khi đủ dữ liệu, rủi ro tranh chấp thấp và khách xác nhận rõ.
+Score
+Ý nghĩa
+Tín hiệu đầu vào
+Ngưỡng demo
+Completeness
+Thông tin đã đủ để tạo giao dịch chưa?
+Tên/SĐT, tuyến, giờ, số khách, tiền cọc, policy.
+>= 85
+Dispute Risk
+Nguy cơ tranh chấp sau booking.
+Lo cọc, hoàn tiền, đổi số người, giá chưa rõ, xác nhận mơ hồ.
+<= 35
+Payment Readiness
+Khách đã sẵn sàng cọc chưa?
+Đồng ý tiền cọc, hiểu policy, xác nhận rõ.
+>= 80
+Agent Quality
+AI xử lý cuộc gọi có tốt không?
+Hỏi từng ý, không hỏi dồn, không mở gate sớm, phản hồi tự nhiên.
+>= 85
+Call-to-Cash Readiness
+Score tổng cho customer UI.
+Tổng hợp progress từ call đến receipt.
+0 -> 98
+
+IF completeness >= 85AND payment_readiness >= 80AND dispute_risk <= 35AND explicit_confirmation = trueTHEN unlock paymentELSE keep payment locked and ask/recover one step at a time
+
+7.1. Score behavior trên UI chính
+Stage
+Call-to-Cash Readiness
+Idle
+0/100
+Call started
+20/100
+Transcript ready
+42/100
+Passengers confirmed
+58/100
+Phone captured
+76/100
+Policy confirmed
+84/100
+Agreement ready
+88/100
+Explicit confirmation
+92/100
+Payment gate unlocked
+94/100
+Payment confirmed
+96/100
+Trust Receipt issued
+98/100
+
+8. Payment Flow & Trust Receipt
+Customer UX không nên expose Solana. Khách chỉ thấy booking summary, link cọc, trạng thái đã nhận cọc và Trust Receipt. Solana nằm ở backend để xác nhận payment/reference/memo/proof hash.
+Bước
+Customer thấy
+Backend/Solana làm
+Agreement ready
+AI đọc lại tuyến, giờ, số khách, tổng tiền, cọc, policy.
+Tạo agreement payload v1 và booking draft.
+Payment gate unlock
+“Thông tin đã đủ, có thể cọc để giữ chỗ.”
+Kiểm tra score/gate rule.
+Deposit payment
+Link/QR cọc, amount, hold timer, refund rule.
+Tạo Solana Pay URL/QR với recipient, amount, reference, memo.
+Payment seen/confirmed
+“Đang xác nhận” -> “Đã nhận cọc.”
+Find/validate transaction by reference, amount, recipient; lưu tx signature.
+Proof anchor
+Không cần thấy kỹ thuật.
+Hash agreement payload, gắn/neo proof hash với tx/memo/reference.
+Trust Receipt
+Booking locked, deposit confirmed, verification MATCH.
+Compare computed hash với anchored hash; nếu mismatch -> manual review.
+
+8.1. Trust Receipt output
+Verified Booking Pass: booking ID, tuyến, giờ, số khách, trạng thái giữ chỗ.
+Deposit Receipt: số tiền cọc, thời gian cọc, trạng thái confirmed, tx signature rút gọn ở technical details.
+Agreement Snapshot: tổng tiền, tiền cọc, hold time, refund/cancellation policy.
+Proof Verification: computed hash = anchored hash, trạng thái MATCH/MISMATCH.
+Support route: contact operator, request refund, manual review nếu mismatch.
+9. UI/UX Best Practice cho Lovable Demo
+Sau khi audit UI hiện tại, hướng V6 nên chuyển từ “debug dashboard” sang “voice-first guided product experience”. Main demo không nên hiện quá nhiều chữ, không nên có layout 60/40 tạo khoảng trắng lớn, và không nên để nút “Analyze call” làm hành động chính.
+Vấn đề UI cũ
+Hướng sửa V6
+CTA chính là “Analyze call”, tạo cảm giác tool phân tích transcript.
+CTA chính là nút mic lớn: “Press to start AI call”. Analysis tự động chạy sau mỗi lượt transcript.
+Nhiều card và nhiều technical detail hiện cùng lúc.
+Progressive disclosure: Customer flow trước, Mentor Console sau.
+Trust Receipt nằm trong cột hẹp, không có cảm giác reward.
+Trust Receipt là view riêng, centered, đẹp và dễ hiểu.
+Decision Summary hơi technical.
+Đổi thành AI Decision: understood, missing, risk, gate, next action.
+Timeline mờ, không rõ step hiện tại.
+Highlight current step màu xanh, completed step có check xanh.
+Nested scroll và khoảng trắng lớn.
+Full-width center card theo state, technical details collapsed.
+
+9.1. Visual design rules
+Background: white hoặc near-white. Primary color: blue.
+Green chỉ dùng cho success/confirmed/proof match; amber cho pending/warning; red cho mismatch/error.
+Không gradient lòe loẹt, không neon, không crypto-heavy dashboard.
+Limit visible cards to 3-4 per screen; đưa JSON/proof/tx vào Mentor Console hoặc collapsed technical details.
+Customer-facing language: “cọc tiền”, “giữ chỗ”, “biên nhận xác minh”, “đã nhận cọc”. Tránh “blockchain/on-chain/memo/tx signature/proof hash” ở flow chính.
+9.2. Best practice cho Analyze panel
+Không tạo màn Analyze riêng. Analysis nên hiện như một panel nhỏ tên “Current Decision” hoặc “AI Decision” và tự update sau mỗi lượt nói.
+Field trong AI Decision
+Ví dụ ban đầu
+Ví dụ khi sắp mở gate
+What AI understood
+Hà Nội -> Sa Pa, tối nay, chuyến muộn.
+3 khách, chuyến 22:30, phone captured.
+What is missing
+Số khách chưa rõ, thiếu số điện thoại.
+Chỉ còn cần xác nhận rõ booking.
+Risk level
+Medium.
+Low.
+Payment Gate
+Locked.
+Ready / Unlocked.
+Next best action
+Ask customer to confirm passenger count.
+Read agreement and ask for explicit confirmation.
+
+10. Demo Screens & Interaction Design
+Web demo nên có 3 view top-level: Guided Voice Demo, Trust Receipt, Mentor Console. Default mở vào Guided Voice Demo để người dùng bấm mic và trải nghiệm flow.
+View
+Mục tiêu
+Nội dung chính
+Guided Voice Demo
+User/judge hiểu ngay sản phẩm và tự chạy demo.
+Mic button lớn, transcript ngắn, AI Decision, Call-to-Cash Readiness, Payment Gate, CTA theo state.
+Trust Receipt
+Output cuối tạo niềm tin.
+Booking pass, deposit receipt, agreement snapshot, verification MATCH, technical proof collapsed.
+Mentor Console
+Giải thích kỹ thuật khi mentor hỏi.
+Agora layer, AI JSON/scores, Solana proof, data capture/storage, tamper test.
+
+10.1. Mic-first interaction
+Idle: “Press to start call”.
+Listening: “Listening...” với animation nhỏ quanh mic.
+Transcribing: transcript bubble xuất hiện.
+AI analyzing: AI Decision tự update.
+AI responding: AI hỏi next question.
+Completed: CTA chuyển sang “View Trust Receipt”.
+10.2. Main screen state machine
+IDLE-> CALL_STARTED-> TRANSCRIPT_READY-> FIELDS_PARTIAL-> PASSENGERS_CONFIRMED-> PHONE_CAPTURED-> POLICY_CONFIRMED-> AGREEMENT_READY-> EXPLICIT_CONFIRMATION-> PAYMENT_GATE_UNLOCKED-> PAYMENT_CONFIRMED-> PROOF_ANCHORED-> TRUST_RECEIPT_ISSUEDEdge states:PAYMENT_MISMATCHPROOF_MISMATCHMANUAL_REVIEW_REQUIRED
+
+11. MVP Scope & 2-Day Implementation Plan
+Tầng
+Nội dung
+Cam kết hackathon
+MVP implemented
+Guided voice demo/replay, transcript, extraction, 3 risk scores, payment gate, Solana Pay/mock tx, proof hash, Trust Receipt.
+Build thật hoặc mock có kiểm soát trong UI.
+Simulated intelligence
+Fast/Slow Brain, predictive prefetch, adaptive turn-taking, payment optimizer.
+Mô phỏng rule-based để chứng minh kiến trúc; không claim production.
+Production roadmap
+Latency tracing từng stage, học từ call thật, benchmark với nhà xe/spa, tự tối ưu prompt/scoring.
+Trình bày như hướng scale sau hackathon.
+
+Thời điểm
+Build output
+Ngày 1 sáng
+UI Guided Voice Demo + state machine + scenario data.
+Ngày 1 trưa
+Risk score engine + payment gate + agreement draft.
+Ngày 1 chiều
+Solana Pay devnet hoặc mock tx + proof hash + Trust Receipt.
+Ngày 1 tối
+Mentor Console + data capture/storage panel + tamper test.
+Ngày 2 sáng
+Nối Agora/voice nếu kịp; fallback transcript replay nếu chưa.
+Ngày 2 trưa
+Polish UI/UX: mic-first, less text, no 60/40 empty layout.
+Ngày 2 chiều
+Pitch, fallback video, Q&A, no-token/no-trading guardrail.
+
+12. Demo Script & Q&A
+12.1. Demo 3 phút
+Thời lượng
+Nội dung
+Điểm ăn tiền
+0:00 - 0:20
+Problem: doanh nghiệp không thiếu bot nghe máy, mà thiếu lớp quyết định an toàn để nhận cọc.
+Đặt đúng insight.
+0:20 - 0:50
+Bấm mic, khách nói tự nhiên: đặt vé Hà Nội -> Sa Pa, số khách chưa rõ.
+Agora voice-first + live transcript.
+0:50 - 1:20
+AI Decision: hiểu route, phát hiện thiếu số khách/phone, Payment Gate LOCKED.
+AI không chốt bừa.
+1:20 - 1:50
+AI recover: hỏi đúng 1 field, xác nhận 3 khách, số điện thoại, policy.
+Risk reduction.
+1:50 - 2:15
+Agreement Draft + khách xác nhận rõ, Payment Gate UNLOCKED.
+Decision layer.
+2:15 - 2:40
+Simulate deposit payment, payment confirmed.
+Solana utility ở backend.
+2:40 - 3:00
+Proof hash + Trust Receipt MATCH, technical proof collapsed.
+Trust output dễ hiểu.
+
+12.2. Q&A quan trọng
+Câu hỏi
+Câu trả lời nên dùng
+Tại sao cần Agora?
+Vì bài toán bắt đầu từ cuộc gọi. Agora là lớp voice realtime, transcript sống, turn-taking/interruption và performance metrics. Bỏ Agora thì chỉ còn chatbot/form booking.
+Tại sao cần Solana?
+Vì cần payment confirmation và audit trail độc lập cho agreement/proof. Khách không cần biết Solana; Solana nằm ở backend.
+Có lưu hội thoại không?
+Có, nhưng lưu off-chain dưới dạng transcript, turns/history JSON, metrics và optional audio. On-chain chỉ lưu reference/memo/proof hash.
+Có lưu PII/audio lên chain không?
+Không. Full audio, full transcript và PII không đưa lên chain.
+Proof hash chứng minh gì?
+Chứng minh agreement hiện tại có khớp với snapshot đã được neo/gắn tại thời điểm xác nhận hay không; không phải phán quyết pháp lý tuyệt đối.
+Hơn voicebot thường ở đâu?
+Voicebot trả lời. Risk Copilot quyết định khi nào cuộc gọi đủ an toàn để thành giao dịch có cọc và có bằng chứng.
+
+13. Guardrails
+Không phát hành token, không tokenomics, không trading, không lending, không prediction market.
+Không lưu audio/transcript đầy đủ hoặc số điện thoại đầy đủ on-chain.
+Payment link chỉ mở khi có explicit confirmation.
+Proof hash chỉ dùng để phát hiện thay đổi dữ liệu sau xác nhận; không claim là phán quyết tranh chấp tuyệt đối.
+Các phần simulated trong demo phải nói rõ là rule-based/simulated intelligence layer.
+Khách không phải biết blockchain. Customer-facing UX chỉ dùng ngôn ngữ: link cọc, biên nhận xác minh, trạng thái đã nhận cọc.
+14. Appendix A - Lovable Master Prompt V3
+Prompt dưới đây là bản gợi ý để dựng lại UI/UX trên Lovable theo hướng mic-first, customer-friendly, background trắng, primary xanh và technical proof đưa vào Mentor Console.
+Build a polished, interactive hackathon demo web app for Call-to-Cash Risk Copilot.The app must feel like a real user-friendly product, not a technical dashboard. The main experience should be simple, voice-first, interactive, and easy for a mentor/judge to understand in under 30 seconds.Product concept:Call-to-Cash Risk Copilot is an AI voice agent that helps service businesses turn booking calls into deposit-backed, risk-scored, verifiable transactions.Core flow:Press Mic -> Voice Call -> Live Transcript -> AI Analysis -> Risk Score -> Agreement -> Payment Gate -> Deposit Payment -> Proof -> Trust Receipt.Visual design:- Background: white / near-white only.- Primary color: blue (#2563EB).- Green only for success, amber for pending, red for mismatch.- No loud gradients, no neon, no crypto-heavy visuals.- Progressive disclosure: customer flow first, technical proof second.Main Guided Voice Demo:- Add a large circular blue microphone button.- States: Press to start call, Listening, Transcribing, AI analyzing, AI responding, View receipt.- After pressing mic, transcript appears automatically.- AI Decision panel updates automatically.- Do not require a manual Analyze button in the customer flow.AI Decision panel should show only:1. What AI understood2. What is missing3. Risk level4. Payment Gate status5. Next best actionMain screen score:Show only Call-to-Cash Readiness as a blue progress bar.Detailed scores belong in Mentor Console.Views:1. Guided Voice Demo: mic, transcript bubbles, AI Decision, readiness, payment gate, current CTA.2. Trust Receipt: centered receipt page with booking pass, deposit receipt, agreement snapshot, verification MATCH, technical proof collapsed.3. Mentor Console: Agora layer, AI extraction JSON, detailed scores, Solana payment/proof, data capture and storage.Customer-facing language:Use cọc tiền, giữ chỗ, biên nhận xác minh, đã xác nhận.Avoid blockchain, on-chain, memo, proof hash, tx signature, Solana in the main customer flow.Mentor Console should explain:Agora = voice + transcript + performance.AI = extraction + scoring + payment gate decision.Solana = payment confirmation + reference/memo + proof hash.Database = transcript + booking + scores + receipt data.Final goal:User opens the site, presses a large blue mic button, sees transcript appear, sees AI automatically analyze what is missing, sees payment stay locked until safe, simulates deposit payment, receives a clean Trust Receipt, and can open Mentor Console for technical proof.
+
+15. References
+Agora Conversational AI Engine - Product Overview: https://docs.agora.io/en/conversational-ai/overview/product-overview
+Agora Docs - Display live transcripts: https://docs.agora.io/en/conversational-ai/develop/transcripts
+Agora Docs - Conversational AI event types and conversation turn insights: https://docs.agora.io/en/conversational-ai/develop/event-types
+Agora Cloud Recording - Manage recorded files: https://docs.agora.io/en/cloud-recording/develop/manage-files
+Solana Pay - Accept payments / Solana Pay overview: https://solana.com/docs/payments/accept-payments/solana-pay
+Solana Pay - Transfer Requests: https://solana.com/docs/tools/solana-pay/quickstart/transfer-requests
+Solana Pay - QR Code Integration: https://solana.com/docs/tools/solana-pay/quickstart/qr-codes
+Solana Payment with Memo: https://solana.com/docs/payments/send-payments/payment-with-memo

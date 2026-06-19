@@ -1,0 +1,27 @@
+# Cursor IDE Rules for Call-to-Cash Risk Copilot
+
+This file sets the visual constraints and architecture rules for developers editing files inside Cursor IDE.
+
+## Visual Styling Compliance (V6 Specs)
+
+- **Light Mode Palette**: 
+  - Background is white (`#FFFFFF`) / light grey (`#F9FAFB`).
+  - Primary color is blue (`#2563EB`).
+  - Green (`#10B981`) is reserved for successful matches or confirmed cọc.
+  - Amber (`#F59E0B`) represents warnings or pending states.
+  - Red (`#EF4444`) represents cryptographic mismatch warnings.
+  - Avoid using neon purple or dark backgrounds in the passenger experience view.
+- **Mobile Responsive Design**: Ensure all controls and components collapse on screens `<= 768px` to render the smartphone mockup as a full-screen layout.
+- **Tactile Transitions**: Interactive buttons must use an active scale transform `transform: scale(0.96)`.
+- **Text & Numeric Wrapping**: Headline titles must use `text-wrap: balance` and counters/financial metrics must use `font-variant-numeric: tabular-nums` to prevent visual shifting.
+
+## Core Code Architecture
+
+- **React State Management**: Lift shared simulation states (transcripts, booking fields, and hashes) inside [App.jsx](file:///h:/solona/src/App.jsx) and pass down to subcomponents.
+- **State Mutability**: Avoid direct mutation of arrays or objects. Always write state-setting updates using immutable copy syntax.
+- **Service Worker & PWA**: Preserve manifest link and service worker registration in `main.jsx` and `index.html`.
+
+## Security & Blockchain Anchoring
+
+- **Tamper Simulation Verification**: The `tamperAgreement` logic in [App.jsx](file:///h:/solona/src/App.jsx) must correctly simulate database tampering by mutating coordinates, recalculating the hash, identifying a mismatch, and prompting warning mismatch flags.
+- **PII Masking**: Mask phone numbers (`0912***678`) before logging off-chain or hashing for Solana anchoring.

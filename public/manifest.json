@@ -1,0 +1,27 @@
+{
+  "short_name": "RiskCopilot",
+  "name": "Call-to-Cash Risk Copilot",
+  "description": "Voice AI that turns messy booking calls into risk-scored, deposit-backed, verifiable transactions.",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#06080e",
+  "theme_color": "#9945ff",
+  "display": "standalone",
+  "orientation": "portrait"
+}
