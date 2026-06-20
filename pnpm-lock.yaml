@@ -47,12 +47,21 @@ importers:
       '@call-to-cash/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@call-to-cash/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@call-to-cash/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@call-to-cash/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       fastify:
         specifier: ^5.0.0
         version: 5.8.5
+      zod:
+        specifier: ^4.0.0
+        version: 4.4.3
 
   apps/web:
     dependencies:

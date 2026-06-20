@@ -19,7 +19,7 @@ Voice and payment experiences need realtime updates, but the frontend must not d
 | Ordering | guaranteed per `callId`/aggregate stream by `sequence`; not globally |
 | Recovery | client reconnects with `Last-Event-ID`, then calls REST summary endpoints if gap remains |
 | Source of truth | PostgreSQL-backed REST APIs, never event cache alone |
-| Publication | outbox/queue after database commit |
+| Publication | durable transactional event log; SSE reads only committed rows |
 | Sensitive data | redacted/minimized; no raw phone, token, secret, raw audio URL, or full hidden reasoning |
 
 ---
@@ -266,13 +266,13 @@ data: {"eventId":"evt_01J...","event":"risk.score.updated",...}
 }
 ```
 
-#### `booking.confirmed`
+#### `agreement.locked`
 
 **Meaning:** agreement is locked, not necessarily payment confirmed.
 
 ```json
 {
-  "event": "booking.confirmed",
+  "event": "agreement.locked",
   "callId": "call_01J...",
   "bookingId": "bk_01J...",
   "data": {
@@ -410,7 +410,7 @@ When proof does not match, use the same event name with `status: "MISMATCH"`, a 
 | decision panel | `transcript.analysis.updated`, `risk.*` | `GET /v1/calls/:callId/risk` |
 | booking agreement | `booking.*` | booking read endpoint / call summary |
 | payment CTA/status | `payment.*` | `GET /v1/payments/:bookingId/status` |
-| receipt view | `receipt.*` | `GET /v1/receipts/:bookingId` |
+| receipt view | `receipt.*` | `GET /v1/receipts/:receiptId` |
 
 ---
 
@@ -424,7 +424,7 @@ When proof does not match, use the same event name with `status: "MISMATCH"`, a 
 
 ---
 
-## 6. Outbox requirement
+## 6. Durable event-log requirement
 
 To avoid “database updated but no UI event” failure:
 
@@ -432,15 +432,15 @@ To avoid “database updated but no UI event” failure:
 DB transaction:
   1. write aggregate state
   2. write audit log
-  3. write outbox event row
+  3. write canonical event-envelope row
 
-Worker:
-  4. deliver SSE event
-  5. mark outbox row delivered
-  6. retry transient failures
+Phase 5 API:
+  4. replay rows after Last-Event-ID
+  5. keep the SSE connection open
+  6. poll committed rows and deliver in per-call sequence
 ```
 
-For a hackathon, a lightweight transactional event table is sufficient. Do not publish browser events before DB commit.
+Phase 5 uses append-only `audit_logs` rows with `aggregate_type = CALL_STREAM`, a stable `event_id`, and the validated canonical envelope in `after_state` as the lightweight transactional event log. PostgreSQL advisory locks serialize per-call sequence allocation. A dedicated delivery outbox/worker is required later when external consumers or retryable background dispatch exist. Do not publish browser events before DB commit.
 
 ---
 

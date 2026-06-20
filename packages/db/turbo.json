@@ -1,0 +1,18 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "prisma:generate": {
+      "cache": false,
+      "outputs": ["src/generated/prisma/**"]
+    },
+    "build": {
+      "dependsOn": ["prisma:generate", "$TURBO_EXTENDS$"]
+    },
+    "typecheck": {
+      "dependsOn": ["build", "$TURBO_EXTENDS$"]
+    },
+    "test": {
+      "dependsOn": ["build", "$TURBO_EXTENDS$"]
+    }
+  }
+}

@@ -10,8 +10,11 @@ import {
   ConfirmBookingRequestSchema,
   CreateBookingRequestSchema,
   CreateCallRequestSchema,
+  CreateMockPaymentIntentRequestSchema,
+  CreateTranscriptTurnRequestSchema,
   EventEnvelopeSchema,
   EventName,
+  EventNameSchema,
   PaymentStatusResponseSchema,
   PaymentGateStatus,
   ProofRecordSchema,
@@ -144,6 +147,51 @@ test("event envelopes use stable names and reject unapproved event fields", () =
   assert.equal(event.success, true);
   assert.equal(
     EventEnvelopeSchema.safeParse({ ...event.data, event: "payment.approved" }).success,
+    false
+  );
+  assert.equal(
+    EventEnvelopeSchema.safeParse({
+      eventId: "evt_01JTEST0002",
+      event: EventName.AgreementLocked,
+      version: 1,
+      occurredAt: isoTimestamp,
+      correlationId: "req_01JTEST0001",
+      callId: "call_01JTEST0001",
+      bookingId: "bk_01JTEST0001",
+      sequence: 19,
+      data: {
+        status: "AGREEMENT_LOCKED",
+        agreementId: "agr_01JTEST0001",
+        agreementVersion: 1,
+        paymentGate: "UNLOCKED"
+      }
+    }).success,
+    true
+  );
+  assert.equal(EventName.AgreementLocked, "agreement.locked");
+  assert.equal(EventNameSchema.safeParse("booking.confirmed").success, false);
+});
+
+test("Phase 5 nested replay and mock-payment DTOs reject authority fields", () => {
+  assert.equal(
+    CreateTranscriptTurnRequestSchema.safeParse({
+      turn: {
+        clientTurnId: "turn-client-1",
+        sequenceNo: 1,
+        speaker: "CUSTOMER",
+        content: "Tôi muốn đặt 3 vé.",
+        language: "vi-VN",
+        isFinal: true,
+        source: "REPLAY"
+      }
+    }).success,
+    true
+  );
+  assert.equal(
+    CreateMockPaymentIntentRequestSchema.safeParse({
+      bookingId: "bk_01JTEST0001",
+      status: "CONFIRMED"
+    }).success,
     false
   );
 });
