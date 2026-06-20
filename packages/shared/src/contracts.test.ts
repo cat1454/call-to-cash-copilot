@@ -12,8 +12,10 @@ import {
   CreateCallRequestSchema,
   EventEnvelopeSchema,
   EventName,
+  PaymentStatusResponseSchema,
   PaymentGateStatus,
   ProofRecordSchema,
+  ReceiptSummarySchema,
   RiskAnalysisRequestSchema,
   TranscriptTurnSubmissionSchema
 } from "./index.js";
@@ -169,4 +171,45 @@ test("shared state constants follow the canonical state-machine vocabulary", () 
   assert.equal(BookingStatus.AgreementLocked, "AGREEMENT_LOCKED");
   assert.equal(BookingStatus.ReceiptIssued, "RECEIPT_ISSUED");
   assert.equal(PaymentGateStatus.Unlocked, "UNLOCKED");
+});
+
+test("payment and receipt response DTOs reject undocumented status strings", () => {
+  assert.equal(
+    PaymentStatusResponseSchema.safeParse({
+      bookingId: "bk_01JTEST0001",
+      paymentIntentId: "pi_01JTEST0001",
+      status: "CONFIRMED",
+      transactionSignature: null,
+      verifiedAt: null,
+      nextAction: "ISSUE_RECEIPT"
+    }).success,
+    true
+  );
+  assert.equal(
+    PaymentStatusResponseSchema.safeParse({
+      bookingId: "bk_01JTEST0001",
+      paymentIntentId: "pi_01JTEST0001",
+      status: "SETTLED",
+      transactionSignature: null,
+      verifiedAt: null,
+      nextAction: "ISSUE_RECEIPT"
+    }).success,
+    false
+  );
+  assert.equal(
+    ReceiptSummarySchema.safeParse({
+      receiptId: "rcpt_01JTEST0001",
+      bookingId: "bk_01JTEST0001",
+      status: "ISSUED"
+    }).success,
+    true
+  );
+  assert.equal(
+    ReceiptSummarySchema.safeParse({
+      receiptId: "rcpt_01JTEST0001",
+      bookingId: "bk_01JTEST0001",
+      status: "DELIVERED"
+    }).success,
+    false
+  );
 });
