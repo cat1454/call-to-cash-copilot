@@ -19,7 +19,7 @@
     "build": "tsc -p tsconfig.json",
     "lint": "eslint src --max-warnings=0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --test"
+    "test": "node --test dist/domain.test.js"
   },
   "dependencies": {
     "@call-to-cash/shared": "workspace:*"
