@@ -19,7 +19,7 @@
  * Only the base URL (already in VITE_* env var) is used.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { API_BASE_URL } from "../../../config/runtime.js";
 import { createApiClient } from "../../../lib/apiClient.js";
@@ -78,10 +78,7 @@ export function useApiMode() {
           `[useApiMode] API health probe timed out after ${PROBE_TIMEOUT_MS}ms. Falling back to mock simulation.`
         );
       } else {
-        console.warn(
-          "[useApiMode] API health probe failed. Falling back to mock simulation.",
-          err
-        );
+        console.warn("[useApiMode] API health probe failed. Falling back to mock simulation.", err);
       }
       setApiMode(false);
     } finally {
@@ -110,7 +107,10 @@ export function useApiMode() {
     };
   }, [probe]);
 
-  const apiClient = apiMode && API_BASE_URL !== null ? createApiClient(API_BASE_URL) : null;
+  const apiClient = useMemo(
+    () => (apiMode && API_BASE_URL !== null ? createApiClient(API_BASE_URL) : null),
+    [apiMode]
+  );
 
   return { apiMode, apiBaseUrl: apiMode ? API_BASE_URL : null, isProbing, apiClient };
 }

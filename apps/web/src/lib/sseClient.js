@@ -1,157 +1,172 @@
-/**
- * Phase 6 SSE Client
- *
- * Connects to GET /v1/calls/:callId/events and dispatches domain events
- * to registered handlers. Supports Last-Event-ID reconnect cursor and
- * exponential back-off on connection failure.
- *
- * Contract reference: docs/contracts/EVENT-CONTRACT.md
- *
- * Architecture note: The browser sends commands via REST (apiClient.js).
- * This file handles server → browser event delivery only (one-way SSE).
- */
-
 const MIN_RETRY_MS = 500;
 const MAX_RETRY_MS = 30_000;
-const BACKOFF_FACTOR = 2;
 
-/**
- * @typedef {Object} SseClientOptions
- * @property {string} baseUrl — API base URL, e.g. "http://localhost:3001"
- * @property {string} callId — call session public ID
- * @property {(event: string, data: unknown) => void} onEvent — called for every SSE event
- * @property {(error: Error) => void} [onError] — called when connection fails permanently
- * @property {() => void} [onOpen] — called when SSE stream connects
- * @property {() => void} [onClose] — called when disconnect() is called
- */
+function parseBlock(block, onEvent, setLastEventId) {
+  const lines = block.split("\n");
+  let eventName = "message";
+  let eventId = "";
+  const dataLines = [];
 
-/**
- * Creates and manages an SSE connection to the call event stream.
- *
- * @param {SseClientOptions} options
- * @returns {{ disconnect: () => void; isConnected: () => boolean }}
- */
+  for (const line of lines) {
+    if (line.startsWith(":")) continue;
+    const separator = line.indexOf(":");
+    const field = separator === -1 ? line : line.slice(0, separator);
+    let value = separator === -1 ? "" : line.slice(separator + 1);
+    if (value.startsWith(" ")) value = value.slice(1);
+
+    if (field === "event") eventName = value;
+    if (field === "id" && !value.includes("\0")) eventId = value;
+    if (field === "data") dataLines.push(value);
+  }
+
+  if (eventId) setLastEventId(eventId);
+  if (dataLines.length === 0) return;
+
+  try {
+    onEvent(eventName, JSON.parse(dataLines.join("\n")));
+  } catch {
+    // A malformed frame is ignored; the stream remains available for later events.
+  }
+}
+
+export function createSseParser(onEvent, initialLastEventId) {
+  let buffer = "";
+  let lastEventId = initialLastEventId;
+
+  function drain(complete) {
+    buffer = buffer.replace(/\r\n/gu, "\n");
+    let boundary = buffer.indexOf("\n\n");
+    while (boundary !== -1) {
+      const block = buffer.slice(0, boundary);
+      buffer = buffer.slice(boundary + 2);
+      if (block.trim())
+        parseBlock(block, onEvent, (id) => {
+          lastEventId = id;
+        });
+      boundary = buffer.indexOf("\n\n");
+    }
+
+    if (complete && buffer.trim()) {
+      parseBlock(buffer, onEvent, (id) => {
+        lastEventId = id;
+      });
+      buffer = "";
+    }
+  }
+
+  return {
+    push(chunk) {
+      buffer += chunk;
+      drain(false);
+    },
+    end() {
+      drain(true);
+    },
+    getLastEventId() {
+      return lastEventId;
+    }
+  };
+}
+
 export function createSseClient(options) {
-  const { baseUrl, callId, onEvent, onError, onOpen, onClose } = options;
+  const {
+    baseUrl,
+    callId,
+    onEvent,
+    onError,
+    onOpen,
+    onClose,
+    onStatus,
+    fetchFn = globalThis.fetch,
+    setTimeoutFn = globalThis.setTimeout,
+    clearTimeoutFn = globalThis.clearTimeout
+  } = options;
 
-  let lastEventId = /** @type {string | undefined} */ (undefined);
+  let lastEventId;
   let retryMs = MIN_RETRY_MS;
   let destroyed = false;
   let connected = false;
-  let retryTimer = /** @type {ReturnType<typeof setTimeout> | null} */ (null);
-  let controller = /** @type {AbortController | null} */ (null);
+  let retryTimer = null;
+  let controller = null;
 
-  function buildUrl() {
-    const url = new URL(`${baseUrl}/v1/calls/${callId}/events`);
-    return url.toString();
+  function updateStatus(status) {
+    onStatus?.(status);
   }
 
-  async function connect() {
+  function scheduleReconnect() {
     if (destroyed) return;
+    retryTimer = setTimeoutFn(() => {
+      retryTimer = null;
+      void connect(true);
+    }, retryMs);
+    retryMs = Math.min(retryMs * 2, MAX_RETRY_MS);
+  }
 
-    const abortController = new AbortController();
-    controller = abortController;
+  async function connect(isReconnect = false) {
+    if (destroyed) return;
+    updateStatus(isReconnect ? "reconnecting" : "connecting");
+    controller = new AbortController();
 
-    const headers = /** @type {Record<string, string>} */ ({
+    const headers = {
       Accept: "text/event-stream",
       "Cache-Control": "no-cache"
-    });
-    if (lastEventId !== undefined) {
-      headers["Last-Event-ID"] = lastEventId;
-    }
+    };
+    if (lastEventId) headers["Last-Event-ID"] = lastEventId;
 
     try {
-      const response = await fetch(buildUrl(), {
+      const response = await fetchFn(`${baseUrl}/v1/calls/${callId}/events`, {
         method: "GET",
+        cache: "no-store",
         headers,
-        signal: abortController.signal
+        signal: controller.signal
       });
-
       if (!response.ok || !response.body) {
         throw new Error(`SSE connection failed: HTTP ${response.status}`);
       }
 
       connected = true;
       retryMs = MIN_RETRY_MS;
+      updateStatus("open");
       onOpen?.();
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        if (destroyed) break;
+      const parser = createSseParser(onEvent, lastEventId);
+      while (!destroyed) {
         const { done, value } = await reader.read();
         if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const chunks = buffer.split("\n\n");
-        buffer = chunks.pop() ?? "";
-
-        for (const chunk of chunks) {
-          if (!chunk.trim()) continue;
-          // Skip heartbeat comments (": heartbeat")
-          if (chunk.startsWith(":")) continue;
-
-          const lines = chunk.split("\n");
-          let eventName = "message";
-          let data = "";
-          let id = "";
-
-          for (const line of lines) {
-            if (line.startsWith("event: ")) {
-              eventName = line.slice("event: ".length).trim();
-            } else if (line.startsWith("data: ")) {
-              data = line.slice("data: ".length);
-            } else if (line.startsWith("id: ")) {
-              id = line.slice("id: ".length).trim();
-            }
-          }
-
-          if (id) lastEventId = id;
-
-          if (data) {
-            try {
-              const parsed = JSON.parse(data);
-              onEvent(eventName, parsed);
-            } catch {
-              // Malformed SSE data — skip silently, do not crash the stream.
-            }
-          }
-        }
+        parser.push(decoder.decode(value, { stream: true }));
+        lastEventId = parser.getLastEventId();
       }
-    } catch (err) {
-      if (destroyed) return;
+      parser.push(decoder.decode());
+      parser.end();
+      lastEventId = parser.getLastEventId();
+
+      if (!destroyed) {
+        connected = false;
+        updateStatus("reconnecting");
+        scheduleReconnect();
+      }
+    } catch (caught) {
       connected = false;
-
-      // AbortError means we intentionally disconnected — do not retry.
-      if (err instanceof Error && err.name === "AbortError") return;
-
-      onError?.(err instanceof Error ? err : new Error(String(err)));
-    }
-
-    // Schedule reconnect with exponential back-off.
-    if (!destroyed) {
-      connected = false;
-      retryTimer = setTimeout(() => {
-        retryMs = Math.min(retryMs * BACKOFF_FACTOR, MAX_RETRY_MS);
-        void connect();
-      }, retryMs);
+      if (destroyed || (caught instanceof Error && caught.name === "AbortError")) return;
+      const error = caught instanceof Error ? caught : new Error(String(caught));
+      updateStatus("error");
+      onError?.(error);
+      scheduleReconnect();
     }
   }
 
-  // Start connection immediately.
   void connect();
 
   return {
     disconnect() {
+      if (destroyed) return;
       destroyed = true;
       connected = false;
-      if (retryTimer !== null) {
-        clearTimeout(retryTimer);
-        retryTimer = null;
-      }
+      if (retryTimer !== null) clearTimeoutFn(retryTimer);
       controller?.abort();
+      updateStatus("closed");
       onClose?.();
     },
     isConnected() {
@@ -159,30 +174,3 @@ export function createSseClient(options) {
     }
   };
 }
-
-/**
- * Named SSE event → UI state mapping helper.
- *
- * Returns a set of handler keys that the simulation hook can subscribe to.
- * Mapping defined in docs/BACKEND_ROADMAP_2026.md §6.
- */
-export const SSE_EVENT_MAP = /** @type {const} */ ({
-  /** transcript.turn.created → transcript / subtitles */
-  TRANSCRIPT_TURN: "transcript.turn.created",
-  /** booking.updated → bookingData */
-  BOOKING_UPDATED: "booking.updated",
-  /** risk.score.updated → scores / performance / decision */
-  RISK_SCORE_UPDATED: "risk.score.updated",
-  /** risk.payment_gate.updated → paymentGate status */
-  RISK_GATE_UPDATED: "risk.payment_gate.updated",
-  /** payment.created → paymentIntent created */
-  PAYMENT_CREATED: "payment.created",
-  /** payment.confirmed → showBoardingPass trigger */
-  PAYMENT_CONFIRMED: "payment.confirmed",
-  /** receipt.issued → showBoardingPass */
-  RECEIPT_ISSUED: "receipt.issued",
-  /** proof.mismatch → isTampered + ledgerLogs mismatch */
-  PROOF_MISMATCH: "proof.mismatch",
-  /** call.ended → isSimulating = false */
-  CALL_ENDED: "call.ended"
-});

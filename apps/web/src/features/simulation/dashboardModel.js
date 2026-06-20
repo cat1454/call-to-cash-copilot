@@ -37,12 +37,7 @@ function getLedgerStatus(ledgerLogs = {}, isTampered = false) {
   return isTampered ? "mismatch" : "match";
 }
 
-function getNextAction({
-  scores,
-  missingFields,
-  ledgerStatus,
-  showPaymentDrawer
-}) {
+function getNextAction({ scores, missingFields, ledgerStatus, showPaymentDrawer }) {
   if (ledgerStatus === "mismatch") return "Send to manual review and invalidate ticket.";
   if (ledgerStatus === "match") return "Proof verified; keep receipt available.";
   if (showPaymentDrawer) return "Collect deposit in the payment drawer.";
@@ -68,7 +63,8 @@ export function createDashboardModel({
   bookingData = {},
   simStatus = "Ready",
   isTampered = false,
-  showPaymentDrawer = false
+  showPaymentDrawer = false,
+  paymentGate = null
 } = {}) {
   const normalizedScores = {
     completeness: scores.completeness || 0,
@@ -80,7 +76,9 @@ export function createDashboardModel({
     normalizedScores.completeness >= GATE_THRESHOLDS.completeness &&
     normalizedScores.readiness >= GATE_THRESHOLDS.readiness &&
     normalizedScores.dispute <= GATE_THRESHOLDS.dispute;
-  const gateUnlocked = showPaymentDrawer || ledgerStatus === "match" || scoreGatePassed;
+  const gateUnlocked = paymentGate
+    ? paymentGate === "UNLOCKED"
+    : showPaymentDrawer || ledgerStatus === "match" || scoreGatePassed;
   const missingFields = getMissingBookingFields(bookingData);
 
   return {

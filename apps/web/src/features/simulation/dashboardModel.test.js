@@ -1,10 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import {
-  createDashboardModel,
-  maskPhoneNumber
-} from "./dashboardModel.js";
+import { createDashboardModel, maskPhoneNumber } from "./dashboardModel.js";
 
 describe("mobile operator dashboard model", () => {
   it("keeps the gate locked when dispute risk is above threshold", () => {
@@ -45,6 +42,16 @@ describe("mobile operator dashboard model", () => {
     assert.equal(model.gate.status, "unlocked");
     assert.equal(model.prefetch.value, "Seat map loaded");
     assert.match(model.operator.nextAction, /Collect deposit/i);
+  });
+
+  it("keeps the API gate locked until server authority unlocks it", () => {
+    const model = createDashboardModel({
+      scores: { completeness: 100, readiness: 100, dispute: 0 },
+      paymentGate: "READY_FOR_CONFIRMATION"
+    });
+
+    assert.equal(model.gate.status, "locked");
+    assert.equal(model.gate.label, "Payment Gate Locked");
   });
 
   it("masks phone numbers before exposing booking snapshots", () => {

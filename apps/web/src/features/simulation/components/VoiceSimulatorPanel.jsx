@@ -7,24 +7,35 @@ import { SectionHeading } from "../../../components/ui/SectionHeading";
 import { Card, CardHeader, CardBody } from "../../../components/ui/Card";
 
 const STATUS_LABELS = {
-  "Sẵn sàng":                  "Sẵn sàng đàm thoại",
-  "Cuộc gọi đang trực tiếp":   "Đàm thoại đang diễn ra",
-  "Chờ thanh toán cọc":         "Chờ đặt cọc giữ chỗ",
-  "Đang cọc (Solana Pay)...":   "Đang xử lý giao dịch cọc",
-  "Đã hoàn thành":              "Đàm thoại hoàn tất",
+  "Sẵn sàng": "Sẵn sàng đàm thoại",
+  "Cuộc gọi đang trực tiếp": "Đàm thoại đang diễn ra",
+  "Chờ thanh toán cọc": "Chờ đặt cọc giữ chỗ",
+  "Đang cọc (Solana Pay)...": "Đang xử lý giao dịch cọc",
+  "Đã hoàn thành": "Đàm thoại hoàn tất"
+};
+
+const STREAM_LABELS = {
+  connecting: "SSE: Đang kết nối",
+  open: "SSE: Trực tuyến",
+  reconnecting: "SSE: Đang kết nối lại",
+  error: "SSE: Lỗi kết nối",
+  closed: "SSE: Đã đóng",
+  demo: "Replay: Cục bộ",
+  idle: "SSE: Chưa kết nối"
 };
 
 export default function VoiceSimulatorPanel({
   simStatus,
+  streamStatus,
   transcript,
   startSimulation,
   resetSimulation,
   isSimulating,
-  readinessScore,
+  readinessScore
 }) {
   const statusLabel = STATUS_LABELS[simStatus] ?? simStatus;
   const isCompleted = simStatus === "Đã hoàn thành";
-  const isActive    = simStatus === "Cuộc gọi đang trực tiếp";
+  const isActive = simStatus === "Cuộc gọi đang trực tiếp";
 
   return (
     <Card>
@@ -32,18 +43,33 @@ export default function VoiceSimulatorPanel({
         <SectionHeading icon={<MessageSquare size={13} />}>
           Bảng Thử Nghiệm Cuộc Gọi (Voice Agent Simulator)
         </SectionHeading>
-        <span
-          className={cn(
-            "rounded-full px-2.5 py-1 text-xs leading-4 font-medium",
-            isActive
-              ? "bg-[#ecfdf5] text-[#047857]"
-              : isCompleted
-              ? "bg-[#ecfdf5] text-[#065f46]"
-              : "bg-[#f3f4f6] text-[#6b7280]"
-          )}
-        >
-          {statusLabel}
-        </span>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <span
+            className={cn(
+              "rounded-full px-2.5 py-1 text-xs leading-4 font-medium",
+              streamStatus === "error"
+                ? "bg-[#fff1f2] text-[#be123c]"
+                : streamStatus === "open"
+                  ? "bg-[#ecfdf5] text-[#047857]"
+                  : "bg-[#f3f4f6] text-[#6b7280]"
+            )}
+            role="status"
+          >
+            {STREAM_LABELS[streamStatus] ?? STREAM_LABELS.idle}
+          </span>
+          <span
+            className={cn(
+              "rounded-full px-2.5 py-1 text-xs leading-4 font-medium",
+              isActive
+                ? "bg-[#ecfdf5] text-[#047857]"
+                : isCompleted
+                  ? "bg-[#ecfdf5] text-[#065f46]"
+                  : "bg-[#f3f4f6] text-[#6b7280]"
+            )}
+          >
+            {statusLabel}
+          </span>
+        </div>
       </CardHeader>
 
       <CardBody className="gap-4 p-5">
@@ -112,18 +138,21 @@ export default function VoiceSimulatorPanel({
               isSimulating
                 ? "bg-[#059669] text-white shadow-[0_4px_24px_rgba(5,150,105,0.35)] [animation:pulse-primary_2s_ease-in-out_infinite]"
                 : isCompleted
-                ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none"
-                : "bg-[#059669] text-white shadow-[0_6px_24px_rgba(5,150,105,0.25)] hover:bg-[#047857] hover:shadow-[0_8px_32px_rgba(5,150,105,0.3)]"
+                  ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none"
+                  : "bg-[#059669] text-white shadow-[0_6px_24px_rgba(5,150,105,0.25)] hover:bg-[#047857] hover:shadow-[0_8px_32px_rgba(5,150,105,0.3)]"
             )}
           >
-            <Mic size={24} className={cn("transition-transform duration-200", isSimulating && "scale-110")} />
+            <Mic
+              size={24}
+              className={cn("transition-transform duration-200", isSimulating && "scale-110")}
+            />
           </IconButton>
           <span className="text-xs leading-[18px] font-normal text-[#6b7280]">
             {isSimulating
               ? "Đang đàm thoại thoại..."
               : isCompleted
-              ? "Cuộc gọi đã kết thúc"
-              : "Bấm để bắt đầu đàm thoại"}
+                ? "Cuộc gọi đã kết thúc"
+                : "Bấm để bắt đầu đàm thoại"}
           </span>
         </div>
 
@@ -137,12 +166,7 @@ export default function VoiceSimulatorPanel({
         />
 
         {/* Reset button */}
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={resetSimulation}
-          className="w-full gap-1.5"
-        >
+        <Button variant="secondary" size="sm" onClick={resetSimulation} className="w-full gap-1.5">
           <RotateCcw size={12} />
           Đặt lại cuộc gọi
         </Button>

@@ -49,6 +49,7 @@ export default function PhoneScreen({
   prefetchContent,
   timelineSteps,
   ledgerLogs,
+  paymentGate
 }) {
   const renderCallView = () => (
     <PhoneCallView
@@ -85,6 +86,7 @@ export default function PhoneScreen({
       simStatus={simStatus}
       isTampered={isTampered}
       showPaymentDrawer={showPaymentDrawer}
+      paymentGate={paymentGate}
     />
   );
 
@@ -92,7 +94,7 @@ export default function PhoneScreen({
     {
       call: "translateX(0%)",
       dashboard: "translateX(-33.333%)",
-      receipt: "translateX(-66.666%)",
+      receipt: "translateX(-66.666%)"
     }[activeTab] ?? "translateX(0%)";
 
   if (isMobileLayout) {
@@ -104,9 +106,7 @@ export default function PhoneScreen({
               {DEMO_MODE ? "Demo mode" : "Live mode"}
             </span>
 
-            <span className="text-xs leading-4 font-normal text-[#6b7280]">
-              Customer app
-            </span>
+            <span className="text-xs leading-4 font-normal text-[#6b7280]">Customer app</span>
           </div>
 
           <nav
@@ -116,7 +116,7 @@ export default function PhoneScreen({
             {[
               { id: "call", label: "Call" },
               { id: "dashboard", label: "Booking" },
-              { id: "receipt", label: "Receipt" },
+              { id: "receipt", label: "Receipt" }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -143,12 +143,10 @@ export default function PhoneScreen({
             className="flex h-full min-h-0 min-w-0 transition-transform duration-300 ease-out motion-reduce:transition-none"
             style={{
               width: "300%",
-              transform: mobileSliderOffset,
+              transform: mobileSliderOffset
             }}
           >
-            <div className="h-full min-w-0 w-1/3 shrink-0 overflow-y-auto">
-              {renderCallView()}
-            </div>
+            <div className="h-full min-w-0 w-1/3 shrink-0 overflow-y-auto">{renderCallView()}</div>
 
             <div className="h-full min-w-0 w-1/3 shrink-0 overflow-y-auto">
               {renderDashboardView()}
@@ -171,12 +169,7 @@ export default function PhoneScreen({
         />
 
         <footer className="flex w-full min-w-0 shrink-0 gap-2 border-t border-[#e5e7eb] bg-white p-4">
-          <Button
-            variant="secondary"
-            size="md"
-            className="flex-1"
-            onClick={resetSimulation}
-          >
+          <Button variant="secondary" size="md" className="flex-1" onClick={resetSimulation}>
             Đặt lại
           </Button>
 

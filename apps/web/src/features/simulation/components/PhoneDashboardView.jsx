@@ -7,7 +7,7 @@ import {
   PhoneCall,
   Shield,
   ShieldAlert,
-  Unlock,
+  Unlock
 } from "lucide-react";
 import { cn } from "../../../lib/cn";
 import { createDashboardModel } from "../dashboardModel";
@@ -35,7 +35,9 @@ function ScoreBar({ metric }) {
     <div className="flex flex-col gap-2">
       <div className="flex items-end justify-between gap-3">
         <span className="text-xs leading-4 font-medium text-[#6b7280]">{metric.label}</span>
-        <strong className="text-lg leading-6 font-semibold text-[#111827] tabular-nums">{metric.value}%</strong>
+        <strong className="text-lg leading-6 font-semibold text-[#111827] tabular-nums">
+          {metric.value}%
+        </strong>
       </div>
       <div className="h-[7px] overflow-hidden rounded-full bg-[#e5e7eb]">
         <div
@@ -48,7 +50,9 @@ function ScoreBar({ metric }) {
       </div>
       <div className="flex items-center justify-between gap-3 text-xs leading-4 font-normal text-[#6b7280]">
         <span>{metric.passed ? "Đạt ngưỡng an toàn" : "Cần bổ sung hoặc xác nhận"}</span>
-        <span className="tabular-nums">{metric.direction === "max" ? "≤" : "≥"} {metric.threshold}%</span>
+        <span className="tabular-nums">
+          {metric.direction === "max" ? "≤" : "≥"} {metric.threshold}%
+        </span>
       </div>
     </div>
   );
@@ -76,7 +80,8 @@ export default function PhoneDashboardView({
   bookingData,
   simStatus,
   isTampered,
-  showPaymentDrawer
+  showPaymentDrawer,
+  paymentGate
 }) {
   const model = createDashboardModel({
     scores,
@@ -89,12 +94,23 @@ export default function PhoneDashboardView({
     bookingData,
     simStatus,
     isTampered,
-    showPaymentDrawer
+    showPaymentDrawer,
+    paymentGate
   });
 
   const GateIcon = model.gate.status === "unlocked" ? Unlock : Lock;
-  const ledgerTone = model.ledger.status === "mismatch" ? "danger" : model.ledger.status === "match" ? "success" : "";
-  const ledgerLabel = model.ledger.status === "mismatch" ? "MISMATCH" : model.ledger.status === "match" ? "MATCH" : "PENDING";
+  const ledgerTone =
+    model.ledger.status === "mismatch"
+      ? "danger"
+      : model.ledger.status === "match"
+        ? "success"
+        : "";
+  const ledgerLabel =
+    model.ledger.status === "mismatch"
+      ? "MISMATCH"
+      : model.ledger.status === "match"
+        ? "MATCH"
+        : "PENDING";
 
   return (
     <div className="flex w-full flex-col gap-4 p-4 pb-24 [animation:fade-in_0.35s_ease-out_both]">
@@ -109,13 +125,19 @@ export default function PhoneDashboardView({
         >
           <GateIcon size={18} className="shrink-0" />
           <div className="flex min-w-0 flex-col gap-1">
-            <strong className="text-sm leading-5 font-semibold text-[#111827]">{model.gate.label}</strong>
-            <span className="break-words text-xs leading-[18px] font-normal text-[#6b7280]">{model.operator.callStatus}</span>
+            <strong className="text-sm leading-5 font-semibold text-[#111827]">
+              {model.gate.label}
+            </strong>
+            <span className="break-words text-xs leading-[18px] font-normal text-[#6b7280]">
+              {model.operator.callStatus}
+            </span>
           </div>
         </div>
         <div className="flex flex-col gap-2 rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-4">
           <span className="text-xs leading-4 font-medium text-[#6b7280]">Hành động tiếp theo</span>
-          <strong className="text-sm leading-5 font-semibold text-[#111827] text-balance">{model.operator.nextAction}</strong>
+          <strong className="text-sm leading-5 font-semibold text-[#111827] text-balance">
+            {model.operator.nextAction}
+          </strong>
         </div>
         <div className="flex items-center gap-2 text-xs leading-4 font-normal text-[#6b7280] tabular-nums">
           Tiến trình kịch bản: {model.operator.timelineCount}/6
@@ -148,11 +170,15 @@ export default function PhoneDashboardView({
             model.ledger.status === "mismatch"
               ? "bg-[#fff1f2] border-[#fecdd3] text-[#f43f5e]"
               : model.ledger.status === "match"
-              ? "bg-[#ecfdf5] border-[#10b981]/28 text-[#10b981]"
-              : "bg-[#fffbeb] border-[#fde68a] text-[#92400e]"
+                ? "bg-[#ecfdf5] border-[#10b981]/28 text-[#10b981]"
+                : "bg-[#fffbeb] border-[#fde68a] text-[#92400e]"
           )}
         >
-          {model.ledger.status === "mismatch" ? <ShieldAlert size={14} /> : <CheckCircle2 size={14} />}
+          {model.ledger.status === "mismatch" ? (
+            <ShieldAlert size={14} />
+          ) : (
+            <CheckCircle2 size={14} />
+          )}
           <span>{ledgerLabel}</span>
         </div>
         {isTampered && (

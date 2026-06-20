@@ -22,13 +22,18 @@ function mockFetch(status, body) {
 }
 
 test("health returns data on 200 ok", async () => {
-  const successBody = { success: true, data: { status: "ok", service: "api" }, meta: { requestId: "r1" } };
+  const successBody = {
+    success: true,
+    data: { status: "ok", service: "api" },
+    meta: { requestId: "r1" }
+  };
   const fetchMock = mockFetch(200, successBody);
   const client = createApiClient(BASE_URL, fetchMock);
 
   const result = await client.health();
   assert.equal(result.status, "ok");
   assert.equal(result.service, "api");
+  assert.equal(fetchMock.mock.calls[0].arguments[1].cache, "no-store");
 });
 
 test("health throws ApiClientError on 503", async () => {
@@ -53,7 +58,13 @@ test("health throws ApiClientError on 503", async () => {
 test("createCall sends correct sourceMode and channel purpose", async () => {
   const successBody = {
     success: true,
-    data: { callId: "call_abc", status: "CREATED", channelName: "ctc_call_abc", sourceMode: "TRANSCRIPT_REPLAY", createdAt: "2026-06-20T10:00:00.000Z" },
+    data: {
+      callId: "call_abc",
+      status: "CREATED",
+      channelName: "ctc_call_abc",
+      sourceMode: "TRANSCRIPT_REPLAY",
+      createdAt: "2026-06-20T10:00:00.000Z"
+    },
     meta: { requestId: "r2" }
   };
   const fetchMock = mockFetch(201, successBody);
@@ -101,7 +112,12 @@ test("submitTranscriptTurn merges defaults correctly", async () => {
 test("confirmBooking sends Idempotency-Key header", async () => {
   const successBody = {
     success: true,
-    data: { bookingId: "bk_1", status: "AGREEMENT_LOCKED", agreement: { agreementId: "agr_1", version: 1, hash: "abc" }, paymentGate: "UNLOCKED" },
+    data: {
+      bookingId: "bk_1",
+      status: "AGREEMENT_LOCKED",
+      agreement: { agreementId: "agr_1", version: 1, hash: "abc" },
+      paymentGate: "UNLOCKED"
+    },
     meta: { requestId: "r4" }
   };
   const fetchMock = mockFetch(200, successBody);
@@ -121,7 +137,14 @@ test("confirmBooking sends Idempotency-Key header", async () => {
 test("verifyReceipt appends candidateDepositAmountMinor query param", async () => {
   const successBody = {
     success: true,
-    data: { bookingId: "bk_1", receiptId: "rcpt_1", status: "MISMATCH", agreementVersion: 1, proofHash: "def", verifiedAt: "2026-06-20T11:00:00.000Z" },
+    data: {
+      bookingId: "bk_1",
+      receiptId: "rcpt_1",
+      status: "MISMATCH",
+      agreementVersion: 1,
+      proofHash: "def",
+      verifiedAt: "2026-06-20T11:00:00.000Z"
+    },
     meta: { requestId: "r5" }
   };
   const fetchMock = mockFetch(200, successBody);
@@ -134,8 +157,81 @@ test("verifyReceipt appends candidateDepositAmountMinor query param", async () =
   assert.ok(url.includes("candidateDepositAmountMinor=1"), `Expected query param in URL: ${url}`);
 });
 
+test("call end and mock payment commands preserve contract payloads", async () => {
+  const responses = [
+    { callId: "call_public1", status: "ENDED", endedAt: "2026-06-21T10:00:00.000Z" },
+    {
+      paymentIntentId: "pi_public01",
+      bookingId: "bk_public01",
+      amount: { currency: "VND", minor: 300000 },
+      recipient: "mock-recipient-wallet",
+      reference: "ref_public01"
+    },
+    {
+      paymentIntentId: "pi_public01",
+      bookingId: "bk_public01",
+      status: "CONFIRMED",
+      receiptId: "rcpt_public1"
+    }
+  ];
+  const fetchMock = mock.fn(async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({ success: true, data: responses.shift(), meta: { requestId: "request-1" } })
+  }));
+  const client = createApiClient(BASE_URL, fetchMock);
+
+  await client.endCall("call_public1", "CUSTOMER_ENDED");
+  const intent = await client.createMockPayment({ bookingId: "bk_public01" }, "create-key");
+  await client.verifyMockPayment(
+    {
+      paymentIntentId: intent.paymentIntentId,
+      observedAmount: intent.amount,
+      observedRecipient: intent.recipient,
+      observedReference: intent.reference
+    },
+    "verify-key"
+  );
+
+  assert.deepEqual(JSON.parse(fetchMock.mock.calls[0].arguments[1].body), {
+    reason: "CUSTOMER_ENDED"
+  });
+  assert.equal(fetchMock.mock.calls[1].arguments[1].headers["Idempotency-Key"], "create-key");
+  assert.deepEqual(JSON.parse(fetchMock.mock.calls[2].arguments[1].body), {
+    paymentIntentId: "pi_public01",
+    observedAmount: { currency: "VND", minor: 300000 },
+    observedRecipient: "mock-recipient-wallet",
+    observedReference: "ref_public01"
+  });
+  assert.equal(fetchMock.mock.calls[2].arguments[1].headers["Idempotency-Key"], "verify-key");
+});
+
+test("mock payment verification rejects an empty server reference before fetch", async () => {
+  const fetchMock = mockFetch(200, { success: true, data: {} });
+  const client = createApiClient(BASE_URL, fetchMock);
+
+  await assert.rejects(
+    () =>
+      client.verifyMockPayment(
+        {
+          paymentIntentId: "pi_public01",
+          observedAmount: { currency: "VND", minor: 300000 },
+          observedRecipient: "mock-recipient-wallet",
+          observedReference: ""
+        },
+        "verify-key"
+      ),
+    (error) => error instanceof ApiClientError && error.code === "VALIDATION_ERROR"
+  );
+  assert.equal(fetchMock.mock.calls.length, 0);
+});
+
 test("ApiClientError carries code and retryable flag", () => {
-  const err = new ApiClientError(422, { code: "PAYMENT_AMOUNT_MISMATCH", message: "Amount mismatch", retryable: false });
+  const err = new ApiClientError(422, {
+    code: "PAYMENT_AMOUNT_MISMATCH",
+    message: "Amount mismatch",
+    retryable: false
+  });
   assert.equal(err.status, 422);
   assert.equal(err.code, "PAYMENT_AMOUNT_MISMATCH");
   assert.equal(err.retryable, false);
