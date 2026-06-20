@@ -287,6 +287,11 @@ test("state transitions reject skipped states and permit only documented paths",
     true
   );
   assert.equal(transitionReceipt(ReceiptStatus.Issued, ReceiptStatus.VerifiedMatch).ok, true);
+  assert.equal(
+    transitionBooking(BookingStatus.ReceiptIssued, BookingStatus.ManualReviewRequired).ok,
+    true
+  );
+  assert.equal(transitionReceipt(ReceiptStatus.VerifiedMatch, ReceiptStatus.Mismatch).ok, true);
   assert.equal(transitionReceipt(ReceiptStatus.NotCreated, ReceiptStatus.VerifiedMatch).ok, false);
 });
 

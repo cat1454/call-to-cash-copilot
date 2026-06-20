@@ -16,17 +16,18 @@
     "dist"
   ],
   "scripts": {
-    "build": "pnpm prisma:generate && tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json",
     "lint": "eslint src --max-warnings=0",
-    "typecheck": "pnpm prisma:generate && tsc -p tsconfig.json --noEmit",
-    "test": "pnpm prisma:generate && tsx --test src/**/*.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --test src/**/*.test.ts",
     "prisma:format": "prisma format --config ../../prisma.config.ts",
     "prisma:generate": "prisma generate --config ../../prisma.config.ts",
     "prisma:validate": "prisma validate --config ../../prisma.config.ts",
     "migrate:dev": "prisma migrate dev --config ../../prisma.config.ts",
     "migrate:deploy": "prisma migrate deploy --config ../../prisma.config.ts",
     "migrate:status": "prisma migrate status --config ../../prisma.config.ts",
-    "seed": "pnpm prisma:generate && prisma db seed --config ../../prisma.config.ts"
+    "seed": "pnpm prisma:generate && prisma db seed --config ../../prisma.config.ts",
+    "studio": "prisma studio --config ../../prisma.config.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.6.0",

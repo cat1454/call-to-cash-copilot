@@ -112,6 +112,7 @@ PAYMENT_PENDING / PAYMENT_CONFIRMED / BOOKING_CONFIRMED
 | `PAYMENT_PENDING` | `PAYMENT_CONFIRMED` | verified chain transaction | correct amount, recipient, token, reference, intent not expired, signature unused |
 | `PAYMENT_CONFIRMED` | `BOOKING_CONFIRMED` | inventory confirmation | provider/hold conversion success |
 | `BOOKING_CONFIRMED` | `RECEIPT_ISSUED` | receipt issue | proof record generated and receipt payload valid |
+| `RECEIPT_ISSUED` | `MANUAL_REVIEW_REQUIRED` | proof re-verification mismatch | preserve locked agreement/payment; expose mismatch without rewriting history |
 | any non-terminal pre-payment state | `CANCELLED` | cancel command | no confirmed payment exists |
 | any non-terminal payment state | `MANUAL_REVIEW_REQUIRED` | exception detected | mismatch, stale agreement, manual override, policy exception |
 
@@ -272,6 +273,7 @@ UNAVAILABLE → PENDING (retry) → MATCH | MISMATCH
 NOT_CREATED → ISSUED → VERIFIED_MATCH
                      ├→ MISMATCH
                      └→ MANUAL_REVIEW
+VERIFIED_MATCH → MISMATCH   (later tamper/integrity evidence)
 ```
 
 A receipt may be created only after payment `CONFIRMED` or when the user-facing product intentionally needs a pending receipt. It may not be branded as “verified” before proof verification passes.

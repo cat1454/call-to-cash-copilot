@@ -515,6 +515,8 @@ The following tables are the minimum production-shaped schema. A hackathon may i
 
 **Rule:** write audit entries inside the same DB transaction as authoritative state changes where possible.
 
+**Phase 5 durable event stream:** rows with `aggregate_type = CALL_STREAM`, a non-null stable `event_id`, and the canonical validated event envelope in `after_state` form the lightweight append-only SSE event log. `aggregate_id` is the public call id. Per-call sequence allocation is serialized with a PostgreSQL advisory transaction lock. This reuses the existing Phase 4 table and requires no Phase 5 schema migration.
+
 ---
 
 ## 6. Data invariants that code must enforce

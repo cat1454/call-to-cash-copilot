@@ -1,6 +1,6 @@
 # Call-to-Cash Risk Copilot - Local Development Setup
 
-> **Status:** Phase 0-4 workspace, contracts, domain kernel, PostgreSQL, Prisma migrations, inventory repositories, and deterministic seed are executable. Redis, MinIO, business APIs/SSE, Solana, Agora, and LLM integrations remain later phases.
+> **Status:** Phase 0-5 workspace, contracts, domain kernel, PostgreSQL/Prisma persistence, authoritative replay API, durable SSE recovery, deterministic mock payment, proof, and Trust Receipt flow are executable. Web REST/SSE integration, Solana, Agora, LLM, Redis, and MinIO remain later phases.
 
 ## 1. Current local architecture
 
@@ -13,8 +13,10 @@ Browser (apps/web)
 Fastify API (apps/api)
   - GET /health
   - GET /ready
-  - validated runtime/provider configuration
-  - no business routes, persistence, or SSE stream yet
+  - validated runtime/provider configuration and PostgreSQL readiness
+  - authoritative replay call/transcript/risk/booking routes
+  - long-lived SSE stream plus Last-Event-ID recovery
+  - idempotent deterministic mock payment/proof/receipt flow
 
 PostgreSQL 18 (Docker Compose)
   - durable source of truth on host port 55432
@@ -24,6 +26,7 @@ PostgreSQL 18 (Docker Compose)
 packages/*
   - shared executable contracts and deterministic domain kernel
   - packages/db Prisma client, inventory repository, safe receipt trace projection
+  - apps/api orchestration writes through Prisma/domain boundaries
   - provider packages remain scaffolds
 ```
 
@@ -144,7 +147,23 @@ curl http://127.0.0.1:3001/health
 curl http://127.0.0.1:3001/ready
 ```
 
-`/health` confirms that the Fastify process is alive. `/ready` reports the explicit demo/provider configuration. Neither endpoint implies that database or external providers are connected.
+`/health` confirms that the Fastify process is alive. `/ready` reports the explicit demo/provider configuration and returns success only when PostgreSQL is reachable. External providers remain explicit replay/mock/deterministic adapters.
+
+Phase 5 API smoke flow:
+
+```text
+POST /v1/calls
+POST /v1/calls/:callId/transcript-turns
+GET  /v1/calls/:callId/risk
+GET  /v1/calls/:callId/events
+POST /v1/bookings/:bookingId/confirm
+POST /v1/payments/mock/create
+POST /v1/payments/mock/verify
+GET  /v1/receipts/:receiptId
+GET  /v1/receipts/:receiptId/verify
+```
+
+Booking confirmation and both mock payment commands require `Idempotency-Key`. The normal events endpoint is long-lived; append `?snapshot=true` only for a finite diagnostic/recovery replay.
 
 Open the web URL and verify:
 
@@ -155,7 +174,7 @@ Open the web URL and verify:
 
 ## 8. Verification commands
 
-Run narrow checks while developing, then the full Phase 1 gate:
+Run narrow checks while developing, then the full workspace gate:
 
 ```bash
 pnpm format:check
@@ -172,10 +191,14 @@ Run the real PostgreSQL repository suite explicitly:
 
 ```powershell
 $env:TEST_DATABASE_URL = $env:DATABASE_URL
+pnpm db:generate
 pnpm --filter @call-to-cash/db test
+pnpm --filter @call-to-cash/api test
 ```
 
-Without `TEST_DATABASE_URL`, the root suite skips the four destructive integration cases while schema generation, type checking, and all non-database tests still run.
+Run the DB and API PostgreSQL suites sequentially because both reset synthetic test data. Without `TEST_DATABASE_URL`, the root suite skips destructive integration cases while schema generation, type checking, and all non-database tests still run.
+
+Turbo's package-local DB task graph runs `prisma:generate` once before DB build/typecheck/test tasks. Keep generated Prisma files out of source control and do not add independent concurrent generation steps to those compiler tasks.
 
 ## 9. Not implemented yet
 
@@ -183,11 +206,7 @@ Do not expect the following commands or services to work until their pipeline ph
 
 | Capability | Planned phase |
 |---|---:|
-| Shared Zod/API/event/error contracts | Phase 2 |
-| Deterministic risk, gate, state transitions, agreement hash | Phase 3 |
-| Replay business API and SSE | Phase 5 |
 | Web REST/SSE adapter and refresh recovery | Phase 6 |
-| Durable mock payment/proof/receipt vertical slice | Phase 7 |
 | Solana devnet | Phase 8 |
 | Agora live voice/transcript | Phase 9 |
 | Optional LLM extraction | Phase 10 |
@@ -204,7 +223,7 @@ Do not create speculative Redis or object-storage configuration before its consu
 | PostgreSQL container port is unavailable | another process uses `55432` | set `POSTGRES_PORT` and update `DATABASE_URL` consistently |
 | Prisma cannot connect | container is unhealthy or `DATABASE_URL` differs | run `docker compose ps` and `pnpm db:migrate:status` |
 | PostgreSQL 18 reports an old data path | Compose volume mounted at the pre-v18 path | keep the committed mount at `/var/lib/postgresql` |
-| Web cannot reach future API routes | business API is not implemented yet | use the scripted UI until Phase 5-6 |
+| Web still shows fixture-owned state | the Phase 6 REST/SSE adapter is not implemented yet | use the scripted UI or exercise the Phase 5 API directly |
 | `dist` import is missing during typecheck | package dependency was not built | run the root command so Turbo follows `^build` dependencies |
 | UI claims live provider status | stale browser assets/cache | rebuild, unregister stale service worker if needed, and reload |
 

@@ -14,7 +14,10 @@
   },
   "dependencies": {
     "@call-to-cash/config": "workspace:*",
+    "@call-to-cash/db": "workspace:*",
+    "@call-to-cash/domain": "workspace:*",
     "@call-to-cash/shared": "workspace:*",
-    "fastify": "^5.0.0"
+    "fastify": "^5.0.0",
+    "zod": "^4.0.0"
   }
 }
