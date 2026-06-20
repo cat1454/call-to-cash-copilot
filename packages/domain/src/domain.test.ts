@@ -116,9 +116,10 @@ function passingGateInput() {
 
 test("booking field validation identifies missing terms without converting ordinary gaps into manual review", () => {
   const booking = validBooking();
-  const { pickupPoint: _pickupPoint, ...serviceWithoutPickup } = booking.service;
+  const bookingWithoutPickup = structuredClone(booking);
+  delete bookingWithoutPickup.service.pickupPoint;
   const validation = validateBookingFields({
-    booking: { ...booking, service: serviceWithoutPickup },
+    booking: bookingWithoutPickup,
     inventoryHoldActive: true,
     now
   });
@@ -155,7 +156,11 @@ test("required policy acceptance, confirmation, and active inventory each preven
     PaymentGateStatus.Locked
   );
   assert.equal(
-    evaluatePaymentGate({ ...passingGateInput(), explicitConfirmation: false, paymentReadiness: 75 }),
+    evaluatePaymentGate({
+      ...passingGateInput(),
+      explicitConfirmation: false,
+      paymentReadiness: 75
+    }),
     PaymentGateStatus.ReadyForConfirmation
   );
 });
@@ -269,7 +274,10 @@ test("state transitions reject skipped states and permit only documented paths",
   assert.equal(transitionCall(CallStatus.Created, CallStatus.Active).ok, true);
   assert.equal(transitionCall(CallStatus.Created, CallStatus.Ended).ok, false);
   assert.equal(transitionBooking(BookingStatus.Draft, BookingStatus.PaymentConfirmed).ok, false);
-  assert.equal(transitionBooking(BookingStatus.AgreementReady, BookingStatus.AgreementLocked).ok, true);
+  assert.equal(
+    transitionBooking(BookingStatus.AgreementReady, BookingStatus.AgreementLocked).ok,
+    true
+  );
   assert.equal(
     transitionPaymentIntent(PaymentIntentStatus.Created, PaymentIntentStatus.Confirmed).ok,
     false

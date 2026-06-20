@@ -88,7 +88,9 @@ export function getRequiredNextAction(decision: PaymentGateDecision): RiskNextAc
   }
 }
 
-export function canCreatePaymentIntent(input: PaymentIntentEligibilityInput): PaymentIntentEligibility {
+export function canCreatePaymentIntent(
+  input: PaymentIntentEligibilityInput
+): PaymentIntentEligibility {
   if (input.paymentOrReceiptFinalized) {
     return { allowed: false, reasonCodes: ["PAYMENT_INTENT_ALREADY_EXISTS"] };
   }

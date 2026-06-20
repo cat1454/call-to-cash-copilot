@@ -1,6 +1,12 @@
 import type { Agreement } from "@call-to-cash/shared";
 
-type CanonicalValue = boolean | number | string | null | CanonicalValue[] | { [key: string]: CanonicalValue };
+type CanonicalValue =
+  | boolean
+  | number
+  | string
+  | null
+  | CanonicalValue[]
+  | { [key: string]: CanonicalValue };
 
 function normalizeString(value: string): string {
   return value.trim().normalize("NFC");

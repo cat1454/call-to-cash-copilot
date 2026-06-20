@@ -60,7 +60,10 @@ const bookingTransitions: Readonly<Record<BookingStatusValue, readonly BookingSt
     BookingStatus.BookingConfirmed,
     BookingStatus.ManualReviewRequired
   ],
-  [BookingStatus.BookingConfirmed]: [BookingStatus.ReceiptIssued, BookingStatus.ManualReviewRequired],
+  [BookingStatus.BookingConfirmed]: [
+    BookingStatus.ReceiptIssued,
+    BookingStatus.ManualReviewRequired
+  ],
   [BookingStatus.ReceiptIssued]: [],
   [BookingStatus.Cancelled]: [],
   [BookingStatus.ManualReviewRequired]: [],
@@ -86,7 +89,10 @@ const paymentIntentTransitions: Readonly<
     PaymentIntentStatus.Cancelled
   ],
   [PaymentIntentStatus.Confirmed]: [],
-  [PaymentIntentStatus.Failed]: [PaymentIntentStatus.Pending, PaymentIntentStatus.ManualReviewRequired],
+  [PaymentIntentStatus.Failed]: [
+    PaymentIntentStatus.Pending,
+    PaymentIntentStatus.ManualReviewRequired
+  ],
   [PaymentIntentStatus.Expired]: [],
   [PaymentIntentStatus.Rejected]: [],
   [PaymentIntentStatus.ManualReviewRequired]: [],

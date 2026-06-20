@@ -90,7 +90,12 @@ export function validateBookingFields(input: BookingValidationInput): BookingVal
     appendMissing(missingFields, reasonCodes, BookingField.DepartureAt, "MISSING_DEPARTURE_TIME");
   }
   if (booking.service.passengerCount === undefined || booking.service.passengerCount < 1) {
-    appendMissing(missingFields, reasonCodes, BookingField.PassengerCount, "MISSING_PASSENGER_COUNT");
+    appendMissing(
+      missingFields,
+      reasonCodes,
+      BookingField.PassengerCount,
+      "MISSING_PASSENGER_COUNT"
+    );
   }
   if (!hasTrimmedValue(booking.service.pickupPoint)) {
     appendMissing(missingFields, reasonCodes, BookingField.PickupPoint, "MISSING_PICKUP_POINT");
@@ -107,10 +112,20 @@ export function validateBookingFields(input: BookingValidationInput): BookingVal
     (booking.pricing.fareTotalVnd !== undefined &&
       booking.pricing.depositAmountVnd > booking.pricing.fareTotalVnd)
   ) {
-    appendMissing(missingFields, reasonCodes, BookingField.DepositAmountVnd, "MISSING_DEPOSIT_AMOUNT");
+    appendMissing(
+      missingFields,
+      reasonCodes,
+      BookingField.DepositAmountVnd,
+      "MISSING_DEPOSIT_AMOUNT"
+    );
   }
   if (!hasTrimmedValue(booking.pricing.refundPolicyVersion)) {
-    appendMissing(missingFields, reasonCodes, BookingField.RefundPolicyVersion, "MISSING_REFUND_POLICY");
+    appendMissing(
+      missingFields,
+      reasonCodes,
+      BookingField.RefundPolicyVersion,
+      "MISSING_REFUND_POLICY"
+    );
   }
   if (!booking.confirmations.refundPolicyConfirmed) {
     appendMissing(
@@ -121,7 +136,12 @@ export function validateBookingFields(input: BookingValidationInput): BookingVal
     );
   }
   if (!booking.service.inventoryReservationId) {
-    appendMissing(missingFields, reasonCodes, BookingField.InventoryReservation, "INVENTORY_UNAVAILABLE");
+    appendMissing(
+      missingFields,
+      reasonCodes,
+      BookingField.InventoryReservation,
+      "INVENTORY_UNAVAILABLE"
+    );
   } else if (
     !isInventoryHoldActive(
       input.inventoryHoldActive,
@@ -161,8 +181,8 @@ export function invalidateConfirmationOnMaterialChange(
     BookingStatus.PaymentPending
   ];
   const canReturnToAgreementReady = agreementReadyOrigins.includes(booking.status);
-  const { explicitConfirmationForAgreementVersion: _invalidatedAgreementVersion, ...confirmations } =
-    booking.confirmations;
+  const confirmations = { ...booking.confirmations };
+  delete confirmations.explicitConfirmationForAgreementVersion;
 
   return {
     ...booking,
