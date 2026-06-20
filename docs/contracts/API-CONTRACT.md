@@ -15,12 +15,12 @@ This contract defines the server authority for the first vertical slice. The bro
 
 ### 1.1 Authentication and actor context
 
-| Context | MVP rule |
-|---|---|
+| Context          | MVP rule                                                                                   |
+| ---------------- | ------------------------------------------------------------------------------------------ |
 | Customer browser | authenticated session or demo actor; server derives `customerId` from auth where available |
-| Operator console | operator role required for manual actions |
-| Agora webhook | signed/verified provider request; never trusted from browser |
-| Solana verifier | server-only worker / endpoint; no wallet secret in client |
+| Operator console | operator role required for manual actions                                                  |
+| Agora webhook    | signed/verified provider request; never trusted from browser                               |
+| Solana verifier  | server-only worker / endpoint; no wallet secret in client                                  |
 
 In `DEMO_MODE`, the API may use seeded actor ids, but it must still enforce state guards and idempotency.
 
@@ -420,7 +420,49 @@ Creates or materializes a booking draft from a call extraction or explicit form/
 
 ---
 
-### 6.2 `PATCH /v1/bookings/:bookingId`
+### 6.2 `GET /v1/bookings/:bookingId`
+
+Returns the current authoritative, customer-safe booking read model used for initial load and REST recovery after an SSE reconnect or sequence gap.
+
+**Owner/source module:** `apps/api/src/modules/booking`
+
+#### Path parameters
+
+```text
+bookingId: public booking identifier with the bk_ prefix
+```
+
+#### Response — `200 OK`
+
+```json
+{
+  "success": true,
+  "data": {
+    "bookingId": "bk_01J...",
+    "status": "AGREEMENT_READY",
+    "routeFrom": "Ha Noi",
+    "routeTo": "Sa Pa",
+    "departureAt": "2026-06-20T15:30:00.000Z",
+    "passengerCount": 3,
+    "pickupPoint": "My Dinh",
+    "contactPhoneMasked": "0912***678",
+    "fareTotalVnd": 1050000,
+    "depositAmountVnd": 300000,
+    "refundPolicyVersion": "BUS-V1/1.0",
+    "agreementVersion": 1,
+    "paymentGate": "READY_FOR_CONFIRMATION"
+  },
+  "meta": { "requestId": "req_01J..." }
+}
+```
+
+**Privacy:** this projection returns masked contact data only. It never returns a raw phone number, transcript content, or canonical agreement payload. Authorization must prevent callers from reading bookings they do not own.
+
+**Possible errors:** `400 VALIDATION_ERROR`, `404 BOOKING_NOT_FOUND`, `503 DATABASE_UNAVAILABLE`.
+
+---
+
+### 6.3 `PATCH /v1/bookings/:bookingId`
 
 Updates mutable draft terms only. The API rejects any attempt to mutate a locked agreement through this endpoint.
 
@@ -457,7 +499,7 @@ Updates mutable draft terms only. The API rejects any attempt to mutate a locked
 
 ---
 
-### 6.3 `POST /v1/bookings/:bookingId/confirm`
+### 6.4 `POST /v1/bookings/:bookingId/confirm`
 
 Locks a specific agreement version after explicit customer confirmation.
 
@@ -644,7 +686,7 @@ Forces a payment intent into a deterministic failure outcome for demo presentati
 ```json
 {
   "paymentIntentId": "pi_01J...",
-  "outcome": "EXPIRED" 
+  "outcome": "EXPIRED"
 }
 ```
 
@@ -674,7 +716,9 @@ For `WRONG_AMOUNT` / `WRONG_REFERENCE` / `WRONG_RECIPIENT`: immediately submits 
   "data": {
     "paymentIntentId": "pi_01J...",
     "outcome": "WRONG_AMOUNT",
-    "verificationResult": { "error": { "statusCode": 422, "code": "PAYMENT_AMOUNT_MISMATCH", "message": "..." } }
+    "verificationResult": {
+      "error": { "statusCode": 422, "code": "PAYMENT_AMOUNT_MISMATCH", "message": "..." }
+    }
   },
   "meta": { "requestId": "req_01J..." }
 }
@@ -773,14 +817,14 @@ The normal endpoint keeps the connection open, sends committed events after the 
 
 ## 10. Endpoint ownership matrix
 
-| Endpoint group | Main code owner | Shared dependencies |
-|---|---|---|
-| Calls / transcript | `apps/api` | `@call-to-cash/db`, `@call-to-cash/shared`, `@call-to-cash/agora`, `@call-to-cash/ai` |
-| Agora token | `apps/api` | `@call-to-cash/agora`, `@call-to-cash/config` |
-| Risk | `apps/api` | `@call-to-cash/ai`, `@call-to-cash/db`, `@call-to-cash/shared` |
-| Booking/agreement | `apps/api` | `@call-to-cash/db`, `@call-to-cash/shared` |
-| Phase 5/7 mock payment/proof | `apps/api` | `@call-to-cash/domain`, `@call-to-cash/db`, `@call-to-cash/shared` |
-| Receipt | `apps/api` | `@call-to-cash/db`, `@call-to-cash/shared` |
+| Endpoint group               | Main code owner | Shared dependencies                                                                   |
+| ---------------------------- | --------------- | ------------------------------------------------------------------------------------- |
+| Calls / transcript           | `apps/api`      | `@call-to-cash/db`, `@call-to-cash/shared`, `@call-to-cash/agora`, `@call-to-cash/ai` |
+| Agora token                  | `apps/api`      | `@call-to-cash/agora`, `@call-to-cash/config`                                         |
+| Risk                         | `apps/api`      | `@call-to-cash/ai`, `@call-to-cash/db`, `@call-to-cash/shared`                        |
+| Booking/agreement            | `apps/api`      | `@call-to-cash/db`, `@call-to-cash/shared`                                            |
+| Phase 5/7 mock payment/proof | `apps/api`      | `@call-to-cash/domain`, `@call-to-cash/db`, `@call-to-cash/shared`                    |
+| Receipt                      | `apps/api`      | `@call-to-cash/db`, `@call-to-cash/shared`                                            |
 
 ---
 

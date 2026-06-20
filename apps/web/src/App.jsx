@@ -17,7 +17,7 @@ export default function App() {
   const scrollToSection = (id) => {
     document.getElementById(id)?.scrollIntoView({
       behavior: "smooth",
-      block: "start",
+      block: "start"
     });
   };
 
@@ -48,42 +48,39 @@ export default function App() {
 
   const decision = getAIDecision(sim);
   const readinessScore = getReadinessScore(sim);
+  const pageContainer = "mx-auto w-full max-w-7xl px-5 sm:px-8 lg:px-10";
 
   // Product header: desktop/tablet only.
   const headerContent = (
-    <header className="flex flex-col items-start justify-between gap-4 bg-white p-5 min-[1024px]:flex-row min-[1024px]:items-center">
-      <div>
-        <h1 className="text-balance text-xl font-bold tracking-tight text-[#111827]">
-          Call-to-Cash <span className="text-[#059669]">Risk Copilot</span>
-        </h1>
+    <header className="w-full border-b border-[#e5e7eb] bg-white">
+      <div
+        className={`${pageContainer} flex flex-col items-start justify-between gap-4 py-5 min-[1024px]:flex-row min-[1024px]:items-center`}
+      >
+        <div>
+          <h1 className="text-balance text-xl font-bold tracking-tight text-[#111827]">
+            Call-to-Cash <span className="text-[#059669]">Risk Copilot</span>
+          </h1>
 
-        <p className="mt-1 max-w-2xl text-balance text-xs leading-[18px] font-normal text-[#6b7280]">
-          Agora x Solana: Trợ lý AI giám sát rủi ro hội thoại, tự động đối soát
-          và neo băm khóa cọc giao dịch thời gian thực
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="min-h-6 whitespace-nowrap rounded-full bg-[#f3f4f6] px-2.5 py-1 text-xs leading-4 font-medium text-[#6b7280]">
-          {DEMO_MODE
-            ? "DEMO MODE · DETERMINISTIC"
-            : "LIVE MODE · ADAPTERS PENDING"}
-        </span>
-
-        <div className="flex min-h-6 items-center gap-1.5 rounded-full border border-[#a7f3d0] bg-[#ecfdf5] px-2.5 py-1 text-xs leading-4 font-medium text-[#065f46]">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#10b981]" />
-          <span>
-            {DEMO_MODE ? "Agora: Transcript Replay" : "Agora: Chưa kết nối"}
-          </span>
+          <p className="mt-1 max-w-2xl text-balance text-xs leading-[18px] font-normal text-[#6b7280]">
+            Agora x Solana: Trợ lý AI giám sát rủi ro hội thoại, tự động đối soát và neo băm khóa
+            cọc giao dịch thời gian thực
+          </p>
         </div>
 
-        <div className="flex min-h-6 items-center gap-1.5 rounded-full border border-[#a7f3d0] bg-[#ecfdf5] px-2.5 py-1 text-xs leading-4 font-medium text-[#065f46]">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#10b981]" />
-          <span>
-            {DEMO_MODE
-              ? "Payment: Deterministic Mock"
-              : "Solana: Chưa kết nối"}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="min-h-6 whitespace-nowrap rounded-full bg-[#f3f4f6] px-2.5 py-1 text-xs leading-4 font-medium text-[#6b7280]">
+            {DEMO_MODE ? "DEMO MODE · DETERMINISTIC" : "LIVE MODE · ADAPTERS PENDING"}
           </span>
+
+          <div className="flex min-h-6 items-center gap-1.5 rounded-full border border-[#a7f3d0] bg-[#ecfdf5] px-2.5 py-1 text-xs leading-4 font-medium text-[#065f46]">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#10b981]" />
+            <span>{DEMO_MODE ? "Agora: Transcript Replay" : "Agora: Chưa kết nối"}</span>
+          </div>
+
+          <div className="flex min-h-6 items-center gap-1.5 rounded-full border border-[#a7f3d0] bg-[#ecfdf5] px-2.5 py-1 text-xs leading-4 font-medium text-[#065f46]">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#10b981]" />
+            <span>{DEMO_MODE ? "Payment: Deterministic Mock" : "Solana: Chưa kết nối"}</span>
+          </div>
         </div>
       </div>
     </header>
@@ -106,6 +103,7 @@ export default function App() {
     <>
       <VoiceSimulatorPanel
         simStatus={sim.simStatus}
+        streamStatus={sim.streamStatus}
         transcript={sim.transcript}
         startSimulation={sim.startSimulation}
         resetSimulation={sim.resetSimulation}
@@ -148,6 +146,7 @@ export default function App() {
       prefetchContent={sim.prefetchContent}
       timelineSteps={sim.timelineSteps}
       ledgerLogs={sim.ledgerLogs}
+      paymentGate={sim.paymentGate}
     />
   );
 

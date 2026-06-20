@@ -69,13 +69,12 @@ export default function PhoneCallView({
             <span
               key={index}
               className={cn(
-                "w-[3px] rounded-full bg-[#059669]",
+                "inline-block w-[3px] rounded-full bg-primary",
                 isWaveAnimating
-                  ? "[animation:wave-bar_0.8s_ease-in-out_infinite] motion-reduce:animate-none"
-                  : "h-[4px] opacity-30"
+                  ? "h-6 [animation:wave-bar_0.8s_ease-in-out_infinite] motion-reduce:animate-none"
+                  : "h-1 opacity-30"
               )}
               style={{
-                height: isWaveAnimating ? undefined : "4px",
                 animationDelay: isWaveAnimating
                   ? `${(delay - 0.4) * 0.3}s`
                   : undefined,

@@ -9,6 +9,8 @@
  * Security: never send provider secrets, wallet keys, or full transcript here.
  */
 
+import { VerifyMockPaymentRequestSchema } from "@call-to-cash/shared";
+
 /** @typedef {{ code: string; message: string; details?: unknown; retryable: boolean }} ApiError */
 
 export class ApiClientError extends Error {
@@ -36,6 +38,7 @@ async function apiFetch(baseUrl, path, init = {}, fetchFn = globalThis.fetch) {
   const url = `${baseUrl}${path}`;
   const response = await fetchFn(url, {
     ...init,
+    cache: "no-store",
     headers: {
       "Content-Type": "application/json",
       ...(init.headers ?? {})
@@ -45,11 +48,14 @@ async function apiFetch(baseUrl, path, init = {}, fetchFn = globalThis.fetch) {
   const body = await response.json();
 
   if (!response.ok || body.success === false) {
-    throw new ApiClientError(response.status, body.error ?? {
-      code: "UNKNOWN_ERROR",
-      message: `HTTP ${response.status}`,
-      retryable: response.status >= 500
-    });
+    throw new ApiClientError(
+      response.status,
+      body.error ?? {
+        code: "UNKNOWN_ERROR",
+        message: `HTTP ${response.status}`,
+        retryable: response.status >= 500
+      }
+    );
   }
 
   return body.data;
@@ -69,13 +75,17 @@ export function createApiClient(baseUrl, fetchFn = globalThis.fetch) {
   }
 
   function post(path, body, extraHeaders = {}) {
-    return apiFetch(baseUrl, path, {
-      method: "POST",
-      body: JSON.stringify(body),
-      headers: extraHeaders
-    }, fetchFn);
+    return apiFetch(
+      baseUrl,
+      path,
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+        headers: extraHeaders
+      },
+      fetchFn
+    );
   }
-
 
   // ─── Health ───────────────────────────────────────────────────────────────
 
@@ -186,11 +196,7 @@ export function createApiClient(baseUrl, fetchFn = globalThis.fetch) {
    * @param {string} idempotencyKey
    */
   async function createMockPayment({ bookingId }, idempotencyKey) {
-    return post(
-      "/v1/payments/mock/create",
-      { bookingId },
-      { "Idempotency-Key": idempotencyKey }
-    );
+    return post("/v1/payments/mock/create", { bookingId }, { "Idempotency-Key": idempotencyKey });
   }
 
   /**
@@ -203,7 +209,15 @@ export function createApiClient(baseUrl, fetchFn = globalThis.fetch) {
    * @param {string} idempotencyKey
    */
   async function verifyMockPayment(payload, idempotencyKey) {
-    return post("/v1/payments/mock/verify", payload, {
+    const parsed = VerifyMockPaymentRequestSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new ApiClientError(400, {
+        code: "VALIDATION_ERROR",
+        message: "Payment verification data is incomplete.",
+        retryable: false
+      });
+    }
+    return post("/v1/payments/mock/verify", parsed.data, {
       "Idempotency-Key": idempotencyKey
     });
   }

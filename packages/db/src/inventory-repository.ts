@@ -18,6 +18,8 @@ export type ReserveInventoryInput = {
   requestId?: string;
 };
 
+export type DbExecutor = DatabaseClient | Prisma.TransactionClient;
+
 const MAX_SERIALIZABLE_ATTEMPTS = 3;
 
 function isRetryableTransactionConflict(error: unknown): boolean {
@@ -112,10 +114,129 @@ function isSameIdempotentRequest(hold: InventoryHold, input: ReserveInventoryInp
   );
 }
 
+export async function reserveInventory(
+  transaction: Prisma.TransactionClient,
+  input: ReserveInventoryInput
+): Promise<InventoryHold> {
+  if (
+    !Number.isInteger(input.quantity) ||
+    input.quantity <= 0 ||
+    input.expiresAt.getTime() <= input.now.getTime()
+  ) {
+    throw new InventoryPersistenceGuardError("INVALID_INVENTORY_HOLD");
+  }
+
+  await lockDeparture(transaction, input.departureId);
+
+  const replay = await transaction.inventoryHold.findUnique({
+    where: { idempotencyKey: input.idempotencyKey }
+  });
+  if (replay !== null) {
+    if (!isSameIdempotentRequest(replay, input)) {
+      throw new IdempotencyConflictError();
+    }
+    return replay;
+  }
+
+  const departure = await transaction.tripDeparture.findUnique({
+    where: { id: input.departureId },
+    select: { capacity: true, operationalStatus: true }
+  });
+  const booking = await transaction.booking.findUnique({
+    where: { id: input.bookingId },
+    select: { id: true }
+  });
+  if (departure === null) {
+    throw new InventoryPersistenceGuardError("INVENTORY_DEPARTURE_NOT_FOUND");
+  }
+  if (booking === null) {
+    throw new InventoryPersistenceGuardError("BOOKING_NOT_FOUND");
+  }
+  if (departure.operationalStatus !== "SCHEDULED") {
+    throw new InventoryPersistenceGuardError("INVENTORY_DEPARTURE_NOT_SCHEDULED");
+  }
+
+  await expireDueInTransaction(transaction, input.departureId, input.now);
+  const occupied = await transaction.inventoryHold.aggregate({
+    where: {
+      departureId: input.departureId,
+      OR: [{ status: "CONSUMED" }, { status: "ACTIVE", expiresAt: { gt: input.now } }]
+    },
+    _sum: { quantity: true }
+  });
+  const availableSeats = Math.max(0, departure.capacity - (occupied._sum.quantity ?? 0));
+  if (input.quantity > availableSeats) {
+    throw new InventoryUnavailableError(input.quantity, availableSeats);
+  }
+
+  const hold = await transaction.inventoryHold.create({
+    data: {
+      publicId: input.publicId,
+      idempotencyKey: input.idempotencyKey,
+      bookingId: input.bookingId,
+      departureId: input.departureId,
+      quantity: input.quantity,
+      status: "ACTIVE",
+      expiresAt: input.expiresAt
+    }
+  });
+  await transaction.booking.update({
+    where: { id: input.bookingId },
+    data: {
+      tripDepartureId: input.departureId,
+      inventoryHoldExpiresAt: input.expiresAt,
+      version: { increment: 1 }
+    }
+  });
+  await transaction.auditLog.create({
+    data: {
+      actorType: "SYSTEM",
+      action: "INVENTORY_HOLD_CREATED",
+      aggregateType: "INVENTORY_HOLD",
+      aggregateId: input.publicId,
+      requestId: input.requestId ?? null,
+      afterState: {
+        status: "ACTIVE",
+        quantity: input.quantity,
+        expiresAt: input.expiresAt.toISOString()
+      },
+      metadata: {
+        bookingId: input.bookingId,
+        departureId: input.departureId
+      },
+      createdAt: input.now
+    }
+  });
+
+  return hold;
+}
+
 export class InventoryRepository {
   constructor(private readonly client: DatabaseClient) {}
 
   async reserve(input: ReserveInventoryInput): Promise<InventoryHold> {
+    this.validateReserveInput(input);
+
+    return inSerializableTransaction(this.client, (transaction) =>
+      this.reserveInTransaction(transaction, input)
+    );
+  }
+
+  /**
+   * Reserves inventory inside a transaction owned by the calling business command.
+   * The caller is responsible for choosing serializable isolation when this is part
+   * of a larger write that must stay atomic with the hold.
+   */
+  async reserveInTransaction(
+    transaction: Prisma.TransactionClient,
+    input: ReserveInventoryInput
+  ): Promise<InventoryHold> {
+    this.validateReserveInput(input);
+
+    return reserveInventory(transaction, input);
+  }
+
+  private validateReserveInput(input: ReserveInventoryInput): void {
     if (
       !Number.isInteger(input.quantity) ||
       input.quantity <= 0 ||
@@ -123,92 +244,6 @@ export class InventoryRepository {
     ) {
       throw new InventoryPersistenceGuardError("INVALID_INVENTORY_HOLD");
     }
-
-    return inSerializableTransaction(this.client, async (transaction) => {
-      await lockDeparture(transaction, input.departureId);
-
-      const replay = await transaction.inventoryHold.findUnique({
-        where: { idempotencyKey: input.idempotencyKey }
-      });
-      if (replay !== null) {
-        if (!isSameIdempotentRequest(replay, input)) {
-          throw new IdempotencyConflictError();
-        }
-        return replay;
-      }
-
-      const departure = await transaction.tripDeparture.findUnique({
-        where: { id: input.departureId },
-        select: { capacity: true, operationalStatus: true }
-      });
-      const booking = await transaction.booking.findUnique({
-        where: { id: input.bookingId },
-        select: { id: true }
-      });
-      if (departure === null) {
-        throw new InventoryPersistenceGuardError("INVENTORY_DEPARTURE_NOT_FOUND");
-      }
-      if (booking === null) {
-        throw new InventoryPersistenceGuardError("BOOKING_NOT_FOUND");
-      }
-      if (departure.operationalStatus !== "SCHEDULED") {
-        throw new InventoryPersistenceGuardError("INVENTORY_DEPARTURE_NOT_SCHEDULED");
-      }
-
-      await expireDueInTransaction(transaction, input.departureId, input.now);
-      const occupied = await transaction.inventoryHold.aggregate({
-        where: {
-          departureId: input.departureId,
-          OR: [{ status: "CONSUMED" }, { status: "ACTIVE", expiresAt: { gt: input.now } }]
-        },
-        _sum: { quantity: true }
-      });
-      const availableSeats = Math.max(0, departure.capacity - (occupied._sum.quantity ?? 0));
-      if (input.quantity > availableSeats) {
-        throw new InventoryUnavailableError(input.quantity, availableSeats);
-      }
-
-      const hold = await transaction.inventoryHold.create({
-        data: {
-          publicId: input.publicId,
-          idempotencyKey: input.idempotencyKey,
-          bookingId: input.bookingId,
-          departureId: input.departureId,
-          quantity: input.quantity,
-          status: "ACTIVE",
-          expiresAt: input.expiresAt
-        }
-      });
-      await transaction.booking.update({
-        where: { id: input.bookingId },
-        data: {
-          tripDepartureId: input.departureId,
-          inventoryHoldExpiresAt: input.expiresAt,
-          version: { increment: 1 }
-        }
-      });
-      await transaction.auditLog.create({
-        data: {
-          actorType: "SYSTEM",
-          action: "INVENTORY_HOLD_CREATED",
-          aggregateType: "INVENTORY_HOLD",
-          aggregateId: input.publicId,
-          requestId: input.requestId ?? null,
-          afterState: {
-            status: "ACTIVE",
-            quantity: input.quantity,
-            expiresAt: input.expiresAt.toISOString()
-          },
-          metadata: {
-            bookingId: input.bookingId,
-            departureId: input.departureId
-          },
-          createdAt: input.now
-        }
-      });
-
-      return hold;
-    });
   }
 
   async expireDue(departureId: string, now: Date): Promise<number> {

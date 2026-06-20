@@ -4,13 +4,13 @@
 
 Own Trust Receipt reads, verification read model, and demo-only tamper comparison.
 
-## Owns
-
-Receipt projections, proof verification read output, mismatch/manual-review presentation, and candidate comparison for demo mode.
-
-## Public routes / entry points
+## Owned routes
 
 `GET /v1/receipts/:receiptId`, `GET /v1/receipts/:receiptId/verify`.
+
+## Owned use cases
+
+Receipt projections, proof verification read output, mismatch/manual-review presentation, and candidate comparison for demo mode.
 
 ## Inputs and outputs
 
@@ -18,15 +18,15 @@ Inputs are receipt IDs and optional demo candidate values. Outputs are privacy-s
 
 ## Allowed dependencies
 
-`@call-to-cash/shared`, `@call-to-cash/domain`, `@call-to-cash/db`, and platform HTTP/events/security helpers.
+`@call-to-cash/shared`, `@call-to-cash/domain`, `@call-to-cash/db`, and platform HTTP/event helpers. Receipt reads the payment/proof/agreement trace but does not create payment.
 
 ## Forbidden dependencies
 
-No payment intent creation, no provider verification, no direct mutation of locked agreement snapshots, and no on-chain payload construction.
+No payment intent creation, provider verification, direct mutation of locked agreement snapshots, SSE transport, or on-chain payload construction.
 
 ## Transaction and event rules
 
-Tamper mismatch updates proof/receipt/manual-review state and appends the receipt verification event in one transaction.
+Read-only verification performs no mutation. Demo-only tamper mismatch updates proof/receipt/manual-review state and appends the `receipt.verified` event in one transaction.
 
 ## Privacy / security rules
 
@@ -34,8 +34,8 @@ Receipt projections must not expose raw phone, full transcript, canonical agreem
 
 ## Invariants
 
+- Candidate agreement data is comparison input only and uses a copy, not the canonical stored agreement object.
 - Tamper verification never mutates locked agreement state.
-- Candidate comparison uses a copy, not the canonical stored agreement object.
 - Demo candidate verification remains guarded by `DEMO_MODE=true`.
 
 ## Tests that protect this module

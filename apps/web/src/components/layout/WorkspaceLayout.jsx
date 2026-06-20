@@ -23,13 +23,11 @@ export function WorkspaceLayout({
   scenarios,
 }) {
   return (
-    <div className="flex min-h-screen min-h-[100dvh] flex-col bg-[#f9fafb] font-sans text-[#111827] antialiased">
+    <div className="flex min-h-screen min-h-[100dvh] flex-col bg-surface-muted font-sans text-[#111827] antialiased">
       {/* Product header — desktop/tablet only */}
       {header && (
-        <div className="hidden w-full shrink-0 border-b border-[#e5e7eb] bg-white min-[769px]:block">
-          <div className="mx-auto w-full max-w-[1600px] px-6 min-[1200px]:px-8">
-            {header}
-          </div>
+        <div className="hidden w-full shrink-0 min-[769px]:block">
+          {header}
         </div>
       )}
 
@@ -48,7 +46,7 @@ export function WorkspaceLayout({
       {/* Interactive simulation workspace */}
       <main
         id="simulation-workspace"
-        className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col gap-5 px-0 py-0 min-[769px]:scroll-mt-6 min-[769px]:px-6 min-[769px]:py-5 min-[1200px]:gap-6 min-[1200px]:px-8 min-[1200px]:py-6"
+        className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-5 px-0 py-0 min-[769px]:scroll-mt-6 min-[769px]:px-5 min-[769px]:py-5 min-[1024px]:px-8 min-[1200px]:gap-6 min-[1200px]:px-10 min-[1200px]:py-6"
         aria-label="Call-to-Cash interactive workspace"
       >
         {/* Scenario selector — desktop/tablet only */}

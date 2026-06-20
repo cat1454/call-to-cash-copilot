@@ -1,51 +1,61 @@
 # Payment module
 
-## Purpose
+## 1. Purpose
 
-Own payment intent lifecycle, provider observation validation, proof/receipt issuance orchestration, and payment status projections.
+Own the mock payment intent lifecycle, server-side observation verification, payment-safe projections, and the proof/Trust Receipt side effects of a successful verification.
 
-## Owns
+## 2. Owned routes
 
-Mock payment creation, mock verification, failure simulation, expiry behavior, idempotency checks, payment transaction records, proof records, Trust Receipt creation, and payment events.
+- `POST /v1/payments/mock/create`
+- `POST /v1/payments/mock/verify`
+- `POST /v1/payments/mock/simulate-failure`
+- `GET /v1/payments/:bookingId/status`
 
-## Public routes / entry points
+## 3. Owned use cases
 
-`POST /v1/payments/mock/create`, `POST /v1/payments/mock/verify`, `POST /v1/payments/mock/simulate-failure`, `GET /v1/payments/:bookingId/status`.
+Payment intent creation, verification, demo-only failure simulation, payment-status reads, payment transaction persistence, and proof/Trust Receipt creation required by a successful verification.
 
-## Inputs and outputs
+## 4. Inputs and outputs
 
-Inputs are shared payment DTOs and idempotency keys. Outputs are payment intent, verification, failure, and status projections.
+Inputs are existing shared payment request DTOs, server request IDs, and required idempotency keys. Outputs retain the documented public payment-intent, verification, failure, and status response shapes.
 
-## Allowed dependencies
+## 5. Allowed dependencies
 
-`@call-to-cash/shared`, `@call-to-cash/domain`, `@call-to-cash/db`, platform providers/events/security/http helpers.
+`@call-to-cash/shared`, `@call-to-cash/domain`, `@call-to-cash/db`, booking read context, platform validation/idempotency helpers, committed event writer, and payment provider adapters.
 
-## Forbidden dependencies
+## 6. Forbidden dependencies
 
-No browser authority, no agreement mutation, no route-owned payment-gate logic, and no separate Solana business pipeline.
+No browser-supplied authority, direct Prisma access from routes, booking or agreement policy ownership, agreement mutation, Solana SDKs, wallet private keys, or receipt read/tamper-verification ownership.
 
-## Transaction and event rules
+## 7. Transaction and event rules
 
-Successful verification creates transaction, proof, receipt, state updates, idempotency evidence, and events atomically. Failure records rejected evidence and emits failure/manual-review state atomically.
+Intent creation persists the intent, booking transition, and `payment.intent.created` event in one transaction. Successful verification persists the payment transaction, hold consumption, proof, Trust Receipt, booking/payment transitions, and `payment.confirmed`/receipt events in one transaction. Rejected verification persists its evidence, transition, and `payment.failed` event together. The demo expiry mutation deliberately retains its pre-existing no-event behavior.
 
-## Privacy / security rules
+## 8. Idempotency rules
 
-Do not expose private keys, raw provider metadata, raw PII, canonical agreement payloads, or full transcript data.
+Creation uses the durable unique payment-intent idempotency key. Verification stores a hash and request fingerprint in the persisted transaction metadata. Exact replays return the original result; reuse with another input fails with `IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD`. No in-memory idempotency is used.
 
-## Invariants
+## 9. Privacy rules
 
-- Payment verification is idempotent.
-- A payment intent can be created only from a locked agreement and open payment gate.
-- Successful verification creates transaction, proof, receipt, and event atomically.
+Public projections exclude raw provider metadata, raw phone numbers, full transcript text, canonical agreement JSON, AI reasoning, private keys, and credentials. Proof stores only the approved agreement hash/reference material; the receipt payload retains masked contact only.
 
-## Tests that protect this module
+## 10. Invariants
 
-Payment create/verify idempotency, wrong amount/recipient/reference, expiry, receipt issuance, and failure/manual-review API tests.
+- Payment owns intent creation and verification, not booking/agreement policy.
+- Payment consumes the locked agreement and active inventory hold created by booking.
+- An intent requires a locked agreement, open gate, and active hold.
+- Amount, recipient, and reference are server-validated; empty/wrong reference fails closed.
+- Successful verification creates exactly one transaction, proof, and Trust Receipt atomically.
+- Receipt read and verification routes remain outside this module until Stage F.
 
-## Future extension points
+## 11. Tests
 
-Replace `MockPaymentProvider` with `SolanaDevnetPaymentProvider` behind the same command path.
+`apps/api/src/app.test.ts` characterizes intent/verification idempotency, missing keys, failure closure, safe receipt projection, events, and receipt issuance. DB-backed execution additionally validates durable records and event evidence when `TEST_DATABASE_URL` is configured.
 
-## Non-goals
+## 12. Future extension points
 
-No Solana SDK integration or wallet UI work during this refactor.
+`platform/providers/mock-payment-provider.ts` is the deterministic provider implementation. A future `SolanaDevnetPaymentProvider` must implement the same expectation/validation boundary and feed these commands without bypassing payment rules.
+
+## 13. Non-goals
+
+No Solana integration, frontend work, DTO/event/error/schema changes, migration, receipt read extraction, receipt tamper verification extraction, or call-event extraction in Stage E.

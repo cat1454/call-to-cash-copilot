@@ -1,216 +1,292 @@
-/**
- * useServerSimulation — Phase 7 API-driven simulation loop.
- *
- * Replaces the client-side mock simulation when apiMode=true.
- * Drives the full Call → Transcript → Risk → Booking → Payment → Receipt
- * flow through the API; listens to SSE for server-pushed state changes.
- *
- * When apiMode=false, this hook is NOT used — useCallSimulation keeps
- * the existing pure-mock loop. Reducer and ACTION constants live in
- * serverSimulationState.js to keep this file under 300 lines.
- *
- * @module useServerSimulation
- */
+import { EventName } from "@call-to-cash/shared";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 
-import { useCallback, useReducer, useRef, useState, useEffect } from "react";
 import { createSseClient } from "../../../lib/sseClient";
+import {
+  isDefinitivePaymentMismatch,
+  recoverServerState as recoverAuthoritativeState,
+  recoveryEvents
+} from "./serverRecovery.js";
 import { ACTION, makeInitialState, reducer } from "./serverSimulationState";
+import { useServerSessionRecovery } from "./useServerSessionRecovery.js";
 
-function toError(err) {
-  return err instanceof Error ? err : new Error(String(err));
+function toError(caught) {
+  return caught instanceof Error ? caught : new Error(String(caught));
 }
 
-/**
- * useServerSimulation
- *
- * @param {object|null} apiClient   - REST client (null when offline / apiMode=false).
- * @param {string}      apiBaseUrl  - Base URL for SSE connection.
- * @param {number}      scenarioIdx - Selected scenario index (0-2).
- * @param {Array}       scenarios   - Scenario fixtures from data/scenarios.
- * @returns {object} Flat state bag + action functions.
- */
+function idempotencyKey(prefix) {
+  const suffix = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
+  return `${prefix}-${suffix}`;
+}
+
 export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, scenarios) {
   const [state, dispatch] = useReducer(reducer, undefined, makeInitialState);
   const [currentTurnIdx, setCurrentTurnIdx] = useState(0);
+  const stateRef = useRef(state);
   const sseRef = useRef(null);
-  const seqRef = useRef(1);
+  const callIdRef = useRef(null);
+  const sequenceRef = useRef(1);
+  const recoveryTimerRef = useRef(null);
+  const paymentCreatingRef = useRef(false);
 
-  // ---- SSE listener ---------------------------------------------------
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
+  const recoverServerState = useCallback(
+    (callId, hints = {}) => {
+      if (!apiClient || !callId) return Promise.resolve({});
+      return recoverAuthoritativeState(apiClient, dispatch, stateRef.current, callId, hints);
+    },
+    [apiClient]
+  );
+
+  const scheduleRecovery = useCallback(
+    (callId, hints = {}) => {
+      if (recoveryTimerRef.current !== null) clearTimeout(recoveryTimerRef.current);
+      recoveryTimerRef.current = setTimeout(() => {
+        recoveryTimerRef.current = null;
+        void recoverServerState(callId, hints).catch((caught) => {
+          dispatch({ type: ACTION.ERROR, error: toError(caught) });
+        });
+      }, 50);
+    },
+    [recoverServerState]
+  );
 
   const connectSse = useCallback(
     (callId) => {
       if (!apiBaseUrl) return;
-      const sse = createSseClient({
+      sseRef.current?.disconnect();
+      sseRef.current = createSseClient({
         baseUrl: apiBaseUrl,
         callId,
-        onEvent(name, data) {
-          if (name === "risk.score.updated") {
-            dispatch({
-              type: ACTION.RISK_UPDATED,
-              completenessScore: data.completenessScore ?? 0,
-              disputeRisk: data.disputeRisk ?? 0,
-              paymentReadiness: data.paymentReadiness ?? 0
-            });
-          } else if (name === "risk.payment_gate.updated") {
-            dispatch({ type: ACTION.GATE_UPDATED, gate: data.gate, bookingId: data.bookingId });
-          } else if (name === "booking.updated") {
-            dispatch({ type: ACTION.BOOKING_UPDATED, bookingId: data.bookingId });
-          } else if (name === "payment.confirmed") {
-            dispatch({ type: ACTION.PAYMENT_CONFIRMED });
-          } else if (name === "receipt.created") {
-            dispatch({ type: ACTION.RECEIPT_CREATED, receiptId: data.receiptId });
-          } else if (name === "receipt.verified") {
-            dispatch({ type: ACTION.RECEIPT_VERIFIED, proofHash: data.proofHash, status: data.status, txSig: null });
+        onEvent(eventName, envelope) {
+          dispatch({ type: ACTION.SERVER_EVENT, envelope });
+          if (eventName === EventName.ReceiptCreated) {
+            scheduleRecovery(callId, { receiptId: envelope?.data?.receiptId });
+          } else if (recoveryEvents.has(eventName)) {
+            scheduleRecovery(callId, { bookingId: envelope?.bookingId });
           }
         },
-        onError(err) {
-          console.warn("[useServerSimulation] SSE error", err);
+        onOpen() {
+          scheduleRecovery(callId);
+        },
+        onError(error) {
+          dispatch({ type: ACTION.STREAM_STATUS, status: "error", error });
+        },
+        onStatus(status) {
+          dispatch({ type: ACTION.STREAM_STATUS, status });
         }
       });
-      sseRef.current = sse;
     },
-    [apiBaseUrl]
+    [apiBaseUrl, scheduleRecovery]
   );
 
-  // ---- Actions --------------------------------------------------------
+  const clearSession = useServerSessionRecovery({
+    apiClient,
+    apiBaseUrl,
+    state,
+    dispatch,
+    connectSse,
+    recoverServerState,
+    callIdRef,
+    sseRef
+  });
 
-  /** Start a new server-authoritative simulation run. */
-  const startSimulation = useCallback(async () => {
-    if (!apiClient || state.isSimulating) return;
-    dispatch({ type: ACTION.START });
-    try {
-      const call = await apiClient.createCall({ sourceMode: "TRANSCRIPT_REPLAY" });
-      dispatch({ type: ACTION.CALL_CREATED, callId: call.callId });
-      connectSse(call.callId);
-      setCurrentTurnIdx(0);
-    } catch (err) {
-      dispatch({ type: ACTION.ERROR, error: toError(err) });
-    }
-  }, [apiClient, connectSse, state.isSimulating]);
+  const finishReplay = useCallback(
+    async (callId, confirmedTurnId) => {
+      if (!apiClient) return;
+      const recovered = await recoverServerState(callId);
+      const booking = recovered.booking;
+      if (booking?.status === "AGREEMENT_READY" && booking.agreementVersion) {
+        const confirmation = await apiClient.confirmBooking(
+          booking.bookingId,
+          {
+            agreementVersion: booking.agreementVersion,
+            confirmation: { method: "VOICE", confirmedTurnId }
+          },
+          idempotencyKey(`confirm-${booking.bookingId}-v${booking.agreementVersion}`)
+        );
+        dispatch({ type: ACTION.BOOKING_CONFIRMED, confirmation });
+        const lockedBooking = await apiClient.getBooking(booking.bookingId);
+        dispatch({ type: ACTION.BOOKING_SYNCED, booking: lockedBooking });
+      }
 
-  /** Submit the next scenario turn to the API. Called by the animation loop. */
+      const endedCall = await apiClient.endCall(callId, "CUSTOMER_ENDED");
+      dispatch({ type: ACTION.CALL_SYNCED, call: endedCall });
+    },
+    [apiClient, recoverServerState]
+  );
+
   const submitNextTurn = useCallback(
     async (callId) => {
       if (!apiClient) return false;
       const turns = scenarios[scenarioIdx] ?? [];
-      if (currentTurnIdx >= turns.length) return false;
       const scenarioTurn = turns[currentTurnIdx];
       if (!scenarioTurn) return false;
-      const speaker = scenarioTurn.sender === "customer" ? "CUSTOMER" : "AGENT";
+
       try {
-        const resp = await apiClient.submitTranscriptTurn(callId, {
-          clientTurnId: `client-turn-${scenarioIdx}-${currentTurnIdx}-${Date.now()}`,
-          sequenceNo: seqRef.current++,
-          speaker,
-          content: scenarioTurn.text,
-          language: "vi-VN",
-          isFinal: true,
-          source: "REPLAY"
+        const response = await apiClient.submitTranscriptTurn(callId, {
+          clientTurnId: `replay-${scenarioIdx}-${currentTurnIdx}-${Date.now()}`,
+          sequenceNo: sequenceRef.current++,
+          speaker: scenarioTurn.sender === "customer" ? "CUSTOMER" : "AGENT",
+          content: scenarioTurn.text
         });
-        dispatch({ type: ACTION.TURN_ADDED, speaker: scenarioTurn.sender, text: scenarioTurn.text, turnId: resp.turnId });
-        setCurrentTurnIdx((idx) => idx + 1);
+        const nextIndex = currentTurnIdx + 1;
+        setCurrentTurnIdx(nextIndex);
+        if (nextIndex === turns.length) await finishReplay(callId, response.turnId);
         return true;
-      } catch (err) {
-        dispatch({ type: ACTION.ERROR, error: toError(err) });
+      } catch (caught) {
+        dispatch({ type: ACTION.ERROR, error: toError(caught) });
         return false;
       }
     },
-    [apiClient, scenarioIdx, scenarios, currentTurnIdx]
+    [apiClient, currentTurnIdx, finishReplay, scenarioIdx, scenarios]
   );
 
-  /** Open the mock payment drawer after gate unlocks. */
-  const triggerPayment = useCallback(
-    async (bookingId) => {
-      if (!apiClient || !bookingId) return;
-      try {
-        const idempotencyKey = `mock-pi-${bookingId}-v1-${Date.now()}`;
-        const intent = await apiClient.createMockPayment({ bookingId }, idempotencyKey);
-        dispatch({ type: ACTION.PAYMENT_DRAWER_OPEN, paymentIntentId: intent.paymentIntentId });
-      } catch (err) {
-        dispatch({ type: ACTION.ERROR, error: toError(err) });
-      }
-    },
-    [apiClient]
-  );
-
-  /** Simulate wallet payment (happy path). */
-  const simulateWalletPayment = useCallback(
-    async (paymentIntentId, paymentData) => {
-      if (!apiClient || !paymentIntentId || !paymentData) return;
-      try {
-        const idempotencyKey = `mock-verify-${paymentIntentId}-${Date.now()}`;
-        await apiClient.verifyMockPayment(
-          {
-            paymentIntentId,
-            observedAmount: paymentData.amount,
-            observedRecipient: paymentData.recipient,
-            observedReference: paymentData.reference
-          },
-          idempotencyKey
-        );
-      } catch (err) {
-        dispatch({ type: ACTION.ERROR, error: toError(err) });
-      }
-    },
-    [apiClient]
-  );
-
-  /** Tamper: verify with wrong candidate amount to trigger MISMATCH. */
-  const tamperAgreement = useCallback(
-    async (receiptId) => {
-      if (!apiClient || !receiptId) return;
-      dispatch({ type: ACTION.TAMPER_APPLIED });
-      try {
-        await apiClient.verifyReceipt(receiptId, { candidateDepositAmountMinor: 1 });
-      } catch {
-        // MISMATCH error is expected; server has already persisted the mismatch.
-      }
-    },
-    [apiClient]
-  );
-
-  /** Reset to initial state and disconnect SSE. */
-  const resetSimulation = useCallback(() => {
-    if (sseRef.current) {
-      sseRef.current.disconnect();
-      sseRef.current = null;
+  const startSimulation = useCallback(async () => {
+    if (!apiClient || stateRef.current.isSimulating) return;
+    dispatch({ type: ACTION.START });
+    try {
+      const call = await apiClient.createCall({ sourceMode: "TRANSCRIPT_REPLAY" });
+      callIdRef.current = call.callId;
+      setCurrentTurnIdx(0);
+      sequenceRef.current = 1;
+      dispatch({ type: ACTION.CALL_CREATED, call });
+      connectSse(call.callId);
+    } catch (caught) {
+      dispatch({ type: ACTION.ERROR, error: toError(caught) });
     }
-    seqRef.current = 1;
+  }, [apiClient, connectSse]);
+
+  const triggerPayment = useCallback(async () => {
+    const bookingId = stateRef.current.bookingId;
+    if (!apiClient || !bookingId || paymentCreatingRef.current) return;
+    paymentCreatingRef.current = true;
+    try {
+      const intent = await apiClient.createMockPayment(
+        { bookingId },
+        idempotencyKey(`mock-payment-${bookingId}`)
+      );
+      dispatch({ type: ACTION.PAYMENT_INTENT_CREATED, intent });
+    } catch (caught) {
+      dispatch({ type: ACTION.ERROR, error: toError(caught) });
+    } finally {
+      paymentCreatingRef.current = false;
+    }
+  }, [apiClient]);
+
+  const simulateWalletPayment = useCallback(async () => {
+    const intent = stateRef.current.paymentIntent;
+    if (!apiClient || !intent || stateRef.current.paymentActionPending) return;
+    dispatch({ type: ACTION.PAYMENT_ACTION_STARTED });
+    try {
+      const result = await apiClient.verifyMockPayment(
+        {
+          paymentIntentId: intent.paymentIntentId,
+          observedAmount: intent.amount,
+          observedRecipient: intent.recipient,
+          observedReference: intent.reference
+        },
+        idempotencyKey(`mock-verify-${intent.paymentIntentId}`)
+      );
+      dispatch({ type: ACTION.PAYMENT_VERIFIED, result });
+      await recoverServerState(callIdRef.current, {
+        bookingId: result.bookingId,
+        receiptId: result.receiptId,
+        paymentIntentId: result.paymentIntentId
+      });
+    } catch (caught) {
+      const error = toError(caught);
+      if (isDefinitivePaymentMismatch(error)) {
+        dispatch({ type: ACTION.PAYMENT_REJECTED, error });
+        await recoverServerState(callIdRef.current, {
+          bookingId: intent.bookingId,
+          paymentIntentId: intent.paymentIntentId
+        }).catch(() => {});
+      } else dispatch({ type: ACTION.ERROR, error });
+    }
+  }, [apiClient, recoverServerState]);
+
+  const tamperAgreement = useCallback(async () => {
+    const receiptId = stateRef.current.receiptId;
+    if (!apiClient || !receiptId) return;
+    try {
+      const verification = await apiClient.verifyReceipt(receiptId, {
+        candidateDepositAmountMinor: 1
+      });
+      dispatch({ type: ACTION.VERIFICATION_SYNCED, verification });
+      const receipt = await apiClient.getReceipt(receiptId);
+      dispatch({ type: ACTION.RECEIPT_SYNCED, receipt });
+    } catch (caught) {
+      dispatch({ type: ACTION.ERROR, error: toError(caught) });
+    }
+  }, [apiClient]);
+
+  const resetSimulation = useCallback(() => {
+    const current = stateRef.current;
+    sseRef.current?.disconnect();
+    sseRef.current = null;
+    if (recoveryTimerRef.current !== null) clearTimeout(recoveryTimerRef.current);
+    if (
+      apiClient &&
+      current.callId &&
+      !["ENDED", "CANCELLED", "FAILED"].includes(current.callStatus)
+    ) {
+      void apiClient.endCall(current.callId, "OPERATOR_ENDED").catch(() => {});
+    }
+    callIdRef.current = null;
+    clearSession();
+    sequenceRef.current = 1;
     setCurrentTurnIdx(0);
     dispatch({ type: ACTION.RESET });
-  }, []);
+  }, [apiClient, clearSession]);
 
-  // ---- Effects --------------------------------------------------------
-
-  // Auto-submit turns when simulating
   useEffect(() => {
-    if (!state.isSimulating || !state.callId || !apiClient || state.paymentGate !== "LOCKED") return;
-
+    if (!state.isSimulating || !state.replayInputEnabled || !state.callId || !apiClient) return;
     const turns = scenarios[scenarioIdx] ?? [];
     if (currentTurnIdx >= turns.length) return;
-
-    const delay = currentTurnIdx === 0 ? 1000 : (turns[currentTurnIdx - 1]?.sender === "ai" ? 4200 : 3800);
-
-    const timer = setTimeout(() => {
-      void submitNextTurn(state.callId);
-    }, delay);
-
+    const delay = currentTurnIdx === 0 ? 1000 : 3800;
+    const timer = setTimeout(() => void submitNextTurn(state.callId), delay);
     return () => clearTimeout(timer);
-  }, [state.isSimulating, state.callId, currentTurnIdx, scenarioIdx, scenarios, apiClient, state.paymentGate, submitNextTurn]);
+  }, [
+    apiClient,
+    currentTurnIdx,
+    scenarioIdx,
+    scenarios,
+    state.callId,
+    state.isSimulating,
+    state.replayInputEnabled,
+    submitNextTurn
+  ]);
 
-  // Auto-trigger payment drawer when gate unlocks
   useEffect(() => {
-    if (state.paymentGate === "UNLOCKED" && state.bookingId && !state.paymentIntentId && !state.showPaymentDrawer && apiClient) {
-      void triggerPayment(state.bookingId);
+    if (
+      state.booking?.status === "AGREEMENT_LOCKED" &&
+      state.paymentGate === "UNLOCKED" &&
+      !state.paymentIntentId
+    ) {
+      void triggerPayment();
     }
-  }, [state.paymentGate, state.bookingId, state.paymentIntentId, state.showPaymentDrawer, apiClient, triggerPayment]);
+  }, [state.booking?.status, state.paymentGate, state.paymentIntentId, triggerPayment]);
+
+  useEffect(() => {
+    if (state.needsRecovery && state.callId) scheduleRecovery(state.callId);
+  }, [scheduleRecovery, state.callId, state.needsRecovery]);
+
+  useEffect(
+    () => () => {
+      sseRef.current?.disconnect();
+      if (recoveryTimerRef.current !== null) clearTimeout(recoveryTimerRef.current);
+    },
+    []
+  );
 
   return {
     ...state,
     currentTurnIdx,
-    submitNextTurn,
     startSimulation,
-    triggerPayment,
     simulateWalletPayment,
     tamperAgreement,
     resetSimulation

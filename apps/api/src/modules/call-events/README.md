@@ -4,13 +4,13 @@
 
 Own SSE transport, committed event replay, `Last-Event-ID` recovery, and snapshot response behavior.
 
-## Owns
-
-`GET /v1/calls/:callId/events`, `snapshot=true`, connection lifecycle, heartbeat, polling, and SSE serialization of committed events.
-
-## Public routes / entry points
+## Owned routes
 
 `GET /v1/calls/:callId/events` and `GET /v1/calls/:callId/events?snapshot=true`.
+
+## Owned use cases
+
+Finite snapshots, `Last-Event-ID` recovery, live connection lifecycle, heartbeat, polling, and SSE serialization of committed events.
 
 ## Inputs and outputs
 
@@ -18,7 +18,7 @@ Inputs are call IDs, `Last-Event-ID`, and snapshot query. Outputs are SSE frames
 
 ## Allowed dependencies
 
-Fastify route APIs, `@call-to-cash/shared`, platform events, and platform HTTP helpers.
+Fastify route APIs, `@call-to-cash/shared`, `@call-to-cash/db` read queries, platform events, and platform HTTP helpers.
 
 ## Forbidden dependencies
 
@@ -34,9 +34,10 @@ Events must be projected through privacy-safe event payloads; no secrets or raw 
 
 ## Invariants
 
-- SSE cannot emit uncommitted business state.
+- Call-events streams committed audit events only; SSE cannot emit uncommitted business state.
 - Event ordering comes from durable per-call sequence allocation.
-- Reconnect uses `Last-Event-ID` or snapshot/refetch fallback.
+- `Last-Event-ID` recovery replays later committed events only.
+- `snapshot=true` is finite recovery/testing output; it is not a mutating command.
 
 ## Tests that protect this module
 

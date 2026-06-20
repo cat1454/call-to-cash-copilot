@@ -2,6 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createPrismaClient } from "@call-to-cash/db";
+
+import {
+  createMockPaymentExpectation,
+  validateMockPaymentObservation
+} from "./platform/providers/mock-payment-provider.js";
 import { buildApp } from "./app.js";
 import {
   ApiErrorEnvelopeSchema,
@@ -32,6 +37,31 @@ if (databaseUrl !== undefined) {
 function phase5SkipReason() {
   return databaseUrl === undefined ? "TEST_DATABASE_URL is not configured" : false;
 }
+
+test("mock payment provider validates server-owned amount, recipient, and reference", () => {
+  const expectation = createMockPaymentExpectation("ref_payment_test", "agreement-hash");
+  const base = {
+    expectedAmountMinor: 300_000,
+    expectedRecipient: expectation.recipient,
+    expectedReference: expectation.reference,
+    observedAmountMinor: 300_000,
+    observedRecipient: expectation.recipient,
+    observedReference: expectation.reference
+  };
+  assert.equal(validateMockPaymentObservation(base), null);
+  assert.equal(
+    validateMockPaymentObservation({ ...base, observedAmountMinor: 299_999 }),
+    "PAYMENT_AMOUNT_MISMATCH"
+  );
+  assert.equal(
+    validateMockPaymentObservation({ ...base, observedRecipient: "wrong-recipient" }),
+    "PAYMENT_RECIPIENT_MISMATCH"
+  );
+  assert.equal(
+    validateMockPaymentObservation({ ...base, observedReference: "" }),
+    "PAYMENT_REFERENCE_MISMATCH"
+  );
+});
 
 function uniqueSuffix(): string {
   return `${Date.now()}${Math.random().toString(16).slice(2)}`;
@@ -563,10 +593,24 @@ test(
     const agreementAfter = await prismaAfter.agreement.findUniqueOrThrow({
       where: { id: agreementBefore.id }
     });
-    await prismaAfter.$disconnect();
 
     assert.deepEqual(agreementAfter.canonicalPayload, agreementBefore.canonicalPayload);
     assert.equal(agreementAfter.payloadHashSha256, agreementBefore.payloadHashSha256);
+    const receiptVerificationEvent = await prismaAfter.auditLog.findFirstOrThrow({
+      where: {
+        aggregateType: "CALL_STREAM",
+        action: "EVENT_RECEIPT_VERIFIED",
+        metadata: { path: ["event"], equals: EventName.ReceiptVerified }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+    assert.equal((receiptVerificationEvent.afterState as { event: string }).event, EventName.ReceiptVerified);
+    const bookingAfterTamper = await prismaAfter.booking.findUniqueOrThrow({
+      where: { publicId: happyBookingId },
+      select: { status: true }
+    });
+    assert.equal(bookingAfterTamper.status, "MANUAL_REVIEW_REQUIRED");
+    await prismaAfter.$disconnect();
 
     await app.close();
     await happyApp.close();

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { scenarios } from "../../../data/scenarios";
 import {
   createInitialBookingData,
@@ -28,7 +28,7 @@ import useServerSimulation from "./useServerSimulation";
 
 export default function useCallSimulation() {
   const isMobile = useViewportMode();
-  const { apiMode, apiBaseUrl, apiClient } = useApiMode();
+  const { apiMode, apiBaseUrl, apiClient, isProbing } = useApiMode();
   const [currentScenarioIdx, setCurrentScenarioIdx] = useState(0);
 
   // ---- Mock simulation state (used only when apiMode=false) -----------
@@ -107,12 +107,17 @@ export default function useCallSimulation() {
     scenarios
   );
 
+  useEffect(() => {
+    if (!apiMode || !server.showBoardingPass) return;
+    const timer = setTimeout(() => setMobileTab("ticket"), 0);
+    return () => clearTimeout(timer);
+  }, [apiMode, server.showBoardingPass]);
+
   // ---- Mock simulation actions (apiMode=false) -------------------------
   const mockReset = () => resetSimulationState(mockSetters, clearTimeouts);
   const mockIssueReceipt = (currentBookingData) =>
     issueBoardingPass(currentBookingData, mockSetters);
-  const mockTriggerPayment = (depositAmount) =>
-    triggerPhonePaySheet(depositAmount, mockSetters);
+  const mockTriggerPayment = (depositAmount) => triggerPhonePaySheet(depositAmount, mockSetters);
   const mockSimulateWalletPayment = () => {
     runWalletPaymentSequence({
       bookingData,
@@ -149,23 +154,29 @@ export default function useCallSimulation() {
   // ---- Unified surface (picks API or mock branch) ----------------------
   if (apiMode) {
     return {
+      apiMode,
+      isProbing,
+      streamStatus: server.streamStatus,
+      paymentGate: server.paymentGate,
       isMobile,
       currentScenarioIdx,
       isSimulating: server.isSimulating,
       simStatus: server.simStatus,
-      mobileTab: "call",
-      setMobileTab: () => {},
+      mobileTab,
+      setMobileTab,
       phoneCallStatusText: server.simStatus,
       phoneCallColor: server.error ? "var(--danger-red)" : "var(--text-muted)",
       isWaveAnimating: server.isSimulating,
       callDuration: 0,
-      subtitles: { speaker: "", text: "" },
-      bookingData: createInitialBookingData(),
+      subtitles: server.subtitles,
+      bookingData: server.bookingData,
       showBoardingPass: server.showBoardingPass,
       showPaymentDrawer: server.showPaymentDrawer,
       drawerTimerText: DEFAULT_PAYMENT_TIMER,
-      btnPhonePayText: DEFAULT_PAYMENT_BUTTON,
-      btnPhonePayDisabled: false,
+      btnPhonePayText: server.paymentActionPending
+        ? "Đang xác minh thanh toán..."
+        : DEFAULT_PAYMENT_BUTTON,
+      btnPhonePayDisabled: server.paymentActionPending,
       btnPhonePayBg: "var(--primary-blue)",
       isTampered: server.isTampered,
       transcript: server.transcript,
@@ -178,15 +189,12 @@ export default function useCallSimulation() {
       ledgerLogs: server.ledgerLogs,
       selectScenario,
       startSimulation: server.startSimulation,
-      resetSimulation: server.resetSimulation,
-      simulateWalletPayment: () =>
-        server.simulateWalletPayment(server.paymentIntentId, {
-          amount: { currency: "VND", minor: 300000 },
-          recipient: "mock-recipient-wallet",
-          reference: ""
-        }),
-      tamperAgreement: () => server.tamperAgreement(server.receiptId),
-      // Phase 7 extras exposed for UI
+      resetSimulation: () => {
+        setMobileTab("call");
+        server.resetSimulation();
+      },
+      simulateWalletPayment: server.simulateWalletPayment,
+      tamperAgreement: server.tamperAgreement,
       serverCallId: server.callId,
       serverBookingId: server.bookingId,
       serverReceiptId: server.receiptId,
@@ -196,6 +204,10 @@ export default function useCallSimulation() {
 
   // Mock branch — unchanged behaviour
   return {
+    apiMode,
+    isProbing,
+    streamStatus: isProbing ? "connecting" : "demo",
+    paymentGate: null,
     isMobile,
     currentScenarioIdx,
     isSimulating,
