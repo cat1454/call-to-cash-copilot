@@ -1,7 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import './index.css'
+import './styles/globals.css'   // Tailwind v4 — single source of truth
 import App from './App.jsx'
+
 
 // Mount React App
 createRoot(document.getElementById('root')).render(

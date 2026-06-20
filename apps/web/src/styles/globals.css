@@ -1,0 +1,249 @@
+@import "tailwindcss";
+
+/* =============================================================
+   DESIGN TOKENS — Call-to-Cash Risk Copilot
+   Single source of truth. All components use these tokens.
+   ============================================================= */
+@theme {
+  /* Typography */
+  --font-sans: "Outfit", "Inter", "SF Pro Display", "Segoe UI", sans-serif;
+
+  /* Surfaces */
+  --color-canvas: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f9fafb;
+  --color-border: #e5e7eb;
+  --color-border-strong: #d1d5db;
+
+  /* Ink / Text */
+  --color-ink: #111827;
+  --color-ink-muted: #6b7280;
+  --color-ink-subtle: #9ca3af;
+
+  /* Brand — Primary green: for CTAs, active controls, brand emphasis */
+  --color-primary: #059669;
+  --color-primary-hover: #047857;
+  --color-primary-subtle: #ecfdf5;
+  --color-primary-border: #a7f3d0;
+
+  /* Success — ONLY for: confirmed booking match, confirmed deposit, verified receipt */
+  --color-success: #10b981;
+  --color-success-subtle: #ecfdf5;
+  --color-success-border: #6ee7b7;
+
+  /* Warning — ONLY for: pending payment, incomplete info, review states */
+  --color-warning: #f59e0b;
+  --color-warning-subtle: #fffbeb;
+  --color-warning-border: #fde68a;
+
+  /* Mismatch — ONLY for: cryptographic mismatch, tamper, hash mismatch */
+  --color-mismatch: #f43f5e;
+  --color-mismatch-subtle: #fff1f2;
+  --color-mismatch-border: #fecdd3;
+
+  /* Neutral */
+  --color-neutral-100: #f3f4f6;
+  --color-neutral-200: #e5e7eb;
+  --color-neutral-500: #6b7280;
+  --color-neutral-900: #111827;
+
+  /* Border radius */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-card: 1rem;
+  --radius-panel: 1.25rem;
+  --radius-phone: 2rem;
+  --radius-pill: 999px;
+
+  /* Shadows */
+  --shadow-card: 0 1px 2px rgb(17 24 39 / 0.04), 0 8px 24px rgb(17 24 39 / 0.06);
+  --shadow-float: 0 12px 36px rgb(17 24 39 / 0.10);
+  --shadow-sm: 0 1px 3px rgb(17 24 39 / 0.08);
+}
+
+/* =============================================================
+   BASE RESET & SAFE GLOBALS
+   ============================================================= */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    height: -webkit-fill-available;
+  }
+
+  body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    background-color: var(--color-surface-muted);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+
+  #root {
+    min-height: 100vh;
+    min-height: 100dvh;
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-surface-muted);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border-strong);
+    border-radius: var(--radius-pill);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-ink-subtle);
+  }
+}
+
+/* =============================================================
+   SHARED KEYFRAMES — State-communicating animations only
+   ============================================================= */
+
+/* Listening / active call pulse */
+@keyframes pulse-primary {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(5 150 105 / 0.4); }
+  50%       { box-shadow: 0 0 0 10px rgb(5 150 105 / 0); }
+}
+
+/* Success confirmation pulse */
+@keyframes pulse-success {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(16 185 129 / 0.4); }
+  50%       { box-shadow: 0 0 0 8px rgb(16 185 129 / 0); }
+}
+
+/* Pending / warning pulse */
+@keyframes pulse-warning {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(245 158 11 / 0.4); }
+  50%       { box-shadow: 0 0 0 8px rgb(245 158 11 / 0); }
+}
+
+/* Tamper / mismatch alert pulse */
+@keyframes pulse-mismatch {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(244 63 94 / 0.4); }
+  50%       { box-shadow: 0 0 0 10px rgb(244 63 94 / 0); }
+}
+
+/* Sound wave bar animation — speaking state */
+@keyframes wave-bar {
+  0%, 100% { transform: scaleY(0.3); }
+  50%       { transform: scaleY(1); }
+}
+
+/* Ripple ring — active call avatar */
+@keyframes ripple-out {
+  0%   { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+/* Typing indicator dot */
+@keyframes typing-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30%           { transform: translateY(-4px); opacity: 1; }
+}
+
+/* Slide up — payment drawer */
+@keyframes slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+/* Fade in */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Shimmer for loading states */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Phone ring icon */
+@keyframes phone-ring {
+  0%, 100% { transform: rotate(0deg); }
+  20%       { transform: rotate(-10deg); }
+  40%       { transform: rotate(10deg); }
+  60%       { transform: rotate(-6deg); }
+  80%       { transform: rotate(6deg); }
+}
+
+/* Scanner line animation — QR Code */
+@keyframes scan {
+  0% { top: 0%; }
+  50% { top: 100%; }
+  100% { top: 0%; }
+}
+
+/* Shake animation — mismatch states */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-5px); }
+  40%, 80% { transform: translateX(5px); }
+}
+
+/* Ticket slide-in animation */
+@keyframes ticket-slide-in {
+  0% {
+    opacity: 0;
+    transform: translateY(32px) scale(0.94);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Breathing call-to-action glow for mic button */
+@keyframes mic-breath {
+  0%, 100% {
+    box-shadow: 0 8px 24px rgba(5, 150, 105, 0.25);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 8px 32px rgba(5, 150, 105, 0.45), 0 0 0 6px rgba(5, 150, 105, 0.08);
+    transform: scale(1.04);
+  }
+}

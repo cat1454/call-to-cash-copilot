@@ -1,4 +1,18 @@
-import { Mic, RotateCcw } from "lucide-react";
+import { Mic, RotateCcw, MessageSquare } from "lucide-react";
+import { cn } from "../../../lib/cn";
+import { Button } from "../../../components/ui/Button";
+import { IconButton } from "../../../components/ui/IconButton";
+import { Progress } from "../../../components/ui/Progress";
+import { SectionHeading } from "../../../components/ui/SectionHeading";
+import { Card, CardHeader, CardBody } from "../../../components/ui/Card";
+
+const STATUS_LABELS = {
+  "Sẵn sàng":                  "Sẵn sàng đàm thoại",
+  "Cuộc gọi đang trực tiếp":   "Đàm thoại đang diễn ra",
+  "Chờ thanh toán cọc":         "Chờ đặt cọc giữ chỗ",
+  "Đang cọc (Solana Pay)...":   "Đang xử lý giao dịch cọc",
+  "Đã hoàn thành":              "Đàm thoại hoàn tất",
+};
 
 export default function VoiceSimulatorPanel({
   simStatus,
@@ -6,94 +20,133 @@ export default function VoiceSimulatorPanel({
   startSimulation,
   resetSimulation,
   isSimulating,
-  readinessScore
+  readinessScore,
 }) {
-  const getSimStatusLabel = (status) => {
-    const mapping = {
-      "Sẵn sàng": "🟢 Sẵn sàng đàm thoại",
-      "Cuộc gọi đang trực tiếp": "🔴 Đàm thoại đang diễn ra...",
-      "Chờ thanh toán cọc": "⏳ Chờ đặt cọc giữ chỗ",
-      "Đang cọc (Solana Pay)...": "💸 Đang xử lý giao dịch cọc...",
-      "Đã hoàn thành": "✅ Đàm thoại hoàn tất"
-    };
-    return mapping[status] || status;
-  };
+  const statusLabel = STATUS_LABELS[simStatus] ?? simStatus;
+  const isCompleted = simStatus === "Đã hoàn thành";
+  const isActive    = simStatus === "Cuộc gọi đang trực tiếp";
 
   return (
-    <div className="console-panel panel">
-      <div className="panel-header">
-        <h2>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--primary-blue)" }}>
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-          </svg>
+    <Card>
+      <CardHeader>
+        <SectionHeading icon={<MessageSquare size={13} />}>
           Bảng Thử Nghiệm Cuộc Gọi (Voice Agent Simulator)
-        </h2>
-        <div className="sim-status-label">{getSimStatusLabel(simStatus)}</div>
-      </div>
-
-      {/* Transcript bubbles */}
-      <div className="transcript-area">
-        {transcript.map((bubble, idx) => (
-          <div key={idx} className={`speech-bubble ${bubble.sender} ${bubble.isTyping ? "typing" : ""}`}>
-            <div className="bubble-sender">
-              {bubble.sender === "ai" ? "Tổng đài viên AI" : "Hành khách"}
-            </div>
-            {bubble.isTyping ? (
-              <div className="typing-indicator">
-                <span></span>
-                <span></span>
-                <span></span>
-              </div>
-            ) : (
-              bubble.text
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* Microphone button inside dashboard */}
-      <div className="mic-button-container">
-        <button
-          className="mic-button"
-          onClick={startSimulation}
-          disabled={isSimulating || simStatus === "Đã hoàn thành"}
+        </SectionHeading>
+        <span
+          className={cn(
+            "rounded-full px-2.5 py-1 text-xs leading-4 font-medium",
+            isActive
+              ? "bg-[#ecfdf5] text-[#047857]"
+              : isCompleted
+              ? "bg-[#ecfdf5] text-[#065f46]"
+              : "bg-[#f3f4f6] text-[#6b7280]"
+          )}
         >
-          {isSimulating && <span className="mic-pulse-ring"></span>}
-          <Mic size={24} />
-        </button>
-        <span className="mic-label-text">
-          {isSimulating
-            ? "Đang ghi âm..."
-            : simStatus === "Đã hoàn thành"
-            ? "Cuộc gọi kết thúc"
-            : "Bấm để bắt đầu đàm thoại"}
+          {statusLabel}
         </span>
-      </div>
+      </CardHeader>
 
-      {/* Call-to-Cash Readiness Progress Bar */}
-      <div className="gauge-row completeness">
-        <div className="gauge-meta">
-          <span className="gauge-label" style={{ color: "var(--primary-blue)", fontWeight: 700 }}>
-            Độ Sẵn Sàng Thanh Toán (Call-to-Cash)
-          </span>
-          <span className="gauge-value" style={{ color: "var(--primary-blue)", fontWeight: 700 }}>
-            {readinessScore}/100
+      <CardBody className="gap-4 p-5">
+        {/* Transcript area */}
+        <section
+          aria-label="Transcript cuộc gọi"
+          className="flex max-h-64 flex-col gap-3 overflow-y-auto pr-1"
+        >
+          {transcript.length === 0 ? (
+            <p className="py-8 text-center text-sm leading-5 font-normal text-[#6b7280]">
+              Chưa có hội thoại. Nhấn micro để bắt đầu.
+            </p>
+          ) : (
+            transcript.map((bubble, idx) => (
+              <div
+                key={idx}
+                className={cn(
+                  "flex max-w-[88%] flex-col gap-1 [animation:fade-in_0.3s_ease-out]",
+                  bubble.sender === "ai" ? "self-start" : "self-end items-end"
+                )}
+              >
+                <span className="text-xs leading-4 font-medium text-[#6b7280]">
+                  {bubble.sender === "ai" ? "Tổng đài viên AI" : "Hành khách"}
+                </span>
+                <div
+                  className={cn(
+                    "min-w-0 rounded-2xl px-4 py-3 text-sm leading-5 font-normal shadow-[0_1px_2px_rgba(0,0,0,0.02)]",
+                    bubble.sender === "ai"
+                      ? "bg-slate-100 text-[#374151] rounded-tl-none border border-slate-200/50"
+                      : "bg-[#059669] text-white rounded-tr-none shadow-[0_2px_8px_rgba(5,150,105,0.15)]",
+                    bubble.isTyping && "opacity-60"
+                  )}
+                >
+                  {bubble.isTyping ? (
+                    <span className="flex gap-1 py-1 px-0.5">
+                      {[0, 0.2, 0.4].map((d) => (
+                        <span
+                          key={d}
+                          className={cn(
+                            "w-1.5 h-1.5 rounded-full [animation:typing-dot_1.2s_ease-in-out_infinite] motion-reduce:animate-none",
+                            bubble.sender === "ai" ? "bg-[#6b7280]" : "bg-white"
+                          )}
+                          style={{ animationDelay: `${d}s` }}
+                        />
+                      ))}
+                    </span>
+                  ) : (
+                    bubble.text
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </section>
+
+        {/* Mic button */}
+        <div className="flex flex-col items-center gap-3 py-4">
+          <IconButton
+            aria-label={
+              isSimulating ? "Đang ghi âm" : isCompleted ? "Cuộc gọi kết thúc" : "Bắt đầu đàm thoại"
+            }
+            onClick={startSimulation}
+            disabled={isSimulating || isCompleted}
+            className={cn(
+              "w-16 h-16 rounded-full border-0 transition-all duration-200 ease-out select-none active:scale-[0.95]",
+              isSimulating
+                ? "bg-[#059669] text-white shadow-[0_4px_24px_rgba(5,150,105,0.35)] [animation:pulse-primary_2s_ease-in-out_infinite]"
+                : isCompleted
+                ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none"
+                : "bg-[#059669] text-white shadow-[0_6px_24px_rgba(5,150,105,0.25)] hover:bg-[#047857] hover:shadow-[0_8px_32px_rgba(5,150,105,0.3)]"
+            )}
+          >
+            <Mic size={24} className={cn("transition-transform duration-200", isSimulating && "scale-110")} />
+          </IconButton>
+          <span className="text-xs leading-[18px] font-normal text-[#6b7280]">
+            {isSimulating
+              ? "Đang đàm thoại thoại..."
+              : isCompleted
+              ? "Cuộc gọi đã kết thúc"
+              : "Bấm để bắt đầu đàm thoại"}
           </span>
         </div>
-        <div className="gauge-bar-bg" style={{ height: "8px" }}>
-          <div
-            className="gauge-bar-fill"
-            style={{ width: `${readinessScore}%` }}
-          ></div>
-        </div>
-      </div>
 
-      <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
-        <button className="btn-secondary" style={{ flex: 1, display: "flex", gap: "6px" }} onClick={resetSimulation}>
+        {/* Call-to-Cash Readiness Progress */}
+        <Progress
+          value={readinessScore}
+          max={100}
+          tone="primary"
+          label="Độ Sẵn Sàng Thanh Toán (Call-to-Cash)"
+          showValue
+        />
+
+        {/* Reset button */}
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={resetSimulation}
+          className="w-full gap-1.5"
+        >
           <RotateCcw size={12} />
-          <span>Đặt lại cuộc gọi</span>
-        </button>
-      </div>
-    </div>
+          Đặt lại cuộc gọi
+        </Button>
+      </CardBody>
+    </Card>
   );
 }
