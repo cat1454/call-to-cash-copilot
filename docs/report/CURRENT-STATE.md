@@ -1,9 +1,9 @@
 # Call-to-Cash Risk Copilot - Current State
 
 > **Snapshot date:** 2026-06-20 (Asia/Saigon)  
-> **Branch / baseline:** `main` / `b6f6e3e` plus the verified Phase 0-1 working tree
+> **Branch / baseline:** `main` / `b6f6e3e` plus the verified Phase 0-2 working tree
 > **Purpose:** establish the implementation baseline and identify the next production slice.
-> **Conclusion:** Phase 0 contract normalization and Phase 1 workspace/API scaffolding are complete. The frontend remains a presentation-ready simulation; the server-authoritative transaction flow begins in Phase 2.
+> **Conclusion:** Phase 2 shared contracts are complete. The frontend remains a presentation-ready simulation; the next implementation slice is the pure deterministic domain kernel in Phase 3.
 
 ---
 
@@ -13,21 +13,21 @@ The repository now has three distinct maturity levels:
 
 1. **A working React/Vite demo UI** for scripted calls, animated risk scores, simulated payment, simulated receipt, and tamper mismatch on mobile and desktop.
 2. **An executable engineering foundation** with a pnpm/Turbo workspace, TypeScript package entrypoints, validated runtime configuration, Fastify health/readiness endpoints, a frozen lockfile, root quality commands, and CI.
-3. **Detailed production contracts** for privacy, APIs, SSE events, state machines, data, risk scoring, payment verification, and operations.
+3. **Executable shared contracts** for public IDs, DTOs, state enums, errors, API envelopes, and SSE events, backed by the detailed privacy, API, state, data, risk, payment, and operations documents.
 
-The missing bridge is now narrower but still material. There are no shared executable DTO/event/error schemas, deterministic domain evaluator, database schema, business API routes, SSE stream, durable state, authoritative payment/proof/receipt flow, authentication, or real provider adapters.
+The missing bridge is now narrower but still material. There is no deterministic domain evaluator, database schema, business API routes, SSE stream, durable state, authoritative payment/proof/receipt flow, authentication, or real provider adapter.
 
 ```text
 Completed frontend simulation
-+ normalized production contracts
++ normalized and executable shared contracts
 + executable workspace and API skeleton
-- executable shared/domain rules
+- deterministic domain rules
 - durable server authority
 - provider integrations
-= Phase 0-1 complete, not yet an end-to-end MVP
+= Phase 0-2 complete, not yet an end-to-end MVP
 ```
 
-The correct next slice is **Phase 2 shared contracts followed by Phase 3 deterministic domain logic**. Live Agora, Solana devnet, LLM, Redis, and object storage remain intentionally deferred.
+The correct next slice is **Phase 3 deterministic domain logic**. Live Agora, Solana devnet, LLM, Redis, and object storage remain intentionally deferred.
 
 ---
 
@@ -41,7 +41,7 @@ This state report is based on:
 - every package manifest, TypeScript entrypoint, and boundary README;
 - product, architecture, API/event/error, privacy, operations, and report documents;
 - the local `ECC/` workflow catalog and repository-specific agent routing;
-- successful install, format, lint, typecheck, test, build, and local smoke verification.
+- successful frozen install, lint, typecheck, test, build, and local smoke verification.
 
 Status labels:
 
@@ -70,9 +70,9 @@ Status labels:
 | Root workspace | pnpm 11.1.1, Turbo, Node pin, frozen lockfile, root scripts | **Implemented** |
 | Tooling | shared ESLint, Prettier, TypeScript base config | **Implemented** |
 | `apps/web` | React 19/Vite 8 responsive scripted demo, PWA shell, tests | **Implemented / Simulated** |
-| `apps/api` | Fastify/TypeScript server, `/health`, `/ready`, error envelope tests | **Implemented scaffold** |
+| `apps/api` | Fastify/TypeScript server, `/health`, `/ready`, shared-envelope/error integration | **Implemented scaffold** |
 | `packages/config` | validated host/port/demo/provider runtime configuration | **Implemented** |
-| `packages/shared` | TypeScript package/build entrypoint; contracts not coded yet | **Scaffold** |
+| `packages/shared` | Zod contracts, state/error/event constants, replay DTOs, contract tests | **Implemented** |
 | `packages/domain` | pure-domain boundary/build entrypoint; no rules yet | **Scaffold** |
 | `packages/ai` | adapter boundary/build entrypoint | **Scaffold** |
 | `packages/db` | repository boundary/build entrypoint; no Prisma client | **Scaffold** |
@@ -82,7 +82,7 @@ Status labels:
 | Local infrastructure | Phase 1 `.env.example`; no Compose/PostgreSQL/Redis/MinIO | **Partial by design** |
 | CI | GitHub Actions install, format, lint, typecheck, test, build | **Implemented, remote run not observed here** |
 | Documentation | canonical pipeline, states, contracts, privacy, operations | **Specified / normalized** |
-| Automated tests | workspace, config, API skeleton, and browser simulation units | **Implemented, pre-domain scope** |
+| Automated tests | workspace, shared contracts, config, API skeleton, and browser simulation units | **Implemented, pre-domain scope** |
 
 ---
 
@@ -128,7 +128,7 @@ Remaining PWA limitations:
 
 ---
 
-## 5. What Phase 0-1 implemented
+## 5. What Phase 0-2 implemented
 
 ### Contract normalization
 
@@ -150,6 +150,12 @@ Remaining PWA limitations:
 - invalid runtime booleans, ports, and provider selections fail at startup;
 - CI performs a frozen install, format check, lint, typecheck, tests, and build;
 - workspace tests guard package boundaries, namespace, refund policy, source entrypoints, one lockfile, and ignored caches.
+
+### Executable shared contracts
+
+- `packages/shared` owns the single Zod/TypeScript definition of public IDs, call/transcript/booking/risk/agreement/payment/proof/receipt DTOs, API envelopes, documented errors/reason codes, and the complete SSE event catalog;
+- API health/error handling validates through the shared envelope and error schemas; the web test imports the same event/payment-gate constants;
+- replay command schemas reject caller-supplied authority fields, and public proof contracts reject unapproved PII fields.
 
 ---
 
@@ -179,7 +185,7 @@ The Fastify skeleton is deliberately not a business API. Its health response mus
 
 ### 7.1 Shared contracts and states
 
-The documents define DTOs, envelopes, event names, errors, reason codes, and state machines, but `packages/shared` does not yet encode them in Zod/TypeScript. UI status strings and fixture structures remain ad hoc.
+`packages/shared` now encodes documented IDs, API envelopes, replay DTOs, domain entities, state enums, error/reason codes, and event names with Zod and inferred TypeScript types. The scripted UI still has simulation-specific status/fixture structures and is not yet server-authoritative.
 
 ### 7.2 Risk/payment gate
 
@@ -229,10 +235,11 @@ Current non-empty test baseline:
 | Scope | Tests |
 |---|---:|
 | Workspace/normalization | 6 |
-| Web simulation/config/source guards | 12 |
+| Shared contract schemas | 7 |
+| Web simulation/config/source guards | 13 |
 | Runtime config | 3 |
 | Fastify API skeleton | 3 |
-| **Total** | **24 passed, 0 failed** |
+| **Total** | **32 passed, 0 failed** |
 
 The workspace also successfully builds all nine app/package tasks. Provider package test commands currently pass with zero tests because their production logic has not started.
 
@@ -240,7 +247,6 @@ The local npm certificate issue was resolved by giving Node a valid Windows trus
 
 Missing quality layers:
 
-- shared schema/contract tests;
 - domain formula and transition tables;
 - Prisma/repository integration tests;
 - business API, idempotency, SSE reconnect, and vertical-slice tests;
@@ -250,16 +256,6 @@ Missing quality layers:
 ---
 
 ## 9. Recommended next implementation
-
-### Phase 2 - shared contracts
-
-Implement `packages/shared` as the single executable contract source:
-
-- Zod schemas for IDs, transcript turns, booking facts/provenance, risk inputs/results, agreements, payments, receipts, envelopes, and events;
-- state enums, event names, error codes, risk reason codes, and versioned thresholds;
-- positive/negative schema tests and generated TypeScript inference.
-
-**Exit condition:** web/API/domain packages can import one validated contract set; no DTO/status/event duplication remains.
 
 ### Phase 3 - deterministic domain kernel
 
@@ -273,7 +269,7 @@ Implement pure logic in `packages/domain`:
 
 **Exit condition:** no fixture or caller can obtain `UNLOCKED` unless the deterministic evaluator passes every guard.
 
-Do not combine Phase 2-3 with database or provider integration. PostgreSQL/Prisma follows in Phase 4 after the pure contracts/rules are stable.
+Do not combine Phase 3 with database or provider integration. PostgreSQL/Prisma follows in Phase 4 after the pure rules are stable.
 
 ---
 
@@ -296,30 +292,29 @@ The later replay-first vertical slice is complete only when:
 
 ## 11. Immediate backlog
 
-| Priority | Work item | Pipeline phase |
-|---:|---|---:|
-| P0 | Implement shared Zod schemas/enums/errors/events | 2 |
-| P0 | Implement deterministic risk/gate and transitions | 3 |
-| P0 | Implement canonical agreement serialization + SHA-256 | 3 |
-| P1 | Add Prisma/PostgreSQL repositories, inventory, migrations | 4 |
-| P1 | Implement replay REST commands, audit/outbox, and SSE | 5 |
-| P1 | Replace fixture authority with web REST/SSE adapter | 6 |
-| P1 | Complete durable mock payment/proof/receipt/mismatch slice | 7 |
-| P2 | Add Solana devnet verification | 8 |
-| P2 | Add Agora voice/transcript adapter | 9 |
-| P2 | Add optional validated LLM extraction | 10 |
-| P2 | Add Redis/MinIO only with queue/media consumers | 11 |
-| P2 | Harden E2E, accessibility, observability, and deployment | 12 |
+| Priority | Work item                                                  | Pipeline phase |
+| -------: | ---------------------------------------------------------- | -------------: |
+|       P0 | Implement deterministic risk/gate and transitions          |              3 |
+|       P0 | Implement canonical agreement serialization + SHA-256      |              3 |
+|       P1 | Add Prisma/PostgreSQL repositories, inventory, migrations  |              4 |
+|       P1 | Implement replay REST commands, audit/outbox, and SSE      |              5 |
+|       P1 | Replace fixture authority with web REST/SSE adapter        |              6 |
+|       P1 | Complete durable mock payment/proof/receipt/mismatch slice |              7 |
+|       P2 | Add Solana devnet verification                             |              8 |
+|       P2 | Add Agora voice/transcript adapter                         |              9 |
+|       P2 | Add optional validated LLM extraction                      |             10 |
+|       P2 | Add Redis/MinIO only with queue/media consumers            |             11 |
+|       P2 | Harden E2E, accessibility, observability, and deployment   |             12 |
 
 ---
 
 ## 12. Change summary
 
 - **Documentation consulted:** root agent instructions; ECC workflow guidance; architecture, product, contract, privacy, operations, and current-state documents.
-- **Documentation updated:** architecture/contract naming and decisions, product refund policy, operations setup, package READMEs, and this report.
-- **Code/tooling implemented:** explicit demo disclosure/policy source, runtime validation, Fastify skeleton, package entrypoints, root configs/scripts, CI, and regression tests.
-- **Contracts changed:** canonical namespace, SSE terminology, health/readiness endpoint documentation, and refund policy normalization. No Phase 2 business DTO was implemented.
+- **Documentation updated:** booking state/payment-intent terminology was aligned with the higher-precedence state/data contracts; this report now records Phase 2 completion.
+- **Code/tooling implemented:** `packages/shared` now owns Zod DTOs, public-ID schemas, domain entities, state/error/reason constants, API envelopes, replay command DTOs, and validated SSE event envelopes. The API health skeleton consumes shared success/error contracts; the web test confirms the same package boundary.
+- **Contracts changed:** shared executable definitions now cover all documented state enums, error codes, reason codes, and event names. No business route, persistence model, provider adapter, or frontend transaction behavior was added.
 - **Database migration required:** no.
 - **Environment variables added:** `NODE_ENV`, `API_HOST`, `API_PORT`, `DEMO_MODE`, `PAYMENT_PROVIDER`, `VOICE_PROVIDER`, `AI_PROVIDER`, `VITE_DEMO_MODE`, `VITE_API_BASE_URL`.
-- **Tests run:** 24 non-empty tests pass; frozen install, format, lint, typecheck, build, and local app smoke checks pass.
+- **Tests run:** 32 non-empty tests pass; frozen install, lint, typecheck, test, and build pass. The root format check still reports pre-existing formatting drift in unrelated files; Phase 2 code and manifests were formatted and checked independently.
 - **Remaining mocked integrations:** booking extraction, risk/gate, inventory, agreement, payment, proof, receipt, persistence, SSE, auth, Agora, AI provider, Solana, Redis, object storage, and deployment remain unimplemented.

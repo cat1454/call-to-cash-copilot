@@ -44,12 +44,18 @@ importers:
       '@call-to-cash/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@call-to-cash/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       fastify:
         specifier: ^5.0.0
         version: 5.8.5
 
   apps/web:
     dependencies:
+      '@call-to-cash/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       lucide-react:
         specifier: ^1.21.0
         version: 1.21.0(react@19.2.7)
@@ -98,7 +104,11 @@ importers:
 
   packages/domain: {}
 
-  packages/shared: {}
+  packages/shared:
+    dependencies:
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
 
   packages/solana: {}
 
