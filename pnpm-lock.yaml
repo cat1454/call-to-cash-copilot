@@ -102,7 +102,11 @@ importers:
 
   packages/db: {}
 
-  packages/domain: {}
+  packages/domain:
+    dependencies:
+      '@call-to-cash/shared':
+        specifier: workspace:*
+        version: link:../shared
 
   packages/shared:
     dependencies:
