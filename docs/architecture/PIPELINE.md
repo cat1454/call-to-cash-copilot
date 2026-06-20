@@ -348,7 +348,9 @@ paymentReadiness >= 80
 disputeRisk <= 35
 ```
 
-## Required critical blockers
+## Required blocking conditions
+
+The following ordinary conditions keep the gate `LOCKED` or `READY_FOR_CONFIRMATION`; they do not by themselves escalate the customer to manual review:
 
 ```text
 MISSING_ROUTE
@@ -356,13 +358,13 @@ MISSING_DEPARTURE_TIME
 MISSING_PASSENGER_COUNT
 MISSING_PICKUP_POINT
 MISSING_CONTACT
-MISSING_PRICE_OR_DEPOSIT
-MISSING_POLICY_CONFIRMATION
-NO_ACTIVE_INVENTORY_HOLD
+MISSING_PRICE / MISSING_DEPOSIT_AMOUNT
+REFUND_POLICY_NOT_CONFIRMED
+INVENTORY_UNAVAILABLE / INVENTORY_HOLD_EXPIRED
 NO_EXPLICIT_CONFIRMATION
-AGREEMENT_VERSION_STALE
-PAYMENT_OR_RECEIPT_ALREADY_FINALIZED
 ```
+
+The domain maps the older descriptive labels `MISSING_PRICE_OR_DEPOSIT`, `MISSING_POLICY_CONFIRMATION`, and `NO_ACTIVE_INVENTORY_HOLD` to the executable shared reason codes above. Only material integrity/payment exceptions such as `AGREEMENT_VERSION_STALE`, payment mismatches, proof mismatch, or an already-finalized payment/receipt enter `MANUAL_REVIEW_REQUIRED`.
 
 ## Proof rules
 
@@ -377,9 +379,9 @@ PAYMENT_OR_RECEIPT_ALREADY_FINALIZED
 - Missing pickup point keeps gate locked.
 - Missing policy acceptance keeps gate locked.
 - Missing active inventory hold keeps gate locked.
-- Explicit confirmation false keeps gate locked.
+- Explicit confirmation false keeps the gate non-payable (`READY_FOR_CONFIRMATION`).
 - Material route/time/seat/deposit/policy change invalidates confirmation.
-- Critical blocker forces BLOCK/LOCKED regardless of aggregate scores.
+- Critical integrity/payment blocker forces `MANUAL_REVIEW_REQUIRED` with `BLOCK` regardless of aggregate scores.
 - Valid complete booking with hold and confirmation opens the gate.
 - State transition attempts outside allowed paths fail deterministically.
 - Canonical serialization is stable across equivalent object key order.

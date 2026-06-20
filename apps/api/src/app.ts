@@ -1,13 +1,18 @@
 import Fastify, { type FastifyInstance } from "fastify";
 
 import { readRuntimeConfig, type RuntimeConfig } from "@call-to-cash/config";
+import {
+  ApiErrorEnvelopeSchema,
+  ApiSuccessEnvelopeSchema,
+  ErrorCodeSchema
+} from "@call-to-cash/shared";
 
 function successEnvelope<T>(requestId: string, data: T) {
-  return {
+  return ApiSuccessEnvelopeSchema.parse({
     success: true as const,
     data,
     meta: { requestId }
-  };
+  });
 }
 
 export function buildApp(config: RuntimeConfig = readRuntimeConfig()): FastifyInstance {
@@ -33,28 +38,32 @@ export function buildApp(config: RuntimeConfig = readRuntimeConfig()): FastifyIn
   );
 
   app.setNotFoundHandler((request, reply) =>
-    reply.code(404).send({
-      success: false,
-      error: {
-        code: "RESOURCE_NOT_FOUND",
-        message: "The requested resource was not found.",
-        requestId: request.id,
-        retryable: false
-      }
-    })
+    reply.code(404).send(
+      ApiErrorEnvelopeSchema.parse({
+        success: false,
+        error: {
+          code: ErrorCodeSchema.enum.RESOURCE_NOT_FOUND,
+          message: "The requested resource was not found.",
+          requestId: request.id,
+          retryable: false
+        }
+      })
+    )
   );
 
   app.setErrorHandler((error, request, reply) => {
     request.log.error({ err: error }, "Unhandled request error");
-    return reply.code(500).send({
-      success: false,
-      error: {
-        code: "INTERNAL_ERROR",
-        message: "An unexpected error occurred.",
-        requestId: request.id,
-        retryable: false
-      }
-    });
+    return reply.code(500).send(
+      ApiErrorEnvelopeSchema.parse({
+        success: false,
+        error: {
+          code: ErrorCodeSchema.enum.INTERNAL_ERROR,
+          message: "An unexpected error occurred.",
+          requestId: request.id,
+          retryable: false
+        }
+      })
+    );
   });
 
   return app;

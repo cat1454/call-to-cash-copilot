@@ -13,7 +13,7 @@ dist-ssr
 .turbo
 .pnpm-store/
 *.local
-*.env
+packages/db/src/generated/
 
 # Local tool artifacts
 .playwright-mcp/

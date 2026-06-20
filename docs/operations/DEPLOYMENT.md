@@ -165,7 +165,7 @@ Use a separate least-privilege identity for each environment. Do not use root-ac
 3. Lint
 4. Unit tests
 5. Contract/schema tests
-6. Prisma schema validation
+6. `pnpm db:validate` and clean-database migration test
 7. Build web and API
 8. Run scripted payment-gate regression suite
 9. Build container artifact
@@ -200,6 +200,8 @@ Add manual approval between migration review and rollout. Keep rollback artifact
 - Backfill with worker jobs, not blocking application startup.
 - Record the Prisma migration version with deployment metadata.
 - Test migration timing on a staging-sized data copy when possible.
+- Generate migrations with `pnpm db:migrate:dev --name <change>` only on an individual local database.
+- Apply reviewed migrations with `pnpm db:migrate:deploy`; never run `migrate dev` in shared or deployed environments.
 
 ### Safe rollout example
 
@@ -210,6 +212,8 @@ Release C: enforce non-null / remove deprecated path
 ```
 
 Never run `prisma db push` against production as a release strategy. Use reviewed migrations.
+
+The Phase 4 initial migration is forward-only and creates the complete durable-state baseline, database checks, partial unique indexes, locked-agreement protection, and append-only audit protection. For an empty preview environment, rollback means recreating the isolated database/volume. For a stateful environment, take a verified backup before deployment and use a reviewed forward-fix migration rather than editing or reversing the applied migration.
 
 ---
 
