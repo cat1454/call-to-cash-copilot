@@ -11,7 +11,9 @@ test("runtime config defaults to explicit deterministic demo providers", () => {
     demoMode: true,
     paymentProvider: "mock",
     voiceProvider: "replay",
-    aiProvider: "deterministic"
+    aiProvider: "deterministic",
+    logLevel: "info",
+    rateLimitMax: 100
   });
 });
 
@@ -25,3 +27,22 @@ test("runtime config rejects invalid provider modes", () => {
 test("runtime config parses an explicit false demo mode", () => {
   assert.equal(readRuntimeConfig({ DEMO_MODE: "false" }).demoMode, false);
 });
+
+test("runtime config reads LOG_LEVEL and RATE_LIMIT_MAX", () => {
+  const config = readRuntimeConfig({ LOG_LEVEL: "debug", RATE_LIMIT_MAX: "200" });
+  assert.equal(config.logLevel, "debug");
+  assert.equal(config.rateLimitMax, 200);
+});
+
+test("runtime config rejects invalid LOG_LEVEL", () => {
+  assert.throws(() => readRuntimeConfig({ LOG_LEVEL: "verbose" }), /LOG_LEVEL/);
+});
+
+test("runtime config rejects negative RATE_LIMIT_MAX", () => {
+  assert.throws(() => readRuntimeConfig({ RATE_LIMIT_MAX: "-1" }), /RATE_LIMIT_MAX/);
+});
+
+test("runtime config allows RATE_LIMIT_MAX=0 to disable limiting", () => {
+  assert.equal(readRuntimeConfig({ RATE_LIMIT_MAX: "0" }).rateLimitMax, 0);
+});
+

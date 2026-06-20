@@ -1,10 +1,12 @@
 export const PAYMENT_PROVIDERS = ["mock", "solana-devnet"] as const;
 export const VOICE_PROVIDERS = ["replay", "agora"] as const;
 export const AI_PROVIDERS = ["deterministic", "llm"] as const;
+export const LOG_LEVELS = ["trace", "debug", "info", "warn", "error", "fatal", "silent"] as const;
 
 export type PaymentProvider = (typeof PAYMENT_PROVIDERS)[number];
 export type VoiceProvider = (typeof VOICE_PROVIDERS)[number];
 export type AiProvider = (typeof AI_PROVIDERS)[number];
+export type LogLevel = (typeof LOG_LEVELS)[number];
 
 export type RuntimeConfig = {
   nodeEnv: string;
@@ -14,6 +16,13 @@ export type RuntimeConfig = {
   paymentProvider: PaymentProvider;
   voiceProvider: VoiceProvider;
   aiProvider: AiProvider;
+  /** Pino log level. Defaults to "info". Set LOG_LEVEL=debug for verbose output. */
+  logLevel: LogLevel;
+  /**
+   * Maximum requests per minute per IP for rate-limited routes.
+   * Set RATE_LIMIT_MAX=0 to disable rate limiting (development only).
+   */
+  rateLimitMax: number;
 };
 
 function readEnum<T extends string>(
@@ -44,6 +53,15 @@ function readPort(value: string | undefined): number {
   return port;
 }
 
+function readPositiveInt(name: string, value: string | undefined, fallback: number): number {
+  if (value === undefined) return fallback;
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 0) {
+    throw new Error(`${name} must be a non-negative integer`);
+  }
+  return n;
+}
+
 export function readRuntimeConfig(
   env: Readonly<Record<string, string | undefined>> = process.env
 ): RuntimeConfig {
@@ -54,6 +72,8 @@ export function readRuntimeConfig(
     demoMode: readBoolean("DEMO_MODE", env.DEMO_MODE, true),
     paymentProvider: readEnum("PAYMENT_PROVIDER", env.PAYMENT_PROVIDER, PAYMENT_PROVIDERS, "mock"),
     voiceProvider: readEnum("VOICE_PROVIDER", env.VOICE_PROVIDER, VOICE_PROVIDERS, "replay"),
-    aiProvider: readEnum("AI_PROVIDER", env.AI_PROVIDER, AI_PROVIDERS, "deterministic")
+    aiProvider: readEnum("AI_PROVIDER", env.AI_PROVIDER, AI_PROVIDERS, "deterministic"),
+    logLevel: readEnum("LOG_LEVEL", env.LOG_LEVEL, LOG_LEVELS, "info"),
+    rateLimitMax: readPositiveInt("RATE_LIMIT_MAX", env.RATE_LIMIT_MAX, 100)
   };
 }

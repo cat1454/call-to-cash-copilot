@@ -1,3 +1,5 @@
+import cors from "@fastify/cors";
+import rateLimit from "@fastify/rate-limit";
 import Fastify, { type FastifyInstance } from "fastify";
 import { z, type ZodType } from "zod";
 
@@ -15,6 +17,7 @@ import {
   ErrorCodeSchema,
   PaymentIntentIdSchema,
   ReceiptIdSchema,
+  SimulatePaymentFailureRequestSchema,
   VerifyMockPaymentRequestSchema
 } from "@call-to-cash/shared";
 
@@ -87,7 +90,41 @@ export function buildApp(
   config: RuntimeConfig = readRuntimeConfig(),
   options: BuildAppOptions = {}
 ): FastifyInstance {
-  const app = Fastify({ logger: false });
+  const app = Fastify({
+    logger: {
+      level: config.logLevel,
+      // Redact sensitive headers and fields before they reach log sinks.
+      redact: ["req.headers.authorization", "req.headers.cookie"]
+    }
+  });
+
+  // CORS: allow the Vite dev server and any configured API consumer.
+  // In production, restrict origin to the deployed web URL via environment config.
+  void app.register(cors, {
+    origin:
+      config.nodeEnv === "production"
+        ? false // tighten in production via a concrete allowed-origins list
+        : true,
+    methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"]
+  });
+
+  // Rate limiting: applied globally. Set RATE_LIMIT_MAX=0 to disable in local dev.
+  if (config.rateLimitMax > 0) {
+    void app.register(rateLimit, {
+      global: true,
+      max: config.rateLimitMax,
+      timeWindow: "1 minute",
+      // Return structured error envelope instead of raw Fastify rate-limit payload.
+      errorResponseBuilder: (request, context) =>
+        errorEnvelope(
+          request.id,
+          "RATE_LIMITED",
+          `Too many requests. Limit is ${context.max} per ${context.after}.`,
+          true
+        )
+    });
+  }
+
   const ownedDatabaseClient =
     options.databaseClient === undefined && process.env.DATABASE_URL !== undefined
       ? createPrismaClientFromEnvironment()
@@ -310,6 +347,20 @@ export function buildApp(
     return successEnvelope(
       request.id,
       await getService().verifyMockPayment(body, idempotencyKey, request.id)
+    );
+  });
+
+  // Phase 7: simulate failure endpoint — DEMO_MODE only.
+  app.post("/v1/payments/mock/simulate-failure", async (request, reply) => {
+    if (!config.demoMode) {
+      return reply
+        .code(403)
+        .send(errorEnvelope(request.id, "AUTH_FORBIDDEN", "Endpoint available in demo mode only.", false));
+    }
+    const body = parseWithSchema(SimulatePaymentFailureRequestSchema, request.body);
+    return successEnvelope(
+      request.id,
+      await getService().simulatePaymentFailure(body, request.id)
     );
   });
 

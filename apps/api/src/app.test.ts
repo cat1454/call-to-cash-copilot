@@ -20,7 +20,9 @@ const demoConfig = {
   demoMode: true,
   paymentProvider: "mock",
   voiceProvider: "replay",
-  aiProvider: "deterministic"
+  aiProvider: "deterministic",
+  logLevel: "silent" as const,
+  rateLimitMax: 0
 } as const;
 
 if (databaseUrl !== undefined) {
