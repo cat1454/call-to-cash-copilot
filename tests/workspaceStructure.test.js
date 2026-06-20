@@ -44,10 +44,7 @@ async function exists(relativePath) {
 }
 
 test("pnpm workspace contains the planned apps and package boundaries", async () => {
-  const workspaceConfig = await readFile(
-    path.join(repoRoot, "pnpm-workspace.yaml"),
-    "utf8"
-  );
+  const workspaceConfig = await readFile(path.join(repoRoot, "pnpm-workspace.yaml"), "utf8");
 
   assert.match(workspaceConfig, /- ['"]apps\/\*['"]/);
   assert.match(workspaceConfig, /- ['"]packages\/\*['"]/);
@@ -112,7 +109,9 @@ test("pnpm is the only committed dependency lock and Turbo cache is ignored", as
 
   assert.equal(await exists("pnpm-lock.yaml"), true);
   assert.equal(await exists("package-lock.json"), false);
+  assert.equal(await exists("apps/web/package-lock.json"), false);
   assert.match(gitignore, /^\.turbo$/m);
+  assert.match(gitignore, /^\.pnpm-store\/$/m);
 });
 
 test("Phase 1 exposes TypeScript package entrypoints and API health skeleton", async () => {
@@ -135,7 +134,10 @@ test("Phase 1 exposes TypeScript package entrypoints and API health skeleton", a
     assert.equal(await exists(relativePath), true, `${relativePath} should exist`);
   }
 
-  for (const relativePath of ["apps/api", ...Object.keys(workspacePackages).filter((path) => path.startsWith("packages/"))]) {
+  for (const relativePath of [
+    "apps/api",
+    ...Object.keys(workspacePackages).filter((path) => path.startsWith("packages/"))
+  ]) {
     const manifest = JSON.parse(
       await readFile(path.join(repoRoot, relativePath, "package.json"), "utf8")
     );
@@ -153,9 +155,7 @@ test("Phase 1 exposes TypeScript package entrypoints and API health skeleton", a
 test("Phase 0 canonical names and refund policy stay normalized", async () => {
   const docsText = (
     await Promise.all(
-      authoritativeDocs.map((relativePath) =>
-        readFile(path.join(repoRoot, relativePath), "utf8")
-      )
+      authoritativeDocs.map((relativePath) => readFile(path.join(repoRoot, relativePath), "utf8"))
     )
   ).join("\n");
 
