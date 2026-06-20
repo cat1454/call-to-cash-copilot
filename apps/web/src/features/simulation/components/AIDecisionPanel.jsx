@@ -1,57 +1,87 @@
 import { Sparkles, HelpCircle, TrendingUp, ShieldCheck, ArrowRight } from "lucide-react";
+import { cn } from "../../../lib/cn";
+import { Card, CardBody } from "../../../components/ui/Card";
+import { SectionHeading } from "../../../components/ui/SectionHeading";
 
-export default function AIDecisionPanel({
-  decision
-}) {
+function DecisionRow({ icon: Icon, iconColor, label, value, valueStyle }) {
   return (
-    <div className="decision-panel">
-      <div className="decision-header">Trợ Lý Giám Sát Giao Dịch AI</div>
-      
-      <div className="decision-row understood">
-        <span className="decision-label" style={{ display: "flex", alignItems: "center", gap: "4.5px" }}>
-          <Sparkles size={11} style={{ color: "var(--primary-blue)" }} />
-          <span>Thông tin hành trình đã nhận diện</span>
-        </span>
-        <span className="decision-val">{decision.understood}</span>
-      </div>
-      
-      <div className="decision-row missing">
-        <span className="decision-label" style={{ display: "flex", alignItems: "center", gap: "4.5px" }}>
-          <HelpCircle size={11} style={{ color: "var(--warning-amber)" }} />
-          <span>Chi tiết hành trình cần thu thập</span>
-        </span>
-        <span className="decision-val" style={{ color: decision.missing.includes("Không") ? "var(--success-green)" : "" }}>
-          {decision.missing}
+    <div className="flex flex-col gap-2 border-b border-[#f3f4f6] py-3 last:border-0">
+      <div className="flex items-center gap-2">
+        <Icon size={14} style={{ color: iconColor }} />
+        <span className="text-xs leading-4 font-medium text-[#6b7280]">
+          {label}
         </span>
       </div>
-      
-      <div className="decision-row risk">
-        <span className="decision-label" style={{ display: "flex", alignItems: "center", gap: "4.5px" }}>
-          <TrendingUp size={11} style={{ color: "var(--error-red)" }} />
-          <span>Độ rủi ro đàm thoại</span>
-        </span>
-        <span className="decision-val" style={{ fontWeight: 700, color: decision.risk === "LOW" || decision.risk === "AN TOÀN / THẤP" ? "var(--success-green)" : decision.risk === "N/A" ? "" : "var(--error-red)" }}>
-          {decision.risk}
-        </span>
-      </div>
-      
-      <div className="decision-row gate">
-        <span className="decision-label" style={{ display: "flex", alignItems: "center", gap: "4.5px" }}>
-          <ShieldCheck size={11} style={{ color: "var(--success-green)" }} />
-          <span>Cổng thanh toán cọc</span>
-        </span>
-        <span className="decision-val" style={{ fontWeight: 800, color: decision.gate === "READY / UNLOCKED" || decision.gate === "ĐÃ MỞ / SẴN SÀNG" || decision.gate === "ĐÃ XÁC THỰC / KHÓA" || decision.gate === "Confirmed / Anchored" ? "var(--success-green)" : "var(--error-red)" }}>
-          {decision.gate}
-        </span>
-      </div>
-      
-      <div className="decision-row next-action">
-        <span className="decision-label" style={{ display: "flex", alignItems: "center", gap: "4.5px" }}>
-          <ArrowRight size={11} style={{ color: "var(--accent-cyan)" }} />
-          <span>Hành động gợi ý tiếp theo</span>
-        </span>
-        <span className="decision-val" style={{ fontStyle: "italic" }}>{decision.next}</span>
-      </div>
+      <p
+        className={cn(
+          "min-w-0 break-words text-sm leading-5 font-normal text-[#374151]",
+          valueStyle
+        )}
+      >
+        {value}
+      </p>
     </div>
+  );
+}
+
+export default function AIDecisionPanel({ decision }) {
+  const gateIsOpen =
+    decision.gate === "ĐÃ MỞ / SẴN SÀNG" ||
+    decision.gate === "ĐÃ XÁC THỰC / KHÓA" ||
+    decision.gate === "Confirmed / Anchored";
+
+  const riskIsHigh =
+    decision.risk !== "AN TOÀN / THẤP" && decision.risk !== "N/A";
+
+  return (
+    <Card>
+      <div className="px-5 pb-2 pt-5">
+        <SectionHeading icon={<Sparkles size={13} />}>
+          Trợ Lý Giám Sát Giao Dịch AI
+        </SectionHeading>
+      </div>
+      <CardBody className="gap-0 px-5 pb-5 pt-0">
+        <DecisionRow
+          icon={Sparkles}
+          iconColor="#059669"
+          label="Thông tin hành trình đã nhận diện"
+          value={decision.understood}
+        />
+        <DecisionRow
+          icon={HelpCircle}
+          iconColor="#f59e0b"
+          label="Chi tiết hành trình cần thu thập"
+          value={decision.missing}
+          valueStyle={decision.missing.includes("Không") ? "text-[#10b981] font-semibold" : ""}
+        />
+        <DecisionRow
+          icon={TrendingUp}
+          iconColor={riskIsHigh ? "#f59e0b" : "#059669"}
+          label="Độ rủi ro đàm thoại"
+          value={decision.risk}
+          valueStyle={cn(
+            "font-bold",
+            riskIsHigh ? "text-[#92400e]" : decision.risk === "N/A" ? "text-[#9ca3af]" : "text-[#10b981]"
+          )}
+        />
+        <DecisionRow
+          icon={ShieldCheck}
+          iconColor={gateIsOpen ? "#10b981" : "#f59e0b"}
+          label="Cổng thanh toán cọc"
+          value={decision.gate}
+          valueStyle={cn(
+            "text-sm leading-5 font-semibold",
+            gateIsOpen ? "text-[#10b981]" : "text-[#92400e]"
+          )}
+        />
+        <DecisionRow
+          icon={ArrowRight}
+          iconColor="#6b7280"
+          label="Hành động gợi ý tiếp theo"
+          value={decision.next}
+          valueStyle="italic text-[#6b7280]"
+        />
+      </CardBody>
+    </Card>
   );
 }

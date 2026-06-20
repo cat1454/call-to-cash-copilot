@@ -1,76 +1,116 @@
-import { Shield, ShieldAlert, Printer } from "lucide-react";
+import {
+  CheckCircle2,
+  FileCode2,
+  Printer,
+  Shield,
+  ShieldAlert,
+} from "lucide-react";
+import { Card, CardBody, CardHeader } from "../../../components/ui/Card";
+import { SectionHeading } from "../../../components/ui/SectionHeading";
+import { Button } from "../../../components/ui/Button";
+import { cn } from "../../../lib/cn";
+
+function ProofRow({ label, value, tone = "neutral" }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-2">
+      <span className="text-xs leading-4 font-medium text-[#6b7280]">{label}</span>
+      <code
+        className={cn(
+          "min-w-0 break-all rounded-lg border border-[#e5e7eb] bg-white p-3 font-mono text-xs leading-[18px]",
+          tone === "primary" ? "text-[#047857]" : "text-[#374151]"
+        )}
+      >
+        {value}
+      </code>
+    </div>
+  );
+}
 
 export default function SolanaLedgerCard({
   ledgerLogs,
   isTampered,
-  tamperAgreement
+  tamperAgreement,
 }) {
   if (!ledgerLogs.show) return null;
 
   return (
-    <div className="dev-receipt-log">
-      <div className="dev-receipt-log-header" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-        <Shield size={13} style={{ color: "var(--primary-blue)" }} />
-        <span>Đối Soát Xác Thực Sổ Cái Solana</span>
-      </div>
+    <Card className="bg-[#f9fafb]">
+      <CardHeader>
+        <SectionHeading icon={<Shield size={16} />}>
+          Tóm tắt bằng chứng giao dịch
+        </SectionHeading>
+      </CardHeader>
 
-      <div>
-        <span>Mã giao dịch (Tx Signature):</span>
-        <div className="dev-log-sig">{ledgerLogs.txSig}</div>
-      </div>
-
-      <div style={{ marginTop: "4px" }}>
-        <span>Mã băm lưu trữ (Anchored Hash):</span>
-        <div className="dev-log-hash">{ledgerLogs.anchoredHash}</div>
-      </div>
-
-      <div style={{ marginTop: "4px" }}>
-        <span>Mã băm đối soát thực tế:</span>
-        <div className="dev-log-hash" style={{ color: ledgerLogs.computedHashColor, fontWeight: 700 }}>
-          {ledgerLogs.computedHash}
-        </div>
-      </div>
-
-      {isTampered && (
-        <div className="tamper-explanation-banner" style={{ margin: "12px 0" }}>
-          <div className="tamper-banner-header">
-            <ShieldAlert size={14} />
-            <span>PHÁT HIỆN HÀNH VI CAN THIỆP DỮ LIỆU THỎA THUẬN (TAMPER DETECTED)</span>
+      <CardBody className="gap-4 p-5">
+        <div
+          className={cn(
+            "flex items-start gap-3 rounded-xl border p-4",
+            isTampered
+              ? "border-[#f43f5e] bg-[#fff1f2] text-[#be123c]"
+              : "border-[#6ee7b7] bg-[#ecfdf5] text-[#047857]"
+          )}
+          role="status"
+        >
+          {isTampered ? (
+            <ShieldAlert size={20} className="mt-0.5 shrink-0" />
+          ) : (
+            <CheckCircle2 size={20} className="mt-0.5 shrink-0" />
+          )}
+          <div className="min-w-0">
+            <h3 className="text-sm leading-5 font-semibold text-balance">
+              {isTampered ? "Cryptographic mismatch detected" : "Payment proof verified"}
+            </h3>
+            <p className="mt-1 text-xs leading-[18px] font-normal">
+              {isTampered
+                ? "Agreement data changed after the original proof was anchored. Manual review is required."
+                : "The current agreement hash matches the proof captured after deposit confirmation."}
+            </p>
           </div>
-          <p style={{ margin: "6px 0", fontSize: "10.5px" }}>
-            <b>Giải thích cơ chế bảo mật (Hackathon Proof):</b>
-            <br />
-            Mã băm thỏa thuận đặt vé ban đầu đã được ký số và neo băm (Anchored Hash) lên sổ cái blockchain Solana lúc thanh toán cọc.
-            <br />
-            Khi kẻ tấn công cố tình thay đổi trực tiếp cơ sở dữ liệu (sửa đổi tuyến đường/số ghế), hệ thống đối soát thực tế ngay lập tức tính toán lại mã băm mới và phát hiện sự <b>SAI KHỚP</b> với mã băm đã ký trên sổ cái blockchain.
-          </p>
-          <div className="tamper-comparison">
-            <div className="hash-block archived">
-              <span>Mã băm gốc (Solana Ledger)</span>
-              <code>{ledgerLogs.anchoredHash.substring(0, 18)}...</code>
-            </div>
-            <div className="hash-block divider">≠</div>
-            <div className="hash-block computed">
-              <span>Mã băm hiện tại (Hacked DB)</span>
-              <code>{ledgerLogs.computedHash.substring(0, 18)}...</code>
-            </div>
-          </div>
-          <p className="tamper-conclusion" style={{ margin: "4px 0 0 0" }}>
-            ❌ TRẠNG THÁI VÉ BỊ KHÓA LẬP TỨC. HỆ THỐNG PHÒNG CHỐNG GIAN LẬN AN TOÀN!
-          </p>
         </div>
-      )}
 
-      <div className="dev-receipt-actions">
-        <button className="btn-danger" style={{ display: "flex", gap: "4px" }} onClick={tamperAgreement}>
-          <ShieldAlert size={12} />
-          <span>Mô phỏng tấn công dữ liệu vé (Tamper)</span>
-        </button>
-        <button className="btn-secondary" style={{ display: "flex", gap: "4px" }} onClick={() => window.print()}>
-          <Printer size={12} />
-          <span>In hóa đơn vé</span>
-        </button>
-      </div>
-    </div>
+        <details className="rounded-xl border border-[#e5e7eb] bg-[#f3f4f6]">
+          <summary className="flex min-h-11 cursor-pointer items-center gap-2 px-4 py-3 text-sm leading-5 font-medium text-[#374151] transition-transform duration-150 ease-out active:scale-[0.96] motion-reduce:transition-none">
+            <FileCode2 size={16} className="shrink-0 text-[#6b7280]" />
+            Xem chữ ký và mã băm kỹ thuật
+          </summary>
+          <div className="flex flex-col gap-4 border-t border-[#e5e7eb] p-4">
+            <ProofRow
+              label="Mã giao dịch (Tx Signature)"
+              value={ledgerLogs.txSig}
+              tone="primary"
+            />
+            <ProofRow
+              label="Mã băm lưu trữ (Anchored Hash)"
+              value={ledgerLogs.anchoredHash}
+            />
+            <ProofRow
+              label="Mã băm đối soát thực tế"
+              value={ledgerLogs.computedHash}
+            />
+          </div>
+        </details>
+
+        <div className="flex flex-col gap-2 min-[420px]:flex-row">
+          <Button
+            variant="danger"
+            size="sm"
+            onClick={tamperAgreement}
+            className="flex-1 border-[#f43f5e] bg-[#f43f5e] text-white hover:bg-[#e11d48]"
+          >
+            <ShieldAlert size={14} className="shrink-0" />
+            Mô phỏng Tamper
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => window.print()}
+            className="flex-1"
+          >
+            <Printer size={14} className="shrink-0" />
+            In hóa đơn vé
+          </Button>
+        </div>
+      </CardBody>
+    </Card>
   );
 }
