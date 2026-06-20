@@ -1,227 +1,107 @@
-# Call-to-Cash Risk Copilot - Current State
+# Call-to-Cash Risk Copilot — Current State
 
-> **Snapshot date:** 2026-06-20 (Asia/Saigon)  
-> **Branch / baseline:** `step-3-4` / Phase 4 durable-state commit
-> **Purpose:** establish the implementation baseline and identify the next production slice.
-> **Conclusion:** Phase 4 PostgreSQL, Prisma, inventory holds, migrations, deterministic seed, and repository tests are complete. The frontend remains a presentation-ready simulation; the next implementation slice is the authoritative replay API and SSE stream in Phase 5.
-
----
+> **Snapshot date:** 2026-06-20 (Asia/Bangkok)
+> **Baseline:** Phase 5 authoritative replay API
+> **Conclusion:** Phases 0–5 are implemented. PostgreSQL now owns replay call, transcript, risk, booking, agreement, mock payment, proof, receipt, and durable event state. The existing web experience remains fixture-driven until Phase 6 connects it to REST/SSE.
 
 ## 1. Executive summary
 
-The repository now has three distinct maturity levels:
+The repository now contains:
 
-1. **A working React/Vite demo UI** for scripted calls, animated risk scores, simulated payment, simulated receipt, and tamper mismatch on mobile and desktop.
-2. **An executable engineering foundation** with a pnpm/Turbo workspace, TypeScript package entrypoints, validated runtime configuration, Fastify health/readiness endpoints, a frozen lockfile, root quality commands, and CI.
-3. **Executable shared contracts and deterministic domain rules** for public IDs, DTOs, state enums, risk/gate decisions, agreement canonicalization, and allowed transitions, backed by the detailed privacy, API, state, data, risk, payment, and operations documents.
-4. **A durable PostgreSQL/Prisma foundation** with the Phase 4 relational model, inventory hold repository, locked-agreement and audit protections, deterministic seed, and real PostgreSQL integration coverage.
-
-The missing bridge is now narrower but still material. There is no business API route, SSE stream, replay orchestration, authoritative payment/proof/receipt flow, authentication, or real provider adapter.
+1. a responsive React/Vite scripted demonstration;
+2. executable shared Zod contracts and pure domain policy;
+3. a Prisma/PostgreSQL durable model and inventory repository;
+4. a Fastify replay API with server-owned commands and reads;
+5. a durable per-call SSE event stream with reconnect recovery;
+6. an idempotent deterministic mock payment-to-receipt vertical slice.
 
 ```text
-Completed frontend simulation
-+ normalized and executable shared contracts
-+ deterministic domain rules and transition guards
-+ durable PostgreSQL/Prisma schema and inventory repository
-+ executable workspace and API skeleton
-- REST/SSE server orchestration
-- provider integrations
-= Phase 0-4 complete, not yet an end-to-end MVP
+replay transcript
+  -> durable turn
+  -> deterministic extraction and risk
+  -> booking draft and inventory hold
+  -> immutable agreement lock
+  -> idempotent mock payment verification
+  -> proof and Trust Receipt
+  -> ordered committed SSE events
 ```
 
-The correct next slice is **Phase 5 authoritative replay API and SSE stream**. Live Agora, Solana devnet, LLM, Redis, and object storage remain intentionally deferred.
+The API is authoritative for the Phase 5 flow. The browser demo is not yet wired to it, and no response or event should be interpreted as live Agora or Solana activity.
 
----
+## 2. Implemented boundaries
 
-## 2. Audit scope and evidence
-
-This state report is based on:
-
-- root package/workspace configuration, lockfile, environment template, CI, and git state;
-- the complete `apps/web` demo source, fixtures, PWA configuration, and tests;
-- the Fastify application skeleton and runtime configuration tests;
-- every package manifest, TypeScript entrypoint, and boundary README;
-- product, architecture, API/event/error, privacy, operations, and report documents;
-- the local `ECC/` workflow catalog and repository-specific agent routing;
-- successful frozen install, lint, typecheck, test, build, and local smoke verification.
-
-Status labels:
-
-| Label | Meaning |
+| Area | Current status |
 |---|---|
-| **Implemented** | Executable source exists and has been locally verified. |
-| **Simulated** | Behavior is visible, but facts/decisions/providers are browser fixtures or mock effects. |
-| **Specified** | A canonical contract exists without its runtime implementation. |
-| **Scaffold** | Package/runtime boundary builds, but owns no production business behavior yet. |
-| **Absent** | The artifact or capability does not exist. |
+| Workspace/tooling | pnpm/Turbo, frozen lockfile, shared TypeScript/ESLint/Prettier, root quality commands |
+| `packages/shared` | API DTOs, IDs, domain schemas, errors, and canonical event envelopes |
+| `packages/domain` | state transitions, risk/gate policy, inventory guards, agreement canonicalization |
+| `packages/db` / `prisma` | durable model, migration, deterministic seed, repositories and DB integration tests |
+| `apps/api` | health/readiness, Phase 5 REST commands/reads, durable SSE, mock payment/proof/receipt |
+| `apps/web` | polished fixture-driven simulation; Phase 6 server adapter not implemented |
+| Provider packages | Agora, Solana, and AI adapter boundaries remain scaffolds |
 
-### Repository operating context
+## 3. Phase 5 API surface
 
-- `ECC/` is a separately versioned clone of `affaan-m/ECC`, pinned at `34faa39`, and excluded from the pnpm workspace.
-- Root instructions require a lightweight ECC scan and documentation-first implementation workflow.
-- `.agents/` remains available for project-local runtime-discovered skills.
-- The current canonical repository namespace is `@call-to-cash/*`.
-- pnpm 11.1.1 is the only dependency manager/lock source; generated npm locks and local pnpm store data are excluded.
-
----
-
-## 3. Repository map and implementation status
-
-| Area | Current contents | Status |
-|---|---|---|
-| Root workspace | pnpm 11.1.1, Turbo, Node pin, frozen lockfile, root scripts | **Implemented** |
-| Tooling | shared ESLint, Prettier, TypeScript base config | **Implemented** |
-| `apps/web` | React 19/Vite 8 responsive scripted demo, PWA shell, tests | **Implemented / Simulated** |
-| `apps/api` | Fastify/TypeScript server, `/health`, `/ready`, shared-envelope/error integration | **Implemented scaffold** |
-| `packages/config` | validated host/port/demo/provider runtime configuration | **Implemented** |
-| `packages/shared` | Zod contracts, state/error/event constants, replay DTOs, contract tests | **Implemented** |
-| `packages/domain` | deterministic booking/risk/gate rules, canonical agreement serialization, transition tables, unit tests | **Implemented** |
-| `packages/ai` | adapter boundary/build entrypoint | **Scaffold** |
-| `packages/db` | Prisma 7 client, inventory repository, safe receipt trace projection, integration tests | **Implemented** |
-| `packages/agora` | adapter boundary/build entrypoint | **Scaffold** |
-| `packages/solana` | adapter boundary/build entrypoint | **Scaffold** |
-| `prisma/` | schema, reviewed initial migration, deterministic seed | **Implemented** |
-| Local infrastructure | Docker Compose PostgreSQL 18 on port 55432; no Redis/MinIO yet | **Implemented / bounded** |
-| CI | GitHub Actions install, format, lint, typecheck, test, build | **Implemented, remote run not observed here** |
-| Documentation | canonical pipeline, states, contracts, privacy, operations | **Specified / normalized** |
-| Automated tests | workspace, shared contracts, domain kernel, db integration, config, API skeleton, and browser simulation units | **Implemented** |
-
----
-
-## 4. What the frontend demo delivers
-
-### 4.1 Product experience
-
-`apps/web` provides:
-
-- desktop mentor console and mobile Call/Dashboard/Receipt tabs;
-- three deterministic Vietnamese booking scenarios;
-- transcript replay, call status, booking extraction, risk telemetry, and timeline animation;
-- simulated payment drawer, countdown, receipt, and tamper mismatch;
-- responsive styling, service-worker registration, manifest, and icons;
-- visible demo-mode disclosure and truthful replay/mock/deterministic provider labels;
-- one canonical displayed refund policy: `BUS-V1` version `1.0`, 80% refund with at least 12 hours notice.
-
-### 4.2 Current browser-side authority
+Implemented endpoints:
 
 ```text
-scenario fixture
-  -> timeout-driven transcript replay
-  -> fixture fields and score totals
-  -> fixture gateUnlocked flag
-  -> simulated payment drawer
-  -> fake wallet/network timers
-  -> browser-generated transaction/hash
-  -> browser-only receipt
-  -> optional browser-state tamper mismatch
+GET  /health
+GET  /ready
+POST /v1/calls
+GET  /v1/calls/:callId
+POST /v1/calls/:callId/end
+POST /v1/calls/:callId/transcript-turns
+GET  /v1/calls/:callId/events
+GET  /v1/calls/:callId/risk
+GET  /v1/bookings/:bookingId
+POST /v1/bookings/:bookingId/confirm
+POST /v1/payments/mock/create
+POST /v1/payments/mock/verify
+GET  /v1/payments/:bookingId/status
+GET  /v1/receipts/:receiptId
+GET  /v1/receipts/:receiptId/verify
 ```
 
-The UI is now honest about this simulation, but it is still browser-authoritative. Refresh/reset loses the transaction state.
+`/ready` succeeds only when PostgreSQL is reachable. Booking confirmation and both mock payment commands require `Idempotency-Key`.
 
-### 4.3 PWA status
+## 4. Authoritative behavior and recovery
 
-The app has a manifest, icons, service-worker registration, app-shell caching, and same-origin stale-while-revalidate behavior. Manifest and SVG theme values now match the light/green V6 design.
+- Final transcript turns are persisted before deterministic analysis runs.
+- Shared request schemas reject client-supplied authority fields.
+- Risk, booking, inventory, agreement, payment, proof, and receipt decisions are server-owned.
+- Agreement confirmation stores a canonical immutable payload and SHA-256 hash.
+- Exact command replay returns the original result; reuse with changed input returns the documented idempotency conflict.
+- Successful payment verification creates one transaction, proof, and receipt.
+- Definitive mismatch persists rejected evidence, emits `payment.failed`, and moves the booking to manual review.
+- Demo tamper verification changes only a comparison copy and never mutates the locked agreement.
+- Events are written in the same transaction as state, using append-only `audit_logs` rows with `aggregate_type = CALL_STREAM`.
+- PostgreSQL advisory transaction locks serialize per-call sequence allocation.
+- The normal events endpoint is long-lived; `Last-Event-ID` replays only later committed events. `?snapshot=true` provides a finite recovery/testing view.
 
-Remaining PWA limitations:
+No Phase 5 database migration is required because the event stream reuses the Phase 4 audit table.
 
-- the QR image comes from external `api.qrserver.com` and is not available from the same-origin cache;
-- production assets are runtime-cached rather than generated into an explicit precache manifest;
-- offline/install behavior has no browser automation test.
+## 5. Privacy and security posture
 
----
+- Phase 5 replay persists only a masked contact plus a demo placeholder in the encrypted column; it deliberately does not retain the raw phone before a production encryption/key-management design exists.
+- Full transcripts, canonical agreement payloads, and score reasoning are not emitted through receipt or SSE projections.
+- No audio, transcript, phone, PII, or full agreement payload is written on-chain.
+- The Phase 5 payment provider is explicitly mock; Solana private keys and authoritative verification remain absent.
+- The tamper query is allowed only with `DEMO_MODE=true`.
+- Authentication, ownership authorization, RBAC, consent enforcement, retention jobs, rate limiting, and production secret-management integration remain later hardening work.
 
-## 5. What Phase 0-2 implemented
+## 6. Verification status
 
-### Contract normalization
+Phase 5 has dedicated TDD evidence in [phase-5-replay-api.tdd.md](../testing/phase-5-replay-api.tdd.md). The implemented integration suite covers:
 
-- canonical risk document: `docs/product/RISK-SCORING.md`;
-- canonical package namespace: `@call-to-cash/*`;
-- canonical MVP realtime transport: SSE;
-- backend decision: Node.js + Fastify + TypeScript; PostgreSQL + Prisma are the Phase 4 persistence stack;
-- canonical refund policy: `BUS-V1` version `1.0`;
-- explicit `DEMO_MODE`, payment, voice, and AI provider configuration;
-- UI disclosure no longer claims a real Agora/Solana connection;
-- stale editor paths/colors and PWA manifest colors normalized;
-- trusted-CA workflow documented without disabling TLS.
+- durable transcript/risk/event ordering and reconnect;
+- a live SSE subscription receiving a later committed event;
+- agreement and payment idempotency;
+- happy-path proof/receipt creation;
+- persisted mismatch/manual review;
+- locked-agreement immutability during tamper comparison;
+- PostgreSQL readiness and structured errors.
 
-### Executable foundation
-
-- all apps/packages expose reproducible build/lint/typecheck/test commands;
-- `packages/domain` exists as a pure business-rule boundary;
-- Fastify starts independently and exposes standard-envelope health/readiness endpoints;
-- invalid runtime booleans, ports, and provider selections fail at startup;
-- CI performs a frozen install, format check, lint, typecheck, tests, and build;
-- workspace tests guard package boundaries, namespace, refund policy, source entrypoints, one lockfile, and ignored caches.
-
-### Executable shared contracts
-
-- `packages/shared` owns the single Zod/TypeScript definition of public IDs, call/transcript/booking/risk/agreement/payment/proof/receipt DTOs, API envelopes, documented errors/reason codes, and the complete SSE event catalog;
-- API health/error handling validates through the shared envelope and error schemas; the web test imports the same event/payment-gate constants;
-- replay command schemas reject caller-supplied authority fields, and public proof contracts reject unapproved PII fields.
-
----
-
-## 6. What remains simulated or absent
-
-| Capability | Current behavior |
-|---|---|
-| Transcript/Agora | fixture replay; no SDK, token, channel, STT, webhook, recording, or reconnect |
-| Extraction | fields copied from scenario fixtures |
-| Risk scoring | domain kernel calculates scores from facts; browser scenario totals still do not call it |
-| Payment gate | domain kernel evaluates the gate; browser fixture `gateUnlocked` is not yet wired to it |
-| Inventory | display-only prefetch text; no departure or hold |
-| Agreement | mutable browser object; no version/lock/confirmation evidence |
-| Hash/proof | non-cryptographic browser display hash |
-| Payment | static QR and timed mock messages |
-| Receipt | browser state only |
-| Realtime | local React setters; no SSE endpoint/outbox/replay |
-| Persistence | none; refresh loses state |
-| Auth/security controls | no authentication, RBAC, consent, audit persistence, or retention jobs |
-| Providers | no real Agora, Solana, AI, database, Redis, or object-storage adapter |
-
-The Fastify skeleton is deliberately not a business API. Its health response must not be interpreted as database/provider readiness.
-
----
-
-## 7. Critical contract-to-code gaps
-
-### 7.1 Shared contracts and states
-
-`packages/shared` now encodes documented IDs, API envelopes, replay DTOs, domain entities, state enums, error/reason codes, and event names with Zod and inferred TypeScript types. The scripted UI still has simulation-specific status/fixture structures and is not yet server-authoritative.
-
-### 7.2 Risk/payment gate
-
-`packages/domain` now enforces:
-
-```text
-completeness >= 85
-paymentReadiness >= 80
-disputeRisk <= 35
-explicit confirmation
-active inventory hold
-locked current agreement
-no critical blocker
-```
-
-The browser fixture can still display an independent unlock because Phase 6 has not connected the UI to server/domain authority; it cannot become an authoritative payment path before that integration exists.
-
-### 7.3 Agreement/proof/privacy
-
-There is a versioned canonical agreement serializer that whitelists normalized commercial terms and excludes contact acknowledgement. Phase 4 added immutable agreement persistence fields, locked-term database protection, proof/receipt tables, and a safe receipt trace projection. Payment/proof orchestration and anchoring remain unimplemented; the browser mock hash must never be promoted into backend or Solana authority. Phone masking also remains inconsistent across all demo views.
-
-### 7.4 Persistence/payment/receipt
-
-The Prisma schema now models call, transcript, booking, inventory, agreement, risk, payment, transaction, proof, receipt, object asset, consent, and audit records. The inventory repository uses serializable transactions, departure row locks, idempotency keys, server-time expiry, and same-transaction audit rows. Payment/proof/receipt service orchestration is still deferred to Phase 7, even though the durable tables and constraints exist.
-
-### 7.5 SSE and recovery
-
-SSE is normalized in the contracts, but there is no event store/outbox, ordering, `Last-Event-ID` recovery, snapshot refetch path, or browser event reducer.
-
----
-
-## 8. Current quality baseline
-
-The following verification commands are available from the repository root:
+The full repository gate is:
 
 ```text
 pnpm install --frozen-lockfile
@@ -233,88 +113,29 @@ pnpm test
 pnpm build
 ```
 
-For the Phase 4 working tree, frozen install, Prisma validation, clean migration deploy, seed, lint, typecheck, test, and build pass. `format:check` still reports formatting drift in 32 pre-existing files outside the Phase 4 slice; changed Phase 4 files were formatted with Prettier and `prisma format`.
+Database and API integration suites use `TEST_DATABASE_URL` and should run sequentially because both reset synthetic test data. Coverage percentage is not claimed because the workspace has no configured coverage command or threshold.
 
-Current non-empty test baseline:
+Prisma validation, lint, typecheck, root tests, build, DB integration (5/5), and API integration (7/7) pass. The root `format:check` retains pre-existing drift in 25 untouched files; all Phase 5 TypeScript/JSON files pass a targeted Prettier check.
 
-| Scope | Tests |
-|---|---:|
-| Workspace/normalization | 7 |
-| Shared contract schemas | 7 |
-| Domain kernel | 9 |
-| PostgreSQL/Prisma repository integration | 5 |
-| Web simulation/config/source guards | 13 |
-| Runtime config | 3 |
-| Fastify API skeleton | 3 |
-| **Total** | **47 passed, 0 failed** |
+## 7. Remaining roadmap
 
-The workspace also successfully builds all nine app/package tasks. Provider package test commands currently pass with zero tests because their production logic has not started.
+| Priority | Work item | Pipeline phase |
+|---:|---|---:|
+| P0 | Replace fixture authority with a web REST/SSE adapter and refresh recovery | 6 |
+| P1 | Complete UX/error/reconnect handling against the authoritative API | 6 |
+| P1 | Add authentication, ownership authorization, and production hardening | cross-cutting |
+| P2 | Add Solana devnet generation and server-side verification | 8 |
+| P2 | Add Agora voice/transcript integration | 9 |
+| P2 | Add optional validated LLM extraction | 10 |
+| P2 | Add Redis/object storage only when a real consumer exists | 11 |
+| P2 | Add E2E, accessibility, observability, deployment, and incident evidence | 12 |
 
-The local npm certificate issue was resolved by giving Node a valid Windows trusted-root PEM through `NODE_EXTRA_CA_CERTS`. TLS verification was not disabled.
+## 8. Change summary
 
-Missing quality layers:
-
-- business API, idempotent command, SSE reconnect, and vertical-slice tests;
-- rendered web interaction, accessibility, and visual regression tests;
-- dependency/security scanning and an observed remote CI result.
-
----
-
-## 9. Recommended next implementation
-
-### Phase 5 - Authoritative replay API and SSE stream
-
-Build REST commands and realtime projections on top of the Phase 4 durable state without moving policy back into route handlers:
-
-- create call/replay sessions through Fastify routes and shared DTOs;
-- persist final replay transcript turns and recompute extraction/risk using the existing domain rules;
-- materialize booking drafts, holds, risk assessments, agreements, audit rows, and safe REST summaries in transactions;
-- add the lightweight outbox/SSE stream required by `EVENT-CONTRACT.md`;
-- prove refresh/reconnect recovery from PostgreSQL source of truth.
-
-**Exit condition:** the current UI can be hydrated from REST/SSE in a replay-only backend mode, while payment/proof/receipt completion remains mocked/deferred until Phase 7.
-
----
-
-## 10. First server-authoritative acceptance target
-
-The later replay-first vertical slice is complete only when:
-
-1. Replay creates a durable call and booking draft.
-2. Shared schemas validate facts and provenance.
-3. Domain facts calculate scores and reason codes.
-4. Missing pickup, policy confirmation, hold, or explicit confirmation locks the gate.
-5. Confirmation locks an immutable agreement version and SHA-256 hash.
-6. One idempotent mock payment intent refers to that version.
-7. Verified payment creates one proof and one trust receipt.
-8. Altered candidate data returns `MISMATCH` and manual review without mutating the snapshot.
-9. REST/SSE drives the existing UI and refresh recovers server state.
-10. Proof, events, and logs contain no raw phone, transcript, agreement payload, or secret.
-
----
-
-## 11. Immediate backlog
-
-| Priority | Work item                                                  | Pipeline phase |
-| -------: | ---------------------------------------------------------- | -------------: |
-|       P0 | Implement replay REST commands, audit/outbox, and SSE      |              5 |
-|       P1 | Replace fixture authority with web REST/SSE adapter        |              6 |
-|       P1 | Complete durable mock payment/proof/receipt/mismatch slice |              7 |
-|       P2 | Add Solana devnet verification                             |              8 |
-|       P2 | Add Agora voice/transcript adapter                         |              9 |
-|       P2 | Add optional validated LLM extraction                      |             10 |
-|       P2 | Add Redis/MinIO only with queue/media consumers            |             11 |
-|       P2 | Harden E2E, accessibility, observability, and deployment   |             12 |
-
----
-
-## 12. Change summary
-
-- **Documentation consulted:** root agent instructions; ECC workflow guidance; architecture, product, contract, privacy, operations, and current-state documents.
-- **Documentation updated:** Data model now includes `trip_departures` and `inventory_holds`; local/deployment operations document PostgreSQL/Prisma workflow; this report records Phase 4 completion.
-- **Code/tooling implemented:** `packages/db` now owns the Prisma client boundary, inventory repository, receipt trace projection, deterministic seed, and PostgreSQL integration tests. Docker Compose runs PostgreSQL 18 only.
-- **Contracts changed:** Durable persistence contract added PostgreSQL tables, constraints, partial unique indexes, locked-agreement protection, append-only audit protection, and aggregate-alignment foreign keys. No API endpoint or SSE payload changed.
-- **Database migration required:** yes — `20260620131142_phase4_durable_state`.
-- **Environment variables added:** `POSTGRES_PORT`, `DATABASE_URL`; CI/test uses `TEST_DATABASE_URL`.
-- **Tests run:** 47 non-empty tests pass; frozen install, Prisma validate, clean migration deploy, seed idempotency, lint, typecheck, test, and build pass. The root format check still reports pre-existing formatting drift in unrelated files; Phase 4 files were formatted.
-- **Remaining mocked integrations:** replay API/SSE, UI-to-API wiring, durable mock payment/proof/receipt orchestration, auth, Agora, AI provider, Solana, Redis, object storage, and deployment remain unimplemented.
+- **Documentation consulted:** privacy, API, event, state-machine, data-model, decisions, pipeline, booking, risk, error-code, local setup, deployment, ECC workflow, and prior Phase 4 TDD evidence.
+- **Documentation updated:** API/event/data-model/local-setup contracts, API boundary README, Phase 5 TDD evidence, and this current-state snapshot.
+- **Contracts changed:** Phase 5 mock payment/receipt DTOs and the canonical `agreement.locked` event replace the obsolete `booking.confirmed` name.
+- **Database migration required:** no.
+- **Environment variables added or changed:** none; existing `DATABASE_URL`, `TEST_DATABASE_URL`, and `DEMO_MODE` are used.
+- **Tooling changed:** the package-local Turbo graph serializes Prisma generation before DB compiler/test tasks.
+- **Remaining mocked integrations:** deterministic replay extraction, mock payment, browser fixture UI, Agora, Solana, optional LLM, Redis, and object storage.

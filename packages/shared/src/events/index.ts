@@ -41,7 +41,7 @@ export const EventName = {
   RiskPaymentGateUpdated: "risk.payment_gate.updated",
   BookingCreated: "booking.created",
   BookingUpdated: "booking.updated",
-  BookingConfirmed: "booking.confirmed",
+  AgreementLocked: "agreement.locked",
   PaymentIntentCreated: "payment.intent.created",
   PaymentPending: "payment.pending",
   PaymentConfirmed: "payment.confirmed",
@@ -158,7 +158,7 @@ const bookingUpdatedDataSchema = z
   })
   .strict();
 
-const bookingConfirmedDataSchema = z
+const agreementLockedDataSchema = z
   .object({
     status: z.literal(BookingStatus.AgreementLocked),
     agreementId: AgreementIdSchema,
@@ -267,9 +267,9 @@ export const BookingUpdatedEventSchema = createEventSchema(
   EventName.BookingUpdated,
   bookingUpdatedDataSchema
 );
-export const BookingConfirmedEventSchema = createEventSchema(
-  EventName.BookingConfirmed,
-  bookingConfirmedDataSchema
+export const AgreementLockedEventSchema = createEventSchema(
+  EventName.AgreementLocked,
+  agreementLockedDataSchema
 );
 export const PaymentIntentCreatedEventSchema = createEventSchema(
   EventName.PaymentIntentCreated,
@@ -307,7 +307,7 @@ export const EventEnvelopeSchema = z.discriminatedUnion("event", [
   RiskPaymentGateUpdatedEventSchema,
   BookingCreatedEventSchema,
   BookingUpdatedEventSchema,
-  BookingConfirmedEventSchema,
+  AgreementLockedEventSchema,
   PaymentIntentCreatedEventSchema,
   PaymentPendingEventSchema,
   PaymentConfirmedEventSchema,

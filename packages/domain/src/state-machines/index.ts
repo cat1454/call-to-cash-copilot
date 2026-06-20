@@ -64,7 +64,7 @@ const bookingTransitions: Readonly<Record<BookingStatusValue, readonly BookingSt
     BookingStatus.ReceiptIssued,
     BookingStatus.ManualReviewRequired
   ],
-  [BookingStatus.ReceiptIssued]: [],
+  [BookingStatus.ReceiptIssued]: [BookingStatus.ManualReviewRequired],
   [BookingStatus.Cancelled]: [],
   [BookingStatus.ManualReviewRequired]: [],
   [BookingStatus.Expired]: []
@@ -106,7 +106,7 @@ const receiptTransitions: Readonly<Record<ReceiptStatusValue, readonly ReceiptSt
     ReceiptStatus.Mismatch,
     ReceiptStatus.ManualReview
   ],
-  [ReceiptStatus.VerifiedMatch]: [],
+  [ReceiptStatus.VerifiedMatch]: [ReceiptStatus.Mismatch],
   [ReceiptStatus.Mismatch]: [],
   [ReceiptStatus.ManualReview]: []
 };

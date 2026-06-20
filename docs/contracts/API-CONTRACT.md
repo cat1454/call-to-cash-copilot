@@ -67,7 +67,7 @@ The `code` is stable and machine-readable. The `message` is safe for the caller.
 ### 1.5 Command safety rules
 
 - Mutating commands must validate Zod DTOs from `@call-to-cash/shared`.
-- `POST /payments/solana/create`, booking confirmation, and receipt generation require an `Idempotency-Key`.
+- booking confirmation plus mock payment create/verify commands require an `Idempotency-Key`.
 - A request body never contains authoritative `status`, risk score, `customerId` override, recipient wallet, or proof hash.
 - API responses use public IDs (`call_`, `bk_`, `pi_`, `rcpt_`) unless an internal service boundary explicitly needs UUIDs.
 
@@ -78,7 +78,7 @@ The `code` is stable and machine-readable. The `message` is safe for the caller.
 `GET /health` and `GET /ready` are unversioned operational endpoints. They use the standard success envelope but never expose secrets, raw dependency errors, or customer data.
 
 - `/health` reports that the API process is alive.
-- `/ready` reports current runtime mode and configured adapter names. Before durable dependencies exist, readiness covers the application process only.
+- `/ready` reports current runtime mode, configured adapter names, and PostgreSQL readiness. It returns `503 DATABASE_UNAVAILABLE` when the database is missing or unavailable.
 - These endpoints are not customer authentication or transaction-state APIs.
 
 ---
@@ -233,7 +233,7 @@ Creates a short-lived Agora token for an already-created call session.
 
 ## 4. Transcript APIs
 
-### 4.1 `POST /v1/transcripts/turns`
+### 4.1 `POST /v1/calls/:callId/transcript-turns`
 
 Persists a final transcript turn and triggers extraction/risk recomputation. It may be called by a trusted transcript adapter, replay engine, or server-side Agora integration.
 
@@ -243,7 +243,6 @@ Persists a final transcript turn and triggers extraction/risk recomputation. It 
 
 ```json
 {
-  "callId": "call_01J...",
   "turn": {
     "clientTurnId": "turn_client_0007",
     "sequenceNo": 7,
@@ -268,7 +267,7 @@ Persists a final transcript turn and triggers extraction/risk recomputation. It 
     "turnId": "turn_01J...",
     "callId": "call_01J...",
     "accepted": true,
-    "analysisQueued": true
+    "analysisQueued": false
   },
   "meta": { "requestId": "req_01J..." }
 }
@@ -279,8 +278,8 @@ Persists a final transcript turn and triggers extraction/risk recomputation. It 
 - redacts/masks PII before default persistence and logs;
 - inserts immutable transcript turn;
 - emits `transcript.turn.created`;
-- queues extraction/risk analysis for final turns only;
-- eventually emits `transcript.analysis.updated`, `risk.score.updated`, and possibly `risk.payment_gate.updated`.
+- executes deterministic replay extraction/risk analysis synchronously for final turns in Phase 5;
+- emits `booking.updated`, `risk.score.updated`, and `risk.payment_gate.updated` after committed persistence.
 
 ---
 
@@ -502,24 +501,28 @@ Idempotency-Key: confirm-bk_01J-v1-<uuid>
 
 #### Guards
 
-- agreement version exists and is `READY`;
+- booking is `AGREEMENT_READY` and the requested agreement version is the next current version;
 - final terms were rendered/read;
 - explicit confirmation is unambiguous and evidence-backed;
 - no critical risk blocker;
 - inventory hold is active.
 
+An exact idempotency replay returns the locked agreement. Reusing the key with another booking or confirmation payload returns `409 IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD`.
+
 ---
 
-## 7. Solana Payment APIs
+## 7. Phase 5 Mock Payment APIs
 
-### 7.1 `POST /v1/payments/solana/create`
+The Phase 5 provider is explicitly deterministic mock payment. Solana endpoints remain deferred to Phase 8 and are not exposed by the Phase 5 API.
 
-Creates a server-owned payment intent and a Solana Pay transfer request/QR URL.
+### 7.1 `POST /v1/payments/mock/create`
+
+Creates one server-owned mock payment intent bound to the current locked agreement.
 
 #### Required header
 
 ```http
-Idempotency-Key: pi-bk_01J-v1-<uuid>
+Idempotency-Key: mock-pi-bk_01J-v1-<uuid>
 ```
 
 #### Request
@@ -537,15 +540,14 @@ Idempotency-Key: pi-bk_01J-v1-<uuid>
   "success": true,
   "data": {
     "paymentIntentId": "pi_01J...",
+    "bookingId": "bk_01J...",
+    "agreementId": "agr_01J...",
     "status": "CREATED",
-    "amount": {
-      "currency": "VND",
-      "minor": 300000
-    },
-    "paymentUrl": "solana:<recipient>?amount=...",
-    "qrPayload": "solana:<recipient>?amount=...",
+    "amount": { "currency": "VND", "minor": 300000 },
+    "recipient": "mock-recipient-wallet",
     "reference": "ref_01J...",
-    "expiresAt": "2026-06-20T11:00:00.000Z"
+    "expiresAt": "2026-06-20T11:00:00.000Z",
+    "idempotencyKey": "mock-pi-bk_01J-v1-..."
   },
   "meta": { "requestId": "req_01J..." }
 }
@@ -558,20 +560,30 @@ Idempotency-Key: pi-bk_01J-v1-<uuid>
 - active inventory hold has not expired;
 - no non-terminal payment intent exists for this booking/agreement.
 
-**Security:** recipient wallet, amount, mint, reference, memo, and proof link are computed server-side. The browser cannot choose them.
+An exact idempotency replay returns the original intent with `200 OK`. Reusing the key with another booking/payload returns `409 IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD`.
+
+**Security:** recipient, amount, reference, expiry, memo/proof link, and agreement binding are computed server-side. The browser cannot choose them.
 
 ---
 
-### 7.2 `POST /v1/payments/solana/verify`
+### 7.2 `POST /v1/payments/mock/verify`
 
-Submits or triggers verification of a candidate Solana transaction. This endpoint never accepts a client-provided `confirmed=true` field.
+Verifies deterministic mock-observed amount, recipient, and reference. This endpoint never accepts a client-provided authoritative status or `confirmed=true`.
+
+#### Required header
+
+```http
+Idempotency-Key: mock-verify-pi_01J-<uuid>
+```
 
 #### Request
 
 ```json
 {
   "paymentIntentId": "pi_01J...",
-  "transactionSignature": "5x9a...q2Lp"
+  "observedAmount": { "currency": "VND", "minor": 300000 },
+  "observedRecipient": "mock-recipient-wallet",
+  "observedReference": "ref_01J..."
 }
 ```
 
@@ -582,26 +594,17 @@ Submits or triggers verification of a candidate Solana transaction. This endpoin
   "success": true,
   "data": {
     "paymentIntentId": "pi_01J...",
-    "verificationStatus": "PENDING",
-    "transactionSignature": "5x9a...q2Lp"
+    "bookingId": "bk_01J...",
+    "status": "CONFIRMED",
+    "transactionSignature": "mock_tx_01J...",
+    "proofId": "proof_01J...",
+    "receiptId": "rcpt_01J..."
   },
   "meta": { "requestId": "req_01J..." }
 }
 ```
 
-A subsequent poll/event returns `CONFIRMED`, `REJECTED`, `FAILED`, or `MANUAL_REVIEW_REQUIRED`.
-
-#### Required backend predicates
-
-```text
-transaction exists on expected cluster
-recipient wallet matches payment intent
-amount matches payment intent exactly
-token/native asset matches expected configuration
-reference matches payment intent
-transaction signature is not already consumed
-agreement version/payment intent is still valid
-```
+The same key and payload returns the original result without creating another transaction, proof, or receipt. A changed payload with the same key returns `409`. A definitive mismatch returns the matching `PAYMENT_*_MISMATCH` error, persists the rejected attempt, emits `payment.failed`, and moves the booking to manual review.
 
 ---
 
@@ -630,43 +633,9 @@ Returns current payment state for the active/latest payment intent of a booking.
 
 ## 8. Trust Receipt APIs
 
-### 8.1 `POST /v1/receipts/create`
+Payment confirmation creates the proof record and Trust Receipt once in the same authoritative flow. There is no separate client command to issue a Phase 5 receipt.
 
-Issues/refreshes a receipt after payment confirmation. The server computes proof verification; the client cannot submit proof status.
-
-#### Required header
-
-```http
-Idempotency-Key: receipt-bk_01J-pi_01J-<uuid>
-```
-
-#### Request
-
-```json
-{
-  "bookingId": "bk_01J..."
-}
-```
-
-#### Response — `201 Created`
-
-```json
-{
-  "success": true,
-  "data": {
-    "receiptId": "rcpt_01J...",
-    "bookingId": "bk_01J...",
-    "status": "VERIFIED_MATCH",
-    "verification": "MATCH",
-    "issuedAt": "2026-06-20T10:56:00.000Z"
-  },
-  "meta": { "requestId": "req_01J..." }
-}
-```
-
----
-
-### 8.2 `GET /v1/receipts/:bookingId`
+### 8.1 `GET /v1/receipts/:receiptId`
 
 Returns the customer-safe receipt. Authorization must ensure the caller owns the booking or has a short-lived receipt access token.
 
@@ -701,7 +670,7 @@ Returns the customer-safe receipt. Authorization must ensure the caller owns the
 
 ---
 
-### 8.3 `GET /v1/receipts/:bookingId/verify`
+### 8.2 `GET /v1/receipts/:receiptId/verify`
 
 Recomputes or retrieves current proof verification without exposing raw agreement payload.
 
@@ -724,6 +693,8 @@ Recomputes or retrieves current proof verification without exposing raw agreemen
 
 When mismatch exists, return a safe `MISMATCH` status and route to manual review; do not reveal all internal evidence to an unauthorized user.
 
+In explicit `DEMO_MODE=true`, the optional query parameter `candidateDepositAmountMinor` verifies an altered comparison copy for the tamper demonstration. It never updates the locked agreement snapshot. The query is forbidden outside demo mode.
+
 ---
 
 ## 9. Realtime endpoint
@@ -740,6 +711,8 @@ Last-Event-ID: evt_01J...   # optional reconnect cursor
 
 Event payloads and delivery semantics are defined in [EVENT-CONTRACT.md](./EVENT-CONTRACT.md). SSE is the only MVP browser update transport; adopting another transport requires an explicit contract revision.
 
+The normal endpoint keeps the connection open, sends committed events after the supplied cursor, and emits heartbeat comments. `?snapshot=true` returns the same ordered replay as a finite response for deterministic contract tests and explicit recovery tooling; browser realtime clients should use the long-lived form.
+
 ---
 
 ## 10. Endpoint ownership matrix
@@ -750,8 +723,8 @@ Event payloads and delivery semantics are defined in [EVENT-CONTRACT.md](./EVENT
 | Agora token | `apps/api` | `@call-to-cash/agora`, `@call-to-cash/config` |
 | Risk | `apps/api` | `@call-to-cash/ai`, `@call-to-cash/db`, `@call-to-cash/shared` |
 | Booking/agreement | `apps/api` | `@call-to-cash/db`, `@call-to-cash/shared` |
-| Payment/proof | `apps/api` | `@call-to-cash/solana`, `@call-to-cash/db`, `@call-to-cash/shared` |
-| Receipt | `apps/api` | `@call-to-cash/db`, `@call-to-cash/solana`, `@call-to-cash/shared` |
+| Phase 5 mock payment/proof | `apps/api` | `@call-to-cash/domain`, `@call-to-cash/db`, `@call-to-cash/shared` |
+| Receipt | `apps/api` | `@call-to-cash/db`, `@call-to-cash/shared` |
 
 ---
 

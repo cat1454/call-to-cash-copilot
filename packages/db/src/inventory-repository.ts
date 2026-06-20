@@ -137,16 +137,14 @@ export class InventoryRepository {
         return replay;
       }
 
-      const [departure, booking] = await Promise.all([
-        transaction.tripDeparture.findUnique({
-          where: { id: input.departureId },
-          select: { capacity: true, operationalStatus: true }
-        }),
-        transaction.booking.findUnique({
-          where: { id: input.bookingId },
-          select: { id: true }
-        })
-      ]);
+      const departure = await transaction.tripDeparture.findUnique({
+        where: { id: input.departureId },
+        select: { capacity: true, operationalStatus: true }
+      });
+      const booking = await transaction.booking.findUnique({
+        where: { id: input.bookingId },
+        select: { id: true }
+      });
       if (departure === null) {
         throw new InventoryPersistenceGuardError("INVENTORY_DEPARTURE_NOT_FOUND");
       }

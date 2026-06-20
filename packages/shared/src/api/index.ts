@@ -14,6 +14,7 @@ import {
   BookingStatusSchema,
   CallStatusSchema,
   PaymentIntentStatusSchema,
+  ProofStatusSchema,
   ReceiptStatusSchema,
   RiskAssessmentSchema,
   TranscriptTurnSchema
@@ -23,6 +24,8 @@ import {
   CallIdSchema,
   IsoTimestampSchema,
   JobIdSchema,
+  MoneySchema,
+  NonNegativeIntegerSchema,
   PaymentIntentIdSchema,
   PositiveIntegerSchema,
   ReceiptIdSchema,
@@ -144,6 +147,12 @@ export const TranscriptTurnSubmissionSchema = z
   })
   .strict();
 
+export const CreateTranscriptTurnRequestSchema = z
+  .object({
+    turn: TranscriptTurnSubmissionContentSchema
+  })
+  .strict();
+
 export const TranscriptTurnSubmissionResponseSchema = z
   .object({
     turnId: TranscriptTurnIdSchema,
@@ -241,6 +250,24 @@ export const UpdateBookingResponseSchema = z
   })
   .strict();
 
+export const GetBookingResponseSchema = z
+  .object({
+    bookingId: BookingIdSchema,
+    status: BookingStatusSchema,
+    routeFrom: z.string().min(1).nullable(),
+    routeTo: z.string().min(1).nullable(),
+    departureAt: IsoTimestampSchema.nullable(),
+    passengerCount: PositiveIntegerSchema.nullable(),
+    pickupPoint: z.string().min(1).nullable(),
+    contactPhoneMasked: z.string().min(1).nullable(),
+    fareTotalVnd: NonNegativeIntegerSchema.nullable(),
+    depositAmountVnd: NonNegativeIntegerSchema.nullable(),
+    refundPolicyVersion: z.string().min(1).nullable(),
+    agreementVersion: PositiveIntegerSchema.nullable(),
+    paymentGate: z.enum(PaymentGateStatus)
+  })
+  .strict();
+
 export const ConfirmBookingRequestSchema = z
   .object({
     agreementVersion: PositiveIntegerSchema,
@@ -263,6 +290,47 @@ export const ConfirmBookingResponseSchema = z
   })
   .strict();
 
+export const CreateMockPaymentIntentRequestSchema = z
+  .object({
+    bookingId: BookingIdSchema
+  })
+  .strict();
+
+export const CreateMockPaymentIntentResponseSchema = z
+  .object({
+    paymentIntentId: PaymentIntentIdSchema,
+    bookingId: BookingIdSchema,
+    agreementId: AgreementSchema.shape.agreementId,
+    status: z.literal("CREATED"),
+    amount: MoneySchema,
+    recipient: z.string().min(1),
+    reference: z.string().min(1),
+    expiresAt: IsoTimestampSchema,
+    idempotencyKey: z.string().min(1)
+  })
+  .strict();
+
+export const VerifyMockPaymentRequestSchema = z
+  .object({
+    paymentIntentId: PaymentIntentIdSchema,
+    observedAmount: MoneySchema,
+    observedRecipient: z.string().min(1),
+    observedReference: z.string().min(1),
+    transactionSignature: z.string().min(1).optional()
+  })
+  .strict();
+
+export const VerifyMockPaymentResponseSchema = z
+  .object({
+    paymentIntentId: PaymentIntentIdSchema,
+    bookingId: BookingIdSchema,
+    status: z.literal("CONFIRMED"),
+    transactionSignature: z.string().min(1),
+    proofId: z.string().min(1),
+    receiptId: ReceiptIdSchema
+  })
+  .strict();
+
 export const PaymentStatusResponseSchema = z
   .object({
     bookingId: BookingIdSchema,
@@ -282,9 +350,54 @@ export const ReceiptSummarySchema = z
   })
   .strict();
 
+export const ReceiptResponseSchema = z
+  .object({
+    receiptId: ReceiptIdSchema,
+    bookingId: BookingIdSchema,
+    status: ReceiptStatusSchema,
+    booking: z
+      .object({
+        bookingId: BookingIdSchema,
+        route: z.string().min(1),
+        departureAt: IsoTimestampSchema,
+        passengerCount: PositiveIntegerSchema,
+        contactPhoneMasked: z.string().min(1)
+      })
+      .strict(),
+    deposit: z
+      .object({
+        amount: MoneySchema,
+        status: PaymentIntentStatusSchema
+      })
+      .strict(),
+    verification: z
+      .object({
+        status: ProofStatusSchema,
+        agreementVersion: PositiveIntegerSchema,
+        transactionSignatureShort: z.string().min(1)
+      })
+      .strict()
+  })
+  .strict();
+
+export const ReceiptVerifyResponseSchema = z
+  .object({
+    bookingId: BookingIdSchema,
+    receiptId: ReceiptIdSchema,
+    status: ProofStatusSchema,
+    agreementVersion: PositiveIntegerSchema,
+    proofHash: z.string().regex(/^[a-f0-9]{64}$/u),
+    verifiedAt: IsoTimestampSchema.nullable(),
+    nextAction: z.enum(RiskNextAction).optional()
+  })
+  .strict();
+
 export type CreateCallRequest = z.infer<typeof CreateCallRequestSchema>;
+export type CreateTranscriptTurnRequest = z.infer<typeof CreateTranscriptTurnRequestSchema>;
 export type TranscriptTurnSubmission = z.infer<typeof TranscriptTurnSubmissionSchema>;
 export type RiskAnalysisRequest = z.infer<typeof RiskAnalysisRequestSchema>;
 export type CreateBookingRequest = z.infer<typeof CreateBookingRequestSchema>;
 export type UpdateBookingRequest = z.infer<typeof UpdateBookingRequestSchema>;
 export type ConfirmBookingRequest = z.infer<typeof ConfirmBookingRequestSchema>;
+export type CreateMockPaymentIntentRequest = z.infer<typeof CreateMockPaymentIntentRequestSchema>;
+export type VerifyMockPaymentRequest = z.infer<typeof VerifyMockPaymentRequestSchema>;
