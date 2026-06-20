@@ -29,3 +29,5 @@ extracted_text.txt
 *.njsproj
 *.sln
 *.sw?
+
+*.env
