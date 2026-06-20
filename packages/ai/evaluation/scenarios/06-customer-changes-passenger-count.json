@@ -1,0 +1,34 @@
+{
+  "id": "customer-changes-passenger-count",
+  "title": "Customer changes passenger count after terms",
+  "category": "CUSTOMER_CHANGE",
+  "turns": [
+    {
+      "speaker": "AGENT",
+      "content": "I will hold 3 seats from Ha Noi to Sa Pa at 22:30, pickup My Dinh."
+    },
+    {
+      "speaker": "CUSTOMER",
+      "content": "Actually make that 4 seats if available."
+    },
+    {
+      "speaker": "AGENT",
+      "content": "I need to read the updated terms before payment."
+    }
+  ],
+  "expected": {
+    "extractedFields": {
+      "routeFrom": "Ha Noi",
+      "routeTo": "Sa Pa",
+      "passengerCount": 4,
+      "departureAt": "2026-06-20T22:30:00+07:00",
+      "pickupPoint": "My Dinh",
+      "refundPolicyConfirmed": true,
+      "explicitConfirmation": false
+    },
+    "missingFields": [],
+    "paymentGate": "READY_FOR_CONFIRMATION",
+    "reasonCodes": ["CUSTOMER_CHANGED_TERMS"],
+    "shouldCreatePaymentIntent": false
+  }
+}

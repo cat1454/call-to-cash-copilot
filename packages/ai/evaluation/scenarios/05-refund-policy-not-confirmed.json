@@ -1,0 +1,34 @@
+{
+  "id": "refund-policy-not-confirmed",
+  "title": "Refund policy is not accepted",
+  "category": "POLICY_NOT_CONFIRMED",
+  "turns": [
+    {
+      "speaker": "CUSTOMER",
+      "content": "The route, time, passenger count, and My Dinh pickup are correct."
+    },
+    {
+      "speaker": "AGENT",
+      "content": "Please confirm the BUS-V1 v1.0 refund policy before deposit."
+    },
+    {
+      "speaker": "CUSTOMER",
+      "content": "I need to ask about that policy first."
+    }
+  ],
+  "expected": {
+    "extractedFields": {
+      "routeFrom": "Ha Noi",
+      "routeTo": "Sa Pa",
+      "passengerCount": 3,
+      "departureAt": "2026-06-20T22:30:00+07:00",
+      "pickupPoint": "My Dinh",
+      "refundPolicyConfirmed": false,
+      "explicitConfirmation": false
+    },
+    "missingFields": ["refundPolicyConfirmed"],
+    "paymentGate": "READY_FOR_CONFIRMATION",
+    "reasonCodes": ["REFUND_POLICY_NOT_CONFIRMED"],
+    "shouldCreatePaymentIntent": false
+  }
+}

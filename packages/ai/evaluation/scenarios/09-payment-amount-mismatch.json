@@ -1,0 +1,30 @@
+{
+  "id": "payment-amount-mismatch",
+  "title": "Payment amount does not match the intent",
+  "category": "PAYMENT_MISMATCH",
+  "turns": [
+    {
+      "speaker": "SYSTEM",
+      "content": "Expected deposit is 300000 VND for the locked agreement."
+    },
+    {
+      "speaker": "SYSTEM",
+      "content": "Observed candidate transaction amount is lower than expected."
+    }
+  ],
+  "expected": {
+    "extractedFields": {
+      "routeFrom": "Ha Noi",
+      "routeTo": "Sa Pa",
+      "passengerCount": 3,
+      "departureAt": "2026-06-20T22:30:00+07:00",
+      "pickupPoint": "My Dinh",
+      "refundPolicyConfirmed": true,
+      "explicitConfirmation": true
+    },
+    "missingFields": [],
+    "paymentGate": "MANUAL_REVIEW_REQUIRED",
+    "reasonCodes": ["PAYMENT_AMOUNT_MISMATCH"],
+    "shouldCreatePaymentIntent": false
+  }
+}

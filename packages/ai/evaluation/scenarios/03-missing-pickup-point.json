@@ -1,0 +1,33 @@
+{
+  "id": "missing-pickup-point",
+  "title": "Pickup point is missing",
+  "category": "MISSING_FIELD",
+  "turns": [
+    {
+      "speaker": "CUSTOMER",
+      "content": "Book 3 seats from Ha Noi to Sa Pa at 22:30."
+    },
+    {
+      "speaker": "AGENT",
+      "content": "Which supported pickup point should I use?"
+    },
+    {
+      "speaker": "CUSTOMER",
+      "content": "I will tell you after checking with my group."
+    }
+  ],
+  "expected": {
+    "extractedFields": {
+      "routeFrom": "Ha Noi",
+      "routeTo": "Sa Pa",
+      "passengerCount": 3,
+      "departureAt": "2026-06-20T22:30:00+07:00",
+      "refundPolicyConfirmed": false,
+      "explicitConfirmation": false
+    },
+    "missingFields": ["pickupPoint"],
+    "paymentGate": "LOCKED",
+    "reasonCodes": ["MISSING_PICKUP_POINT"],
+    "shouldCreatePaymentIntent": false
+  }
+}

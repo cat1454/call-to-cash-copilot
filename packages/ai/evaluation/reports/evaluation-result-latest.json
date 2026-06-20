@@ -1,0 +1,455 @@
+{
+  "schemaVersion": "evaluation-result-v1",
+  "generatedAt": "2026-06-20T03:38:52.292Z",
+  "results": [
+    {
+      "scenarioId": "happy-path-3-tickets",
+      "title": "Happy path for three Ha Noi to Sa Pa tickets",
+      "category": "HAPPY_PATH",
+      "turnCount": 4,
+      "turnsToAgreement": 4,
+      "passed": true,
+      "expected": {
+        "extractedFields": {
+          "routeFrom": "Ha Noi",
+          "routeTo": "Sa Pa",
+          "passengerCount": 3,
+          "departureAt": "2026-06-20T22:30:00+07:00",
+          "pickupPoint": "My Dinh",
+          "refundPolicyConfirmed": true,
+          "explicitConfirmation": true
+        },
+        "missingFields": [],
+        "paymentGate": "UNLOCKED",
+        "reasonCodes": [],
+        "shouldCreatePaymentIntent": true
+      },
+      "actual": {
+        "extractedFields": {
+          "routeFrom": "Ha Noi",
+          "routeTo": "Sa Pa",
+          "passengerCount": 3,
+          "departureAt": "2026-06-20T22:30:00+07:00",
+          "pickupPoint": "My Dinh",
+          "refundPolicyConfirmed": true,
+          "explicitConfirmation": true
+        },
+        "missingFields": [],
+        "paymentGate": "UNLOCKED",
+        "reasonCodes": [],
+        "shouldCreatePaymentIntent": true
+      },
+      "failures": []
+    },
+    {
+      "scenarioId": "missing-departure-time",
+      "title": "Departure time is missing",
+      "category": "MISSING_FIELD",
+      "turnCount": 3,
+      "passed": true,
+      "expected": {
+        "extractedFields": {
+          "routeFrom": "Ha Noi",
+          "routeTo": "Sa Pa",
+          "passengerCount": 3,
+          "pickupPoint": "My Dinh",
+          "refundPolicyConfirmed": false,
+          "explicitConfirmation": false
+        },
+        "missingFields": [
+          "departureAt"
+        ],
+        "paymentGate": "LOCKED",
+        "reasonCodes": [
+          "MISSING_DEPARTURE_TIME"
+        ],
+        "shouldCreatePaymentIntent": false
+      },
+      "actual": {
+        "extractedFields": {
+          "routeFrom": "Ha Noi",
+          "routeTo": "Sa Pa",
+          "passengerCount": 3,
+          "pickupPoint": "My Dinh",
+          "refundPolicyConfirmed": false,
+          "explicitConfirmation": false
+        },
+        "missingFields": [
+          "departureAt"
+        ],
+        "paymentGate": "LOCKED",
+        "reasonCodes": [
+          "MISSING_DEPARTURE_TIME"
+        ],
+        "shouldCreatePaymentIntent": false
+      },
+      "failures": []
+    },
+    {
+      "scenarioId": "missing-pickup-point",
+      "title": "Pickup point is missing",
+      "category": "MISSING_FIELD",
+      "turnCount": 3,
+      "passed": true,
+      "expected": {
+        "extractedFields": {
+          "routeFrom": "Ha Noi",
+          "routeTo": "Sa Pa",
+          "passengerCount": 3,
+          "departureAt": "2026-06-20T22:30:00+07:00",
+          "refundPolicyConfirmed": false,
+          "explicitConfirmation": false
+        },
+        "missingFields": [
+          "pickupPoint"
+        ],
+        "paymentGate": "LOCKED",
+        "reasonCodes": [
+          "MISSING_PICKUP_POINT"
+        ],
+        "shouldCreatePaymentIntent": false
+      },
+      "actual": {
+        "extractedFields": {
+          "routeFrom": "Ha Noi",
+          "routeTo": "Sa Pa",
+          "passengerCount": 3,
+          "departureAt": "2026-06-20T22:30:00+07:00",
+          "refundPolicyConfirmed": false,
+          "explicitConfirmation": false
+        },
+        "missingFields": [
+          "pickupPoint"
+        ],
+        "paymentGate": "LOCKED",
+        "reasonCodes": [
+          "MISSING_PICKUP_POINT"
+        ],
+        "shouldCreatePaymentIntent": false
+      },
+      "failures": []
+    },
+    {
+      "scenarioId": "ambiguous-confirmation",
+      "title": "Customer gives ambiguous confirmation",
+      "category": "AMBIGUOUS_CONFIRMATION",
+      "turnCount": 2,
+      "passed": true,
+      "expected": {
+        "extractedFields": {
+          "routeFrom": "Ha Noi",
+          "routeTo": "Sa Pa",
+          "passengerCount": 3,
+          "departureAt": "2026-06-20T22:30:00+07:00",
+          "pickupPoint": "My Dinh",
+          "refundPolicyConfirmed": true,
+          "explicitConfirmation": false
+        },
+        "missingFields": [],
+        "paymentGate": "READY_FOR_CONFIRMATION",
+        "reasonCodes": [
+          "AMBIGUOUS_CONFIRMATION"
+        ],
+        "shouldCreatePaymentIntent": false
+      },
+      "actual": {
+        "extractedFields": {
+          "routeFrom": "Ha Noi",
+          "routeTo": "Sa Pa",
+          "passengerCount": 3,
+          "departureAt": "2026-06-20T22:30:00+07:00",
+          "pickupPoint": "My Dinh",
+          "refundPolicyConfirmed": true,
+          "explicitConfirmation": false
+        },
+        "missingFields": [],
+        "paymentGate": "READY_FOR_CONFIRMATION",
+        "reasonCodes": [
+          "AMBIGUOUS_CONFIRMATION"
+        ],
+        "shouldCreatePaymentIntent": false
+      },
+      "failures": []
+    },
+    {
+      "scenarioId": "refund-policy-not-confirmed",
+      "title": "Refund policy is not accepted",
+      "category": "POLICY_NOT_CONFIRMED",
+      "turnCount": 3,
+      "passed": true,
+      "expected": {
+        "extractedFields": {
+          "routeFrom": "Ha Noi",
+          "routeTo": "Sa Pa",
+          "passengerCount": 3,
+          "departureAt": "2026-06-20T22:30:00+07:00",
+          "pickupPoint": "My Dinh",
+          "refundPolicyConfirmed": false,
+          "explicitConfirmation": false
+        },
+        "missingFields": [
+          "refundPolicyConfirmed"
+        ],
+        "paymentGate": "READY_FOR_CONFIRMATION",
+        "reasonCodes": [
+          "REFUND_POLICY_NOT_CONFIRMED"
+        ],
+        "shouldCreatePaymentIntent": false
+      },
+      "actual": {
+        "extractedFields": {
+          "routeFrom": "Ha Noi",
+          "routeTo": "Sa Pa",
+          "passengerCount": 3,
+          "departureAt": "2026-06-20T22:30:00+07:00",
+          "pickupPoint": "My Dinh",
+          "refundPolicyConfirmed": false,
+          "explicitConfirmation": false
+        },
+        "missingFields": [
+          "refundPolicyConfirmed"
+        ],
+        "paymentGate": "READY_FOR_CONFIRMATION",
+        "reasonCodes": [
+          "REFUND_POLICY_NOT_CONFIRMED"
+        ],
+        "shouldCreatePaymentIntent": false
+      },
+      "failures": []
+    },
+    {
+      "scenarioId": "customer-changes-passenger-count",
+      "title": "Customer changes passenger count after terms",
+      "category": "CUSTOMER_CHANGE",
+      "turnCount": 3,
+      "passed": true,
+      "expected": {
+        "extractedFields": {
+          "routeFrom": "Ha Noi",
+          "routeTo": "Sa Pa",
+          "passengerCount": 4,
+          "departureAt": "2026-06-20T22:30:00+07:00",
+          "pickupPoint": "My Dinh",
+          "refundPolicyConfirmed": true,
+          "explicitConfirmation": false
+        },
+        "missingFields": [],
+        "paymentGate": "READY_FOR_CONFIRMATION",
+        "reasonCodes": [
+          "CUSTOMER_CHANGED_TERMS"
+        ],
+        "shouldCreatePaymentIntent": false
+      },
+      "actual": {
+        "extractedFields": {
+          "routeFrom": "Ha Noi",
+          "routeTo": "Sa Pa",
+          "passengerCount": 4,
+          "departureAt": "2026-06-20T22:30:00+07:00",
+          "pickupPoint": "My Dinh",
+          "refundPolicyConfirmed": true,
+          "explicitConfirmation": false
+        },
+        "missingFields": [],
+        "paymentGate": "READY_FOR_CONFIRMATION",
+        "reasonCodes": [
+          "CUSTOMER_CHANGED_TERMS"
+        ],
+        "shouldCreatePaymentIntent": false
+      },
+      "failures": []
+    },
+    {
+      "scenarioId": "call-dropped-before-confirmation",
+      "title": "Call drops before explicit confirmation",
+      "category": "CALL_DROPPED",
+      "turnCount": 2,
+      "passed": true,
+      "expected": {
+        "extractedFields": {
+          "routeFrom": "Ha Noi",
+          "routeTo": "Sa Pa",
+          "passengerCount": 3,
+          "departureAt": "2026-06-20T22:30:00+07:00",
+          "pickupPoint": "My Dinh",
+          "refundPolicyConfirmed": true,
+          "explicitConfirmation": false
+        },
+        "missingFields": [
+          "explicitConfirmation"
+        ],
+        "paymentGate": "LOCKED",
+        "reasonCodes": [
+          "CALL_DROPPED"
+        ],
+        "shouldCreatePaymentIntent": false
+      },
+      "actual": {
+        "extractedFields": {
+          "routeFrom": "Ha Noi",
+          "routeTo": "Sa Pa",
+          "passengerCount": 3,
+          "departureAt": "2026-06-20T22:30:00+07:00",
+          "pickupPoint": "My Dinh",
+          "refundPolicyConfirmed": true,
+          "explicitConfirmation": false
+        },
+        "missingFields": [
+          "explicitConfirmation"
+        ],
+        "paymentGate": "LOCKED",
+        "reasonCodes": [
+          "CALL_DROPPED"
+        ],
+        "shouldCreatePaymentIntent": false
+      },
+      "failures": []
+    },
+    {
+      "scenarioId": "payment-gate-should-stay-locked",
+      "title": "Customer asks for payment link before confirmation",
+      "category": "AMBIGUOUS_CONFIRMATION",
+      "turnCount": 2,
+      "passed": true,
+      "expected": {
+        "extractedFields": {
+          "routeFrom": "Ha Noi",
+          "routeTo": "Sa Pa",
+          "passengerCount": 3,
+          "departureAt": "2026-06-20T22:30:00+07:00",
+          "pickupPoint": "My Dinh",
+          "refundPolicyConfirmed": false,
+          "explicitConfirmation": false
+        },
+        "missingFields": [
+          "refundPolicyConfirmed",
+          "explicitConfirmation"
+        ],
+        "paymentGate": "LOCKED",
+        "reasonCodes": [
+          "REFUND_POLICY_NOT_CONFIRMED",
+          "AMBIGUOUS_CONFIRMATION"
+        ],
+        "shouldCreatePaymentIntent": false
+      },
+      "actual": {
+        "extractedFields": {
+          "routeFrom": "Ha Noi",
+          "routeTo": "Sa Pa",
+          "passengerCount": 3,
+          "departureAt": "2026-06-20T22:30:00+07:00",
+          "pickupPoint": "My Dinh",
+          "refundPolicyConfirmed": false,
+          "explicitConfirmation": false
+        },
+        "missingFields": [
+          "refundPolicyConfirmed",
+          "explicitConfirmation"
+        ],
+        "paymentGate": "LOCKED",
+        "reasonCodes": [
+          "REFUND_POLICY_NOT_CONFIRMED",
+          "AMBIGUOUS_CONFIRMATION"
+        ],
+        "shouldCreatePaymentIntent": false
+      },
+      "failures": []
+    },
+    {
+      "scenarioId": "payment-amount-mismatch",
+      "title": "Payment amount does not match the intent",
+      "category": "PAYMENT_MISMATCH",
+      "turnCount": 2,
+      "passed": true,
+      "expected": {
+        "extractedFields": {
+          "routeFrom": "Ha Noi",
+          "routeTo": "Sa Pa",
+          "passengerCount": 3,
+          "departureAt": "2026-06-20T22:30:00+07:00",
+          "pickupPoint": "My Dinh",
+          "refundPolicyConfirmed": true,
+          "explicitConfirmation": true
+        },
+        "missingFields": [],
+        "paymentGate": "MANUAL_REVIEW_REQUIRED",
+        "reasonCodes": [
+          "PAYMENT_AMOUNT_MISMATCH"
+        ],
+        "shouldCreatePaymentIntent": false
+      },
+      "actual": {
+        "extractedFields": {
+          "routeFrom": "Ha Noi",
+          "routeTo": "Sa Pa",
+          "passengerCount": 3,
+          "departureAt": "2026-06-20T22:30:00+07:00",
+          "pickupPoint": "My Dinh",
+          "refundPolicyConfirmed": true,
+          "explicitConfirmation": true
+        },
+        "missingFields": [],
+        "paymentGate": "MANUAL_REVIEW_REQUIRED",
+        "reasonCodes": [
+          "PAYMENT_AMOUNT_MISMATCH"
+        ],
+        "shouldCreatePaymentIntent": false
+      },
+      "failures": []
+    },
+    {
+      "scenarioId": "proof-mismatch",
+      "title": "Stored agreement proof does not match receipt verification",
+      "category": "PROOF_MISMATCH",
+      "turnCount": 3,
+      "passed": true,
+      "expected": {
+        "extractedFields": {
+          "routeFrom": "Ha Noi",
+          "routeTo": "Sa Pa",
+          "passengerCount": 3,
+          "departureAt": "2026-06-20T22:30:00+07:00",
+          "pickupPoint": "My Dinh",
+          "refundPolicyConfirmed": true,
+          "explicitConfirmation": true
+        },
+        "missingFields": [],
+        "paymentGate": "MANUAL_REVIEW_REQUIRED",
+        "reasonCodes": [
+          "PROOF_MISMATCH"
+        ],
+        "shouldCreatePaymentIntent": false
+      },
+      "actual": {
+        "extractedFields": {
+          "routeFrom": "Ha Noi",
+          "routeTo": "Sa Pa",
+          "passengerCount": 3,
+          "departureAt": "2026-06-20T22:30:00+07:00",
+          "pickupPoint": "My Dinh",
+          "refundPolicyConfirmed": true,
+          "explicitConfirmation": true
+        },
+        "missingFields": [],
+        "paymentGate": "MANUAL_REVIEW_REQUIRED",
+        "reasonCodes": [
+          "PROOF_MISMATCH"
+        ],
+        "shouldCreatePaymentIntent": false
+      },
+      "failures": []
+    }
+  ],
+  "metrics": {
+    "totalScenarios": 10,
+    "passedScenarios": 10,
+    "failedScenarios": 0,
+    "fieldExtractionAccuracy": 1,
+    "gateFalseUnlockRate": 0,
+    "gateFalseLockRate": 0,
+    "reasonCodeMatchRate": 1,
+    "paymentMismatchDetectionRate": 1,
+    "proofMismatchDetectionRate": 1,
+    "averageTurnsToAgreement": 4
+  }
+}

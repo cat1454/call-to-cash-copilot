@@ -1,0 +1,38 @@
+{
+  "id": "happy-path-3-tickets",
+  "title": "Happy path for three Ha Noi to Sa Pa tickets",
+  "category": "HAPPY_PATH",
+  "turns": [
+    {
+      "speaker": "CUSTOMER",
+      "content": "I want to book 3 seats from Ha Noi to Sa Pa tonight."
+    },
+    {
+      "speaker": "AGENT",
+      "content": "The available departure is 22:30 from My Dinh. The total is 1050000 VND and the deposit is 300000 VND."
+    },
+    {
+      "speaker": "AGENT",
+      "content": "Policy BUS-V1 v1.0 refunds 80 percent of the deposit if cancellation is at least 12 hours before departure."
+    },
+    {
+      "speaker": "CUSTOMER",
+      "content": "I confirm 3 seats from Ha Noi to Sa Pa at 22:30, pickup at My Dinh, and I accept the deposit and refund policy."
+    }
+  ],
+  "expected": {
+    "extractedFields": {
+      "routeFrom": "Ha Noi",
+      "routeTo": "Sa Pa",
+      "passengerCount": 3,
+      "departureAt": "2026-06-20T22:30:00+07:00",
+      "pickupPoint": "My Dinh",
+      "refundPolicyConfirmed": true,
+      "explicitConfirmation": true
+    },
+    "missingFields": [],
+    "paymentGate": "UNLOCKED",
+    "reasonCodes": [],
+    "shouldCreatePaymentIntent": true
+  }
+}

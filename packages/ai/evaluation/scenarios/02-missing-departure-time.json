@@ -1,0 +1,33 @@
+{
+  "id": "missing-departure-time",
+  "title": "Departure time is missing",
+  "category": "MISSING_FIELD",
+  "turns": [
+    {
+      "speaker": "CUSTOMER",
+      "content": "Please book 3 seats from Ha Noi to Sa Pa."
+    },
+    {
+      "speaker": "AGENT",
+      "content": "Which departure time should I hold for you?"
+    },
+    {
+      "speaker": "CUSTOMER",
+      "content": "I am not sure yet. I will decide later."
+    }
+  ],
+  "expected": {
+    "extractedFields": {
+      "routeFrom": "Ha Noi",
+      "routeTo": "Sa Pa",
+      "passengerCount": 3,
+      "pickupPoint": "My Dinh",
+      "refundPolicyConfirmed": false,
+      "explicitConfirmation": false
+    },
+    "missingFields": ["departureAt"],
+    "paymentGate": "LOCKED",
+    "reasonCodes": ["MISSING_DEPARTURE_TIME"],
+    "shouldCreatePaymentIntent": false
+  }
+}

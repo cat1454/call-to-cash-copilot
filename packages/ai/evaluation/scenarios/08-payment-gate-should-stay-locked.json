@@ -1,0 +1,30 @@
+{
+  "id": "payment-gate-should-stay-locked",
+  "title": "Customer asks for payment link before confirmation",
+  "category": "AMBIGUOUS_CONFIRMATION",
+  "turns": [
+    {
+      "speaker": "CUSTOMER",
+      "content": "Send me the payment link first and I will check the terms later."
+    },
+    {
+      "speaker": "AGENT",
+      "content": "I need explicit agreement to the current terms before the payment gate can open."
+    }
+  ],
+  "expected": {
+    "extractedFields": {
+      "routeFrom": "Ha Noi",
+      "routeTo": "Sa Pa",
+      "passengerCount": 3,
+      "departureAt": "2026-06-20T22:30:00+07:00",
+      "pickupPoint": "My Dinh",
+      "refundPolicyConfirmed": false,
+      "explicitConfirmation": false
+    },
+    "missingFields": ["refundPolicyConfirmed", "explicitConfirmation"],
+    "paymentGate": "LOCKED",
+    "reasonCodes": ["REFUND_POLICY_NOT_CONFIRMED", "AMBIGUOUS_CONFIRMATION"],
+    "shouldCreatePaymentIntent": false
+  }
+}

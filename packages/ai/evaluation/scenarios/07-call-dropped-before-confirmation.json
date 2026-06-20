@@ -1,0 +1,30 @@
+{
+  "id": "call-dropped-before-confirmation",
+  "title": "Call drops before explicit confirmation",
+  "category": "CALL_DROPPED",
+  "turns": [
+    {
+      "speaker": "AGENT",
+      "content": "I have the full booking details and will now ask for final confirmation."
+    },
+    {
+      "speaker": "SYSTEM",
+      "content": "Call connection ended before the customer confirmed the agreement."
+    }
+  ],
+  "expected": {
+    "extractedFields": {
+      "routeFrom": "Ha Noi",
+      "routeTo": "Sa Pa",
+      "passengerCount": 3,
+      "departureAt": "2026-06-20T22:30:00+07:00",
+      "pickupPoint": "My Dinh",
+      "refundPolicyConfirmed": true,
+      "explicitConfirmation": false
+    },
+    "missingFields": ["explicitConfirmation"],
+    "paymentGate": "LOCKED",
+    "reasonCodes": ["CALL_DROPPED"],
+    "shouldCreatePaymentIntent": false
+  }
+}

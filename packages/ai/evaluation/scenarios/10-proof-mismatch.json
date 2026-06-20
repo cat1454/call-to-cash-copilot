@@ -1,0 +1,34 @@
+{
+  "id": "proof-mismatch",
+  "title": "Stored agreement proof does not match receipt verification",
+  "category": "PROOF_MISMATCH",
+  "turns": [
+    {
+      "speaker": "SYSTEM",
+      "content": "A locked agreement and payment proof exist for the booking."
+    },
+    {
+      "speaker": "OPERATOR",
+      "content": "Tamper action changes the comparison copy to a different route and passenger count."
+    },
+    {
+      "speaker": "SYSTEM",
+      "content": "Recomputed proof hash does not match the anchored proof hash."
+    }
+  ],
+  "expected": {
+    "extractedFields": {
+      "routeFrom": "Ha Noi",
+      "routeTo": "Sa Pa",
+      "passengerCount": 3,
+      "departureAt": "2026-06-20T22:30:00+07:00",
+      "pickupPoint": "My Dinh",
+      "refundPolicyConfirmed": true,
+      "explicitConfirmation": true
+    },
+    "missingFields": [],
+    "paymentGate": "MANUAL_REVIEW_REQUIRED",
+    "reasonCodes": ["PROOF_MISMATCH"],
+    "shouldCreatePaymentIntent": false
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "id": "ambiguous-confirmation",
+  "title": "Customer gives ambiguous confirmation",
+  "category": "AMBIGUOUS_CONFIRMATION",
+  "turns": [
+    {
+      "speaker": "AGENT",
+      "content": "I will hold 3 seats Ha Noi to Sa Pa at 22:30, pickup My Dinh, deposit 300000 VND, policy BUS-V1 v1.0."
+    },
+    {
+      "speaker": "CUSTOMER",
+      "content": "Um, probably like that."
+    }
+  ],
+  "expected": {
+    "extractedFields": {
+      "routeFrom": "Ha Noi",
+      "routeTo": "Sa Pa",
+      "passengerCount": 3,
+      "departureAt": "2026-06-20T22:30:00+07:00",
+      "pickupPoint": "My Dinh",
+      "refundPolicyConfirmed": true,
+      "explicitConfirmation": false
+    },
+    "missingFields": [],
+    "paymentGate": "READY_FOR_CONFIRMATION",
+    "reasonCodes": ["AMBIGUOUS_CONFIRMATION"],
+    "shouldCreatePaymentIntent": false
+  }
+}
