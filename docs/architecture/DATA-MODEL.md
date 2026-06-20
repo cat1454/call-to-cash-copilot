@@ -44,7 +44,8 @@ User / Operator / Provider
         │      ├── RiskAssessment[]
         │      └── ObjectAsset[] (optional recording)
         │
-        └── Booking
+        └── Booking ── TripDeparture
+               ├── InventoryHold[]          # expiring/consumed capacity
                ├── Agreement[]               # immutable versions
                ├── PaymentIntent[]
                │      └── PaymentTransaction[]
@@ -59,6 +60,7 @@ Any aggregate may emit AuditLog[] entries.
 | Aggregate | Root record | Owned child records | Owner service |
 |---|---|---|---|
 | Call | `call_sessions` | consent, transcript turns, extraction runs, assessments, recording assets | Call / Transcript service in `apps/api` |
+| Inventory | `trip_departures` | inventory holds | Inventory repository in `packages/db`; orchestration in `apps/api` |
 | Booking | `bookings` | agreements, payment intents, proof records, receipts | Booking service in `apps/api` |
 | Payment | `payment_intents` | payment transactions, verification attempts | Payment service in `apps/api` + `packages/solana` |
 | Audit | `audit_logs` | n/a | all server-side modules via `packages/db` |
@@ -253,7 +255,61 @@ The following tables are the minimum production-shaped schema. A hackathon may i
 
 ---
 
-### 5.7 `bookings`
+### 5.7 `trip_departures`
+
+**Purpose:** Authoritative scheduled inventory and pricing source for one route departure.
+
+| Field | Type / example | Notes |
+|---|---|---|
+| `id` | UUID PK | internal |
+| `public_id` | `dep_...` unique | API/operator-safe identifier |
+| `route_code` | `HN-SAPA-20260620-2230` | stable operational code |
+| `route_from`, `route_to` | controlled text/code | normalized route |
+| `departure_at_utc` | timestamptz | authoritative scheduled instant |
+| `departure_timezone` | IANA timezone | display/operations context |
+| `capacity` | positive integer | total sellable seats |
+| `operational_status` | `SCHEDULED`, `BOARDING`, `DEPARTED`, `CANCELLED` | holds require `SCHEDULED` |
+| `currency` | `VND` | MVP fixed |
+| `fare_per_seat_minor` | non-negative integer | authoritative unit fare |
+| `deposit_amount_minor` | positive integer | authoritative deposit |
+| `price_policy_version` | `BUS-PRICE-V1` | required |
+| `refund_policy_version` | `BUS-V1/1.0` | required |
+| `version` | integer | optimistic concurrency input |
+| `created_at`, `updated_at` | timestamptz | required |
+
+**Constraints:** unique `(route_code, departure_at_utc)`; positive capacity; non-negative fare; positive deposit. Availability is derived under a row lock from active, unexpired and consumed holds; browser counters are never authoritative.
+
+---
+
+### 5.8 `inventory_holds`
+
+**Purpose:** Time-bounded seat reservation tying a booking to one authoritative departure.
+
+| Field | Type / example | Notes |
+|---|---|---|
+| `id` | UUID PK | internal |
+| `public_id` | `hold_...` unique | opaque external/reference id |
+| `departure_id` | FK `trip_departures.id` | required |
+| `booking_id` | FK `bookings.id` | required |
+| `quantity` | positive integer | seats held |
+| `status` | `ACTIVE`, `RELEASED`, `EXPIRED`, `CONSUMED` | canonical shared enum |
+| `expires_at` | timestamptz | checked using server time |
+| `idempotency_key` | unique text | replay safety |
+| `released_at`, `consumed_at` | timestamptz nullable | lifecycle evidence |
+| `version` | integer | optimistic concurrency input |
+| `created_at`, `updated_at` | timestamptz | required |
+
+**Constraints / concurrency**
+
+- only one `ACTIVE` hold per booking;
+- reservation locks the departure row in a serializable transaction before calculating capacity;
+- availability counts `ACTIVE` unexpired and `CONSUMED` quantities;
+- expiry changes status and appends audit evidence in the same transaction;
+- an idempotency-key replay returns the original hold only when the command payload matches.
+
+---
+
+### 5.9 `bookings`
 
 **Purpose:** Current operational booking record. It may be mutable before agreement lock; material changes after lock require a new agreement version and often a new payment intent.
 
@@ -264,6 +320,7 @@ The following tables are the minimum production-shaped schema. A hackathon may i
 | `call_session_id` | FK nullable | origin relationship |
 | `customer_id` | FK `users.id` nullable | customer identity |
 | `provider_id` | FK `users.id` nullable | MVP may seed provider |
+| `trip_departure_id` | FK `trip_departures.id` nullable | authoritative schedule/pricing source |
 | `status` | booking status enum | see State Machines |
 | `route_from`, `route_to` | controlled text/code | avoid free-form after confirmation |
 | `departure_at_utc` | timestamptz nullable | required before agreement lock |
@@ -290,7 +347,7 @@ The following tables are the minimum production-shaped schema. A hackathon may i
 
 ---
 
-### 5.8 `agreements`
+### 5.10 `agreements`
 
 **Purpose:** Immutable, versioned snapshot of commercial terms read/displayed to the customer.
 
@@ -298,6 +355,7 @@ The following tables are the minimum production-shaped schema. A hackathon may i
 |---|---|---|
 | `id` | UUID PK |  |
 | `booking_id` | FK `bookings.id` | required |
+| `inventory_hold_id` | FK `inventory_holds.id` | exact hold confirmed by this version |
 | `version` | integer | unique per booking |
 | `status` | `DRAFT`, `READY`, `LOCKED`, `SUPERSEDED`, `EXPIRED` | see State Machines |
 | `canonical_payload` | JSONB | schema-validated, canonical key ordering before hash |
@@ -319,7 +377,7 @@ The following tables are the minimum production-shaped schema. A hackathon may i
 
 ---
 
-### 5.9 `payment_intents`
+### 5.11 `payment_intents`
 
 **Purpose:** A time-bounded, idempotent request for exactly one deposit payment against one locked agreement.
 
@@ -348,7 +406,7 @@ The following tables are the minimum production-shaped schema. A hackathon may i
 
 ---
 
-### 5.10 `payment_transactions`
+### 5.12 `payment_transactions`
 
 **Purpose:** Append-only observations of blockchain payment transactions and verification outcomes.
 
@@ -376,7 +434,7 @@ The following tables are the minimum production-shaped schema. A hackathon may i
 
 ---
 
-### 5.11 `proof_records`
+### 5.13 `proof_records`
 
 **Purpose:** Links an agreement hash to a verified payment transaction and records verification results.
 
@@ -397,7 +455,7 @@ The following tables are the minimum production-shaped schema. A hackathon may i
 
 ---
 
-### 5.12 `trust_receipts`
+### 5.14 `trust_receipts`
 
 **Purpose:** Customer-facing durable summary generated after booking/payment/proof processing.
 
@@ -417,7 +475,7 @@ The following tables are the minimum production-shaped schema. A hackathon may i
 
 ---
 
-### 5.13 `object_assets`
+### 5.15 `object_assets`
 
 **Purpose:** Metadata and retention for S3/MinIO objects such as optional recordings and redacted export artifacts.
 
@@ -439,7 +497,7 @@ The following tables are the minimum production-shaped schema. A hackathon may i
 
 ---
 
-### 5.14 `audit_logs`
+### 5.16 `audit_logs`
 
 **Purpose:** Append-only record of material actor actions and state transitions.
 
@@ -470,6 +528,8 @@ The following tables are the minimum production-shaped schema. A hackathon may i
 6. A risk assessment cannot open payment without deterministic policy checks.
 7. An analysis created from interim STT cannot lock an agreement or open payment.
 8. Every terminal payment/proof exception creates an audit log entry.
+9. Capacity cannot be oversold: hold creation serializes on the departure and counts active/consumed quantities.
+10. Agreement, payment, proof, and receipt foreign keys must remain within the same booking aggregate.
 ```
 
 ---
@@ -477,12 +537,12 @@ The following tables are the minimum production-shaped schema. A hackathon may i
 ## 7. Recommended Prisma implementation order
 
 1. Enums and `users`.
-2. `call_sessions`, `consent_records`, `transcript_turns`.
-3. `bookings`, `agreements`.
+2. `trip_departures`, `call_sessions`, `consent_records`, `transcript_turns`.
+3. `bookings`, `inventory_holds`, `agreements`.
 4. `booking_extractions`, `risk_assessments`.
 5. `payment_intents`, `payment_transactions`.
 6. `proof_records`, `trust_receipts`, `audit_logs`, `object_assets`.
-7. Seed one provider, one route, and scripted demo conversations.
+7. Seed one provider and one deterministic departure; scripted calls arrive with the replay API phase.
 
 Do not begin with all optional objects. The first vertical slice needs only: `call_sessions`, `transcript_turns`, `risk_assessments`, `bookings`, `agreements`, `payment_intents`, `payment_transactions`, `proof_records`, and `trust_receipts`.
 
@@ -498,6 +558,7 @@ CallSession
 → BookingExtraction[]
 → RiskAssessment[]
 → Booking
+→ TripDeparture / InventoryHold[]
 → Agreement[]
 → PaymentIntent[]
 → PaymentTransaction[]

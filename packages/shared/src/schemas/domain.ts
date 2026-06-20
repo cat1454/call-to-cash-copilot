@@ -94,6 +94,7 @@ export const RISK_REASON_CODE_VALUES = [
 ] as const;
 
 export const RiskReasonCodeSchema = z.enum(RISK_REASON_CODE_VALUES);
+export type RiskReasonCode = z.infer<typeof RiskReasonCodeSchema>;
 
 export const FieldProvenanceSchema = z
   .object({

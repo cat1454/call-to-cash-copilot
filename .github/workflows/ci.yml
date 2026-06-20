@@ -12,6 +12,23 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      DATABASE_URL: postgresql://call_to_cash:call_to_cash@127.0.0.1:5432/call_to_cash?schema=public
+      TEST_DATABASE_URL: postgresql://call_to_cash:call_to_cash@127.0.0.1:5432/call_to_cash?schema=public
+    services:
+      postgres:
+        image: postgres:18.3-alpine
+        env:
+          POSTGRES_DB: call_to_cash
+          POSTGRES_USER: call_to_cash
+          POSTGRES_PASSWORD: call_to_cash
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U call_to_cash -d call_to_cash"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -29,6 +46,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm format:check
+      - run: pnpm db:validate
+      - run: pnpm db:migrate:deploy
+      - run: pnpm db:seed
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
