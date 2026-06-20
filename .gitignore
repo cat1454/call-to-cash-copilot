@@ -31,3 +31,4 @@ extracted_text.txt
 *.sw?
 
 *.env
+.env.example
