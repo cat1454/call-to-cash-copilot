@@ -1,0 +1,64 @@
+export const PAYMENT_PROVIDERS = ["mock", "solana-devnet"] as const;
+export const VOICE_PROVIDERS = ["replay", "agora"] as const;
+export const AI_PROVIDERS = ["deterministic", "llm"] as const;
+
+export type PaymentProvider = (typeof PAYMENT_PROVIDERS)[number];
+export type VoiceProvider = (typeof VOICE_PROVIDERS)[number];
+export type AiProvider = (typeof AI_PROVIDERS)[number];
+
+export type RuntimeConfig = {
+  nodeEnv: string;
+  host: string;
+  port: number;
+  demoMode: boolean;
+  paymentProvider: PaymentProvider;
+  voiceProvider: VoiceProvider;
+  aiProvider: AiProvider;
+};
+
+function readEnum<T extends string>(
+  name: string,
+  value: string | undefined,
+  allowed: readonly T[],
+  fallback: T
+): T {
+  const candidate = value ?? fallback;
+  if (!allowed.includes(candidate as T)) {
+    throw new Error(`${name} must be one of: ${allowed.join(", ")}`);
+  }
+  return candidate as T;
+}
+
+function readBoolean(name: string, value: string | undefined, fallback: boolean): boolean {
+  if (value === undefined) return fallback;
+  if (value === "true") return true;
+  if (value === "false") return false;
+  throw new Error(`${name} must be true or false`);
+}
+
+function readPort(value: string | undefined): number {
+  const port = Number(value ?? 3001);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error("API_PORT must be an integer between 1 and 65535");
+  }
+  return port;
+}
+
+export function readRuntimeConfig(
+  env: Readonly<Record<string, string | undefined>> = process.env
+): RuntimeConfig {
+  return {
+    nodeEnv: env.NODE_ENV ?? "development",
+    host: env.API_HOST ?? "127.0.0.1",
+    port: readPort(env.API_PORT),
+    demoMode: readBoolean("DEMO_MODE", env.DEMO_MODE, true),
+    paymentProvider: readEnum(
+      "PAYMENT_PROVIDER",
+      env.PAYMENT_PROVIDER,
+      PAYMENT_PROVIDERS,
+      "mock"
+    ),
+    voiceProvider: readEnum("VOICE_PROVIDER", env.VOICE_PROVIDER, VOICE_PROVIDERS, "replay"),
+    aiProvider: readEnum("AI_PROVIDER", env.AI_PROVIDER, AI_PROVIDERS, "deterministic")
+  };
+}

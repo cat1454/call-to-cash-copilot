@@ -1,3 +1,3 @@
 # Shared contracts
 
-Reserved for reusable types, enums, schemas, and cross-application contracts. The current frontend simulation remains inside `apps/web` until a real second consumer exists.
+Reserved for Zod schemas, enums, DTOs, event/error contracts, and cross-application constants. Phase 1 provides only the TypeScript package boundary; executable contracts begin in Phase 2.

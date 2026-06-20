@@ -1,6 +1,7 @@
 import PhoneScreen from "./components/PhoneScreen";
 import DesktopConsole from "./components/DesktopConsole";
 import useCallSimulation from "./features/simulation/hooks/useCallSimulation";
+import { DEMO_MODE } from "./config/runtime";
 
 export default function App() {
   const sim = useCallSimulation();
@@ -12,6 +13,9 @@ export default function App() {
       <div className="mobile-native-container">
         {/* Top Tab Bar Switcher */}
         <div className="mobile-tabs-container">
+          <div className="demo-mode-badge" role="status">
+            {DEMO_MODE ? "DEMO · REPLAY / MOCK" : "LIVE ADAPTERS NOT CONNECTED"}
+          </div>
           <div className="view-tabs">
             <button
               className={`view-tab ${sim.mobileTab === "call" ? "active" : ""}`}
@@ -92,13 +96,16 @@ export default function App() {
           </p>
         </div>
         <div className="connection-status">
+          <div className="demo-mode-badge" role="status">
+            {DEMO_MODE ? "DEMO MODE · DETERMINISTIC" : "LIVE MODE · ADAPTERS PENDING"}
+          </div>
           <div className="status-badge agora">
             <span className="indicator"></span>
-            <span>Mạng Agora RT-Voice: Hoạt động</span>
+            <span>{DEMO_MODE ? "Agora: Transcript Replay" : "Agora: Chưa kết nối"}</span>
           </div>
           <div className="status-badge solana">
             <span className="indicator"></span>
-            <span>Sổ cái Solana Ledger: Đã kết nối</span>
+            <span>{DEMO_MODE ? "Payment: Deterministic Mock" : "Solana: Chưa kết nối"}</span>
           </div>
         </div>
       </header>

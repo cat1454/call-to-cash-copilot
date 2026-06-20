@@ -2,5 +2,16 @@
   "name": "@call-to-cash/shared",
   "private": true,
   "version": "0.0.0",
-  "description": "Reserved shared contracts boundary for types, enums, and schemas."
+  "type": "module",
+  "description": "Shared contracts boundary for schemas, enums, DTOs, events, and errors.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint src --max-warnings=0",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test"
+  }
 }

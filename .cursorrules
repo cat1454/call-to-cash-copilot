@@ -6,7 +6,7 @@ This file sets the visual constraints and architecture rules for developers edit
 
 - **Light Mode Palette**: 
   - Background is white (`#FFFFFF`) / light grey (`#F9FAFB`).
-  - Primary color is blue (`#2563EB`).
+  - Primary color is green (`#059669`).
   - Green (`#10B981`) is reserved for successful matches or confirmed cọc.
   - Amber (`#F59E0B`) represents warnings or pending states.
   - Red (`#EF4444`) represents cryptographic mismatch warnings.
@@ -17,11 +17,11 @@ This file sets the visual constraints and architecture rules for developers edit
 
 ## Core Code Architecture
 
-- **React State Management**: Lift shared simulation states (transcripts, booking fields, and hashes) inside [App.jsx](file:///h:/solona/src/App.jsx) and pass down to subcomponents.
+- **React State Management**: Keep shared simulation state behind `apps/web/src/features/simulation/hooks/useCallSimulation.js` and pass it through `apps/web/src/App.jsx`; browser state is demo-only authority.
 - **State Mutability**: Avoid direct mutation of arrays or objects. Always write state-setting updates using immutable copy syntax.
 - **Service Worker & PWA**: Preserve manifest link and service worker registration in `main.jsx` and `index.html`.
 
 ## Security & Blockchain Anchoring
 
-- **Tamper Simulation Verification**: The `tamperAgreement` logic in [App.jsx](file:///h:/solona/src/App.jsx) must correctly simulate database tampering by mutating coordinates, recalculating the hash, identifying a mismatch, and prompting warning mismatch flags.
+- **Tamper Simulation Verification**: The demo tamper logic under `apps/web/src/features/simulation/` must remain clearly labeled as simulated and must not become production proof authority.
 - **PII Masking**: Mask phone numbers (`0912***678`) before logging off-chain or hashing for Solana anchoring.

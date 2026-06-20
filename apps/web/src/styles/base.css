@@ -25,6 +25,22 @@
   --transition-smooth: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.demo-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-height: 24px;
+  padding: 4px 9px;
+  border: 1px solid var(--warning-amber);
+  border-radius: 999px;
+  color: #92400e;
+  background: #fffbeb;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;

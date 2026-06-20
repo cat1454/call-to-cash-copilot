@@ -1,3 +1,5 @@
+import { REFUND_POLICY } from "./refundPolicy";
+
 export const scenarios = [
   // Scenario 1: Normal Booking
   [
@@ -37,7 +39,7 @@ export const scenarios = [
     },
     {
       sender: "ai",
-      text: "Dạ em xin xác nhận lại thông tin: 3 vé xe đi Sa Pa chuyến 22:30 tối nay, đăng ký cho SĐT 0912345678. Tổng tiền vé là 1.050.000đ, anh cần đặt cọc trước 300.000đ để giữ ghế trong 10 phút. Tiền cọc được hoàn 100% nếu anh hủy vé trước giờ đi 2 tiếng. Anh xác nhận thông tin này để em mở cổng cọc nhé?",
+      text: `Dạ em xin xác nhận lại thông tin: 3 vé xe đi Sa Pa chuyến 22:30 tối nay, đăng ký cho SĐT 0912345678. Tổng tiền vé là 1.050.000đ, anh cần đặt cọc trước 300.000đ để giữ ghế trong 10 phút. ${REFUND_POLICY.spokenSummary} Anh xác nhận thông tin này để em mở cổng cọc nhé?`,
       updates: {
         entities: { route: "Hà Nội -> Sa Pa", time: "22:30", seats: "3 khách", phone: "0912345678", price: "1.050.000đ", deposit: "300.000đ" },
         scores: { completeness: 95, dispute: 5, readiness: 85 },
@@ -98,7 +100,7 @@ export const scenarios = [
     },
     {
       sender: "ai",
-      text: "Dạ anh hoàn toàn yên tâm ạ. Solana Pay ở đây chỉ đóng vai trò là một cổng thanh toán kỹ thuật số để xác nhận giao dịch tức thì và ký số biên nhận chống sửa đổi. Anh chỉ thanh toán bằng tiền đồng Việt Nam thông thường, không phải đầu tư coin. Còn về cọc, tiền cọc 200.000đ sẽ được giữ tạm và hoàn 100% nếu anh báo hủy chuyến trước giờ đi ít nhất 2 tiếng ạ. Anh xác nhận thông tin này chứ?",
+      text: `Dạ anh hoàn toàn yên tâm ạ. Trong demo này, thanh toán được mô phỏng deterministically; Solana chưa kết nối thật. Về cọc, ${REFUND_POLICY.spokenSummary} Anh xác nhận thông tin này chứ?`,
       updates: {
         entities: { route: "Hà Nội -> Sa Pa", time: "22:30", seats: "2 khách", phone: "0987654321", price: "700.000đ", deposit: "200.000đ" },
         scores: { completeness: 90, dispute: 30, readiness: 75 },

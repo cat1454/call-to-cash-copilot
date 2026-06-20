@@ -2,5 +2,16 @@
   "name": "@call-to-cash/solana",
   "private": true,
   "version": "0.0.0",
-  "description": "Reserved Solana Pay and ledger-proof integration boundary."
+  "type": "module",
+  "description": "Reserved Solana payment and proof adapter boundary.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint src --max-warnings=0",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test"
+  }
 }

@@ -1,4 +1,5 @@
 import { QrCode, Timer } from "lucide-react";
+import { REFUND_POLICY } from "../../../data/refundPolicy";
 
 export default function PhonePaymentDrawer({
   showPaymentDrawer,
@@ -48,7 +49,7 @@ export default function PhonePaymentDrawer({
       </button>
       
       <p className="drawer-disclaimer">
-        * Cọc được hoàn tự động 100% nếu bạn báo hủy xe trước giờ đi ít nhất 2 tiếng.
+        * {REFUND_POLICY.customerSummary} Chính sách {REFUND_POLICY.id} v{REFUND_POLICY.version}.
       </p>
     </div>
   );

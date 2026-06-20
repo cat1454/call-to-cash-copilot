@@ -35,9 +35,10 @@ call-to-cash-risk-copilot/
 │   │   ├── index.html
 │   │   ├── package.json
 │   │   └── vite.config.js
-│   └── api/                  # Backend boundary; framework intentionally undecided
+│   └── api/                  # Fastify/TypeScript orchestration boundary
 ├── packages/
 │   ├── shared/               # Future shared contracts and schemas
+│   ├── domain/               # Pure deterministic business rules and transitions
 │   ├── db/                   # Future persistence and migrations
 │   ├── agora/                # Future Agora provider integration
 │   ├── solana/               # Future Solana Pay and proof integration
@@ -50,7 +51,7 @@ call-to-cash-risk-copilot/
 └── turbo.json
 ```
 
-The placeholder API and packages contain no implementation or public exports yet. The working simulation remains self-contained in `apps/web`.
+The API currently exposes only Phase 1 health/readiness scaffolding. Business contracts, domain rules, persistence, and provider adapters remain intentionally unimplemented; the working transaction simulation is still self-contained in `apps/web`.
 
 ## Local development
 
@@ -82,3 +83,4 @@ When Corepack shims are enabled, the shorter `pnpm dev`, `pnpm test`, and relate
 - [DESIGN.md](./docs/DESIGN.md): UI tokens and responsive design guidance.
 - [MAINTAINABILITY.md](./docs/MAINTAINABILITY.md): source organization and refactoring guidance.
 - [Backend roadmap](./docs/BACKEND_ROADMAP_2026.md): framework-neutral backend phases and API contract.
+- [ECC agent workflow](./docs/operations/ECC-AGENT-WORKFLOW.md): project-specific skill discovery, precedence, and update rules for the local ECC clone.
