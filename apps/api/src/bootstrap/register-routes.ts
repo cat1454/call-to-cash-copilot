@@ -3,23 +3,18 @@ import { z } from "zod";
 
 import {
   ApiErrorEnvelopeSchema,
-  BookingIdSchema,
   CallIdSchema,
-  ConfirmBookingRequestSchema,
-  CreateMockPaymentIntentRequestSchema,
   ErrorCodeSchema,
-  PaymentIntentIdSchema,
-  ReceiptIdSchema,
-  SimulatePaymentFailureRequestSchema,
-  VerifyMockPaymentRequestSchema
+  ReceiptIdSchema
 } from "@call-to-cash/shared";
 
 import { registerCallSessionRoutes } from "../modules/call-session/call-session.routes.js";
+import { registerBookingRoutes } from "../modules/booking/booking.routes.js";
 import { registerHealthRoutes } from "../modules/health/health.routes.js";
+import { registerPaymentRoutes } from "../modules/payment/payment.routes.js";
 import { ssePayload } from "../platform/events/sse-writer.js";
 import { ApiCommandError } from "../platform/http/api-command-error.js";
 import { errorEnvelope, successEnvelope } from "../platform/http/api-response.js";
-import { requireIdempotencyKey } from "../platform/http/idempotency.js";
 import { parseWithSchema } from "../platform/http/validation.js";
 import type { ApiDependencies } from "./types.js";
 
@@ -27,6 +22,8 @@ export function registerRoutes(app: FastifyInstance, dependencies: ApiDependenci
   const { config, phase5Service } = dependencies;
   registerHealthRoutes(app, dependencies);
   registerCallSessionRoutes(app, dependencies);
+  registerBookingRoutes(app, dependencies);
+  registerPaymentRoutes(app, dependencies);
 
   const getService = () => {
     if (phase5Service === undefined) {
@@ -43,8 +40,6 @@ export function registerRoutes(app: FastifyInstance, dependencies: ApiDependenci
   };
 
   const CallParamsSchema = z.object({ callId: CallIdSchema }).strict();
-  const BookingParamsSchema = z.object({ bookingId: BookingIdSchema }).strict();
-  const PaymentParamsSchema = z.object({ bookingId: BookingIdSchema }).strict();
   const ReceiptParamsSchema = z.object({ receiptId: ReceiptIdSchema }).strict();
   const ReceiptVerifyQuerySchema = z
     .object({
@@ -109,67 +104,6 @@ export function registerRoutes(app: FastifyInstance, dependencies: ApiDependenci
     });
 
     return reply;
-  });
-
-  app.get("/v1/bookings/:bookingId", async (request) => {
-    const params = parseWithSchema(BookingParamsSchema, request.params);
-    return successEnvelope(request.id, await getService().getBooking(params.bookingId));
-  });
-
-  app.post("/v1/bookings/:bookingId/confirm", async (request) => {
-    const params = parseWithSchema(BookingParamsSchema, request.params);
-    const body = parseWithSchema(ConfirmBookingRequestSchema, request.body);
-    const idempotencyKey = requireIdempotencyKey(request.headers);
-
-    return successEnvelope(
-      request.id,
-      await getService().confirmBooking(params.bookingId, body, idempotencyKey, request.id)
-    );
-  });
-
-  app.post("/v1/payments/mock/create", async (request, reply) => {
-    const body = parseWithSchema(CreateMockPaymentIntentRequestSchema, request.body);
-    const result = await getService().createMockPaymentIntent(
-      body.bookingId,
-      requireIdempotencyKey(request.headers),
-      request.id
-    );
-
-    return reply.code(result.statusCode).send(successEnvelope(request.id, result.data));
-  });
-
-  app.post("/v1/payments/mock/verify", async (request) => {
-    const body = parseWithSchema(VerifyMockPaymentRequestSchema, request.body);
-    PaymentIntentIdSchema.parse(body.paymentIntentId);
-    const idempotencyKey = requireIdempotencyKey(request.headers);
-
-    return successEnvelope(
-      request.id,
-      await getService().verifyMockPayment(body, idempotencyKey, request.id)
-    );
-  });
-
-  // Phase 7: simulate failure endpoint — DEMO_MODE only.
-  app.post("/v1/payments/mock/simulate-failure", async (request, reply) => {
-    if (!config.demoMode) {
-      return reply
-        .code(403)
-        .send(
-          errorEnvelope(
-            request.id,
-            "AUTH_FORBIDDEN",
-            "Endpoint available in demo mode only.",
-            false
-          )
-        );
-    }
-    const body = parseWithSchema(SimulatePaymentFailureRequestSchema, request.body);
-    return successEnvelope(request.id, await getService().simulatePaymentFailure(body, request.id));
-  });
-
-  app.get("/v1/payments/:bookingId/status", async (request) => {
-    const params = parseWithSchema(PaymentParamsSchema, request.params);
-    return successEnvelope(request.id, await getService().getPaymentStatus(params.bookingId));
   });
 
   app.get("/v1/receipts/:receiptId", async (request) => {

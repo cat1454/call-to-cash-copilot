@@ -5,7 +5,7 @@ export {
   InventoryPersistenceGuardError,
   InventoryUnavailableError
 } from "./errors.js";
-export { InventoryRepository } from "./inventory-repository.js";
-export type { ReserveInventoryInput } from "./inventory-repository.js";
+export { InventoryRepository, reserveInventory } from "./inventory-repository.js";
+export type { DbExecutor, ReserveInventoryInput } from "./inventory-repository.js";
 export { ReceiptTraceRepository } from "./receipt-trace-repository.js";
 export { Prisma } from "./generated/prisma/client.js";

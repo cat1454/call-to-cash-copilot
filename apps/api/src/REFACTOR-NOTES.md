@@ -178,6 +178,27 @@ Regression-test plan for Stage D:
 
 Exact next extraction target: Stage D, booking + agreement + inventory orchestration.
 
+## Stage D extraction performed in this slice
+
+- Registered `GET /v1/bookings/:bookingId` and `POST /v1/bookings/:bookingId/confirm` from `modules/booking`; neither route calls `Phase5ReplayService`.
+- Moved active booking read, confirmation, agreement lock, inventory-hold orchestration, and booking/risk/gate event ownership to `modules/booking`.
+- Added the `BookingDraftWriter` application port so call-session can request a draft update without owning booking policy.
+- Changed transcript processing to one caller-owned serializable transaction: transcript, draft, inventory hold, extraction, risk assessment, and committed events now commit or roll back together.
+- `InventoryRepository.reserveInTransaction` and `reserveInventory` keep the row lock/capacity/idempotency logic inside an existing transaction; `reserve()` remains the serializable top-level convenience method.
+- Added a database integration regression proving a later parent-command failure rolls back both the hold and its inventory audit row. It requires `TEST_DATABASE_URL` to execute.
+
+Remaining active `Phase5ReplayService` methods:
+
+- `createMockPaymentIntent`
+- `verifyMockPayment`
+- `simulatePaymentFailure`
+- `getPaymentStatus`
+- `getReceipt`
+- `verifyReceipt`
+- `getEvents`
+
+The facade intentionally remains for the next stage: **payment + proof extraction**. Its retired Stage D source block is non-executable and retained temporarily only as a source-reference bridge for that extraction.
+
 ## Pre-existing baseline failures before this refactor
 
 Commands run before adding refactor notes/README skeletons:
@@ -192,3 +213,26 @@ Commands run before adding refactor notes/README skeletons:
 | `pnpm format:check` | Fail: 44 files with Prettier drift                                                                 |
 
 These failures are pre-existing repository hygiene/format issues and are intentionally not fixed in Stage A of the modular backend refactor.
+
+## Stage E extraction performed in this slice
+
+- Registered all four payment routes from `modules/payment`; they now use payment handlers and do not call `Phase5ReplayService`.
+- Extracted `createMockPaymentIntent`, `verifyMockPayment`, `simulatePaymentFailure`, and `getPaymentStatus` into payment commands/queries.
+- Moved API-safe payment projections into `payment.presenter.ts`, deterministic mock expectation/validation into `platform/providers/mock-payment-provider.ts`, and successful verification proof/Trust Receipt writes into `modules/payment/proof`.
+- Preserved durable payment-create and payment-verify idempotency behavior, existing response envelopes/statuses/error codes, and committed event names.
+- Preserved the existing demo expiry behavior: it only backdates the payment intent expiry and emits no event. This remains a Phase F/UI recovery concern; no expiry event was added because the current contract does not require one.
+
+### Stage E transaction boundaries
+
+- Intent creation remains one transaction: durable idempotency lookup/create, eligibility checks, payment intent, booking transition, and `payment.intent.created` append.
+- Successful verification remains one transaction: durable idempotency replay/conflict check, transaction observation, hold consumption, proof, Trust Receipt, booking/payment transitions, and `payment.confirmed`/receipt committed events.
+- Rejected verification remains one transaction: rejected evidence, payment/booking transitions, durable idempotency evidence, and `payment.failed` append.
+- Proof and Trust Receipt creation are payment-owned success side effects. Receipt read and tamper verification remain outside the payment module.
+
+### Remaining `Phase5ReplayService` facade surface
+
+- `getReceipt`
+- `verifyReceipt`
+- `getEvents`
+
+`phase5-service.ts` is intentionally retained as the small receipt/call-events facade until **Stage F: Receipt and Call Events extraction**. Its direct source importers are limited to bootstrap dependency composition/types and the receipt/call-events routes in `bootstrap/register-routes.ts`.

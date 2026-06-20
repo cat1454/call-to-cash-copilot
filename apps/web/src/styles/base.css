@@ -86,7 +86,7 @@ body {
 }
 
 /* Header */
-header {
+.legacy-header {
   display: flex;
   justify-content: space-between;
   align-items: center;

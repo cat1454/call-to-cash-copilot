@@ -174,6 +174,39 @@ test(
 );
 
 test(
+  "an in-transaction inventory reservation rolls back with a later parent-command failure",
+  { skip: prisma === undefined ? "TEST_DATABASE_URL is not configured" : false },
+  async () => {
+    assert.ok(prisma);
+    const fixture = await createBookingFixture(4);
+    const inventory = new InventoryRepository(prisma);
+    const request = {
+      publicId: opaqueId("hold"),
+      idempotencyKey: opaqueId("idem"),
+      bookingId: fixture.booking.id,
+      departureId: fixture.departure.id,
+      quantity: 2,
+      now: new Date("2030-06-20T14:00:00.000Z"),
+      expiresAt: new Date("2030-06-20T14:15:00.000Z"),
+      requestId: opaqueId("req")
+    };
+
+    await assert.rejects(
+      prisma.$transaction(async (transaction) => {
+        await inventory.reserveInTransaction(transaction, request);
+        throw new Error("simulate later booking/risk/event write failure");
+      })
+    );
+
+    assert.equal(
+      await prisma.inventoryHold.count({ where: { idempotencyKey: request.idempotencyKey } }),
+      0
+    );
+    assert.equal(await prisma.auditLog.count({ where: { aggregateId: request.publicId } }), 0);
+  }
+);
+
+test(
   "expired holds release availability using server-provided time and append an audit row",
   { skip: prisma === undefined ? "TEST_DATABASE_URL is not configured" : false },
   async () => {
