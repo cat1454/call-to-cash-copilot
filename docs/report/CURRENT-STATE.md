@@ -219,7 +219,7 @@ SSE is normalized in the contracts, but there is no event store/outbox, ordering
 
 ## 8. Current quality baseline
 
-The following commands pass from the repository root:
+The following verification commands are available from the repository root:
 
 ```text
 pnpm install --frozen-lockfile
@@ -229,6 +229,8 @@ pnpm typecheck
 pnpm test
 pnpm build
 ```
+
+For the Phase 3 working tree, frozen install, lint, typecheck, test, and build pass. `format:check` still reports formatting drift in 39 pre-existing files outside the Phase 3 slice.
 
 Current non-empty test baseline:
 
