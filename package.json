@@ -19,8 +19,8 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "node --test tests/workspaceStructure.test.js && turbo run test",
-    "format": "prettier --write . --ignore-path .gitignore",
-    "format:check": "prettier --check . --ignore-path .gitignore",
+    "format": "prettier --write \"apps/api/**/*.{ts,json}\" \"packages/**/*.{ts,json}\" \"tests/**/*.js\" \"package.json\" \"turbo.json\" \"pnpm-workspace.yaml\" \"eslint.config.js\" \"prettier.config.mjs\" \".github/**/*.{yml,yaml}\"",
+    "format:check": "prettier --check \"apps/api/**/*.{ts,json}\" \"packages/**/*.{ts,json}\" \"tests/**/*.js\" \"package.json\" \"turbo.json\" \"pnpm-workspace.yaml\" \"eslint.config.js\" \"prettier.config.mjs\" \".github/**/*.{yml,yaml}\"",
     "preview": "pnpm --filter @call-to-cash/web preview"
   },
   "devDependencies": {

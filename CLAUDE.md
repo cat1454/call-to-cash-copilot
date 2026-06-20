@@ -129,7 +129,7 @@ Paths marked as planned do not currently exist. Verify their status and the rele
 ### API and Event Contract Rules
 
 - Any API endpoint addition or modification requires updating `docs/contracts/API-CONTRACT.md`.
-- Any websocket/realtime event addition or modification requires updating `docs/contracts/EVENT-CONTRACT.md`.
+- Any SSE/realtime event addition or modification requires updating `docs/contracts/EVENT-CONTRACT.md`.
 - Any new error condition or changed error response requires updating `docs/contracts/ERROR-CODES.md`.
 - Validate external input using shared Zod schemas.
 - Use shared DTOs/types from `packages/shared`; do not duplicate request/response types in frontend and backend.

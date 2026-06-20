@@ -52,12 +52,7 @@ export function readRuntimeConfig(
     host: env.API_HOST ?? "127.0.0.1",
     port: readPort(env.API_PORT),
     demoMode: readBoolean("DEMO_MODE", env.DEMO_MODE, true),
-    paymentProvider: readEnum(
-      "PAYMENT_PROVIDER",
-      env.PAYMENT_PROVIDER,
-      PAYMENT_PROVIDERS,
-      "mock"
-    ),
+    paymentProvider: readEnum("PAYMENT_PROVIDER", env.PAYMENT_PROVIDER, PAYMENT_PROVIDERS, "mock"),
     voiceProvider: readEnum("VOICE_PROVIDER", env.VOICE_PROVIDER, VOICE_PROVIDERS, "replay"),
     aiProvider: readEnum("AI_PROVIDER", env.AI_PROVIDER, AI_PROVIDERS, "deterministic")
   };

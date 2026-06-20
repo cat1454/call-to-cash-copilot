@@ -1,9 +1,6 @@
 import Fastify, { type FastifyInstance } from "fastify";
 
-import {
-  readRuntimeConfig,
-  type RuntimeConfig
-} from "@call-to-cash/config";
+import { readRuntimeConfig, type RuntimeConfig } from "@call-to-cash/config";
 
 function successEnvelope<T>(requestId: string, data: T) {
   return {
