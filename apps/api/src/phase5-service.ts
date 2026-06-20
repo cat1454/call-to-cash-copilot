@@ -40,7 +40,8 @@ import {
   type ErrorCode,
   type EnumValue,
   type EventEnvelope,
-  type RiskReasonCode
+  type RiskReasonCode,
+  type SimulatePaymentFailureRequest
 } from "@call-to-cash/shared";
 import type { CriticalBlockerCode } from "@call-to-cash/domain";
 
@@ -1634,6 +1635,15 @@ export class Phase5ReplayService {
           }
         };
       }
+      // Phase 7: expiry check — block verify before any state write
+      if (intent.expiresAt !== null && intent.expiresAt.getTime() < now.getTime()) {
+        throw new ApiCommandError(
+          410,
+          "PAYMENT_INTENT_EXPIRED",
+          "Payment intent has expired. Create a new payment intent after confirming valid booking terms."
+        );
+      }
+
       const pendingIntentStatus = requireTransition(
         transitionPaymentIntent(
           intent.status as PaymentIntentStatusValue,
@@ -2016,6 +2026,79 @@ export class Phase5ReplayService {
         ...(status === ProofStatus.Mismatch ? { nextAction: RiskNextAction.ManualReview } : {})
       };
     });
+  }
+
+  /**
+   * Phase 7 — DEMO_MODE only.
+   * Force a payment intent into a specific failure state without manual parameter manipulation.
+   * The caller must verify DEMO_MODE before invoking this method.
+   */
+  async simulatePaymentFailure(
+    input: SimulatePaymentFailureRequest,
+    requestId: string
+  ): Promise<ServiceData> {
+    const now = new Date();
+    const intent = await this.client.paymentIntent.findUnique({
+      where: { publicId: input.paymentIntentId }
+    });
+    if (intent === null) {
+      throw new ApiCommandError(404, "PAYMENT_INTENT_NOT_FOUND", "Payment intent was not found.");
+    }
+    if (intent.status !== "CREATED" && intent.status !== "PENDING") {
+      throw new ApiCommandError(
+        409,
+        "PAYMENT_INTENT_ALREADY_EXISTS",
+        `Payment intent is already in a terminal state: ${intent.status}.`
+      );
+    }
+
+    const booking = await this.client.booking.findUniqueOrThrow({
+      where: { id: intent.bookingId }
+    });
+    const call = await this.client.callSession.findFirstOrThrow({
+      where: { bookingId: intent.bookingId }
+    });
+
+    if (input.outcome === "EXPIRED") {
+      // Force-expire the intent so a subsequent verify call returns PAYMENT_INTENT_EXPIRED.
+      await this.client.paymentIntent.update({
+        where: { id: intent.id },
+        data: { expiresAt: new Date(now.getTime() - 1000) }
+      });
+      return {
+        paymentIntentId: intent.publicId,
+        outcome: "EXPIRED",
+        message: "Payment intent forcibly expired. Next verify call will return PAYMENT_INTENT_EXPIRED."
+      };
+    }
+
+    // For wrong-value outcomes, submit a verification with deliberately wrong data.
+    const verifyInput = {
+      paymentIntentId: input.paymentIntentId,
+      observedAmount: {
+        currency: "VND",
+        minor:
+          input.outcome === "WRONG_AMOUNT"
+            ? intent.amountMinor + 1
+            : intent.amountMinor
+      },
+      observedRecipient:
+        input.outcome === "WRONG_RECIPIENT" ? "wrong-recipient-wallet" : intent.recipientWallet,
+      observedReference:
+        input.outcome === "WRONG_REFERENCE" ? "ref_00000000wrong" : intent.solanaReference,
+      transactionSignature: `sim_fail_${opaqueId("tx")}`
+    };
+
+    const idempotencyKey = `sim-fail-${input.outcome}-${intent.publicId}-${requestId}`;
+    return this.verifyMockPayment(verifyInput, idempotencyKey, requestId).then(
+      (result) => ({
+        paymentIntentId: intent.publicId,
+        outcome: input.outcome,
+        verificationResult: result,
+        booking: booking.publicId,
+        call: call.publicId
+      })
+    );
   }
 
   async getEvents(callId: string, lastEventId?: string): Promise<EventEnvelope[]> {
