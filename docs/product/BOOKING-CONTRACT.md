@@ -136,13 +136,9 @@ export type FieldProvenance = {
 ```ts
 export type BookingDraftV1 = {
   id: string;
-  status:
-    | 'FIELDS_PARTIAL'
-    | 'BOOKING_DRAFT_READY'
-    | 'POLICY_CONFIRMED'
-    | 'AGREEMENT_READY'
-    | 'MANUAL_REVIEW_REQUIRED'
-    | 'CANCELLED';
+  // Canonical state-machine enum from packages/shared.
+  // Do not introduce local status strings such as POLICY_CONFIRMED.
+  status: BookingStatus;
 
   service: {
     vertical: 'INTERCITY_BUS';
@@ -184,14 +180,14 @@ export type BookingDraftV1 = {
 
 ## 7. Agreement Snapshot contract
 
-An agreement is created only after the pricing, policy, inventory hold, and required booking fields are valid. It becomes immutable at creation.
+An agreement record may be prepared as `DRAFT`/`READY` once terms are renderable. Its commercial terms become immutable only when a customer explicitly confirms and it transitions to `LOCKED`.
 
 ```ts
 export type AgreementSnapshotV1 = {
   id: string;
   bookingId: string;
   version: number;
-  status: 'LOCKED' | 'SUPERSEDED' | 'EXPIRED';
+  status: 'DRAFT' | 'READY' | 'LOCKED' | 'SUPERSEDED' | 'EXPIRED';
 
   service: {
     routeFrom: string;
@@ -214,7 +210,7 @@ export type AgreementSnapshotV1 = {
   customerAcknowledgement: {
     contactMasked: string;
     explicitConfirmationAt: string;
-    confirmationMethod: 'VOICE' | 'TEXT' | 'OPERATOR';
+    confirmationMethod: 'VOICE' | 'WEB' | 'OPERATOR';
   };
 
   canonicalizationVersion: 'v1';
@@ -311,18 +307,13 @@ export type PaymentIntentV1 = {
   id: string;
   bookingId: string;
   agreementSnapshotId: string;
-  status:
-    | 'CREATED'
-    | 'PRESENTED'
-    | 'PENDING_VERIFICATION'
-    | 'CONFIRMED'
-    | 'FAILED'
-    | 'EXPIRED'
-    | 'MANUAL_REVIEW_REQUIRED';
+  // Canonical payment-intent state-machine enum from packages/shared.
+  // A presented QR/link remains CREATED; a detected candidate payment is PENDING.
+  status: PaymentIntentStatus;
 
   expected: {
     amount: number;
-    currency: 'VND' | 'USDC' | 'SOL';
+    currency: 'VND';
     recipient: string;
     reference: string;
     memoHash?: string;

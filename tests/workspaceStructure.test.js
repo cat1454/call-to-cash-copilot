@@ -152,6 +152,63 @@ test("Phase 1 exposes TypeScript package entrypoints and API health skeleton", a
   }
 });
 
+test("Phase 4 exposes reviewed PostgreSQL and Prisma durable-state tooling", async () => {
+  const requiredFiles = [
+    "compose.yaml",
+    "prisma.config.ts",
+    "prisma/schema.prisma",
+    "prisma/seed.ts",
+    "prisma/migrations/migration_lock.toml",
+    "prisma/migrations/20260620131142_phase4_durable_state/migration.sql",
+    "packages/db/src/client.ts",
+    "packages/db/src/inventory-repository.ts",
+    "packages/db/src/receipt-trace-repository.ts"
+  ];
+
+  for (const relativePath of requiredFiles) {
+    assert.equal(await exists(relativePath), true, `${relativePath} should exist`);
+  }
+
+  const manifest = JSON.parse(await readFile(path.join(repoRoot, "package.json"), "utf8"));
+  for (const script of [
+    "db:generate",
+    "db:validate",
+    "db:migrate:dev",
+    "db:migrate:deploy",
+    "db:migrate:status",
+    "db:seed"
+  ]) {
+    assert.equal(typeof manifest.scripts[script], "string", `missing root ${script} script`);
+  }
+
+  const envTemplate = await readFile(path.join(repoRoot, ".env.example"), "utf8");
+  assert.match(envTemplate, /^DATABASE_URL=postgresql:\/\//m);
+  assert.doesNotMatch(envTemplate, /^VITE_.*DATABASE_URL/m);
+
+  const schema = await readFile(path.join(repoRoot, "prisma/schema.prisma"), "utf8");
+  for (const model of [
+    "TripDeparture",
+    "InventoryHold",
+    "Booking",
+    "Agreement",
+    "PaymentIntent",
+    "PaymentTransaction",
+    "ProofRecord",
+    "TrustReceipt",
+    "AuditLog"
+  ]) {
+    assert.match(schema, new RegExp(`model ${model} \\{`));
+  }
+
+  const migration = await readFile(
+    path.join(repoRoot, "prisma/migrations/20260620131142_phase4_durable_state/migration.sql"),
+    "utf8"
+  );
+  assert.match(migration, /inventory_holds_one_active_per_booking/);
+  assert.match(migration, /agreements_protect_locked_terms/);
+  assert.match(migration, /audit_logs_append_only/);
+});
+
 test("Phase 0 canonical names and refund policy stay normalized", async () => {
   const docsText = (
     await Promise.all(
