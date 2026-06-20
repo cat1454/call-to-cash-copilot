@@ -1,6 +1,6 @@
 # Call-to-Cash Risk Copilot - Local Development Setup
 
-> **Status:** Phase 0-5 workspace, contracts, domain kernel, PostgreSQL/Prisma persistence, authoritative replay API, durable SSE recovery, deterministic mock payment, proof, and Trust Receipt flow are executable. Web REST/SSE integration, Solana, Agora, LLM, Redis, and MinIO remain later phases.
+> **Status:** Phase 0-7 workspace, contracts, domain kernel, PostgreSQL/Prisma persistence, authoritative replay API, durable SSE recovery, deterministic mock payment, proof, and Trust Receipt flow are executable. Phase 6 structured logging, CORS, rate limiting, and web REST/SSE adapter are implemented. Phase 7 payment failure outcomes, simulate-failure demo endpoint, server read-model hooks, and useServerSimulation are implemented. Solana, Agora, LLM, Redis, and MinIO remain later phases.
 
 ## 1. Current local architecture
 
@@ -17,6 +17,17 @@ Fastify API (apps/api)
   - authoritative replay call/transcript/risk/booking routes
   - long-lived SSE stream plus Last-Event-ID recovery
   - idempotent deterministic mock payment/proof/receipt flow
+  - Phase 6: structured Pino JSON logging, CORS, per-IP rate limiting
+
+Web adapter (apps/web/src/lib/)
+  - apiClient.js — typed REST client for all Phase 5/7 API endpoints incl. simulatePaymentFailure
+  - sseClient.js — SSE stream consumer with Last-Event-ID reconnect
+  - useApiMode.js — probes /health; falls back to mock simulation when API offline
+
+Phase 7 web hooks (apps/web/src/features/simulation/hooks/)
+  - useServerState.js — useCallSession, useBookingReadModel, useReceiptVerification, usePaymentStatus
+  - useServerSimulation.js — API-driven simulation loop; wired into useCallSimulation
+  - useCallSimulation.js — branches API/mock based on apiMode
 
 PostgreSQL 18 (Docker Compose)
   - durable source of truth on host port 55432
@@ -206,7 +217,9 @@ Do not expect the following commands or services to work until their pipeline ph
 
 | Capability | Planned phase |
 |---|---:|
-| Web REST/SSE adapter and refresh recovery | Phase 6 |
+| Web REST/SSE adapter and refresh recovery | **Phase 6 — done** |
+| Mock payment failure outcomes and simulate-failure demo endpoint | **Phase 7 — done** |
+| Server read-model hooks and useServerSimulation wiring | **Phase 7 — done** |
 | Solana devnet | Phase 8 |
 | Agora live voice/transcript | Phase 9 |
 | Optional LLM extraction | Phase 10 |
@@ -223,7 +236,7 @@ Do not create speculative Redis or object-storage configuration before its consu
 | PostgreSQL container port is unavailable | another process uses `55432` | set `POSTGRES_PORT` and update `DATABASE_URL` consistently |
 | Prisma cannot connect | container is unhealthy or `DATABASE_URL` differs | run `docker compose ps` and `pnpm db:migrate:status` |
 | PostgreSQL 18 reports an old data path | Compose volume mounted at the pre-v18 path | keep the committed mount at `/var/lib/postgresql` |
-| Web still shows fixture-owned state | the Phase 6 REST/SSE adapter is not implemented yet | use the scripted UI or exercise the Phase 5 API directly |
+| Web still shows fixture-owned state | API mode probe failed or VITE_API_BASE_URL not set | check console.warn from useApiMode; verify API is running on 3001 |
 | `dist` import is missing during typecheck | package dependency was not built | run the root command so Turbo follows `^build` dependencies |
 | UI claims live provider status | stale browser assets/cache | rebuild, unregister stale service worker if needed, and reload |
 

@@ -23,10 +23,15 @@ import { useCallDurationTimer } from "./useCallDurationTimer";
 import { useReservationCountdown } from "./useReservationCountdown";
 import { useTimeoutRegistry } from "./useTimeoutRegistry";
 import { useViewportMode } from "./useViewportMode";
+import { useApiMode } from "./useApiMode";
+import useServerSimulation from "./useServerSimulation";
 
 export default function useCallSimulation() {
   const isMobile = useViewportMode();
+  const { apiMode, apiBaseUrl, apiClient } = useApiMode();
   const [currentScenarioIdx, setCurrentScenarioIdx] = useState(0);
+
+  // ---- Mock simulation state (used only when apiMode=false) -----------
   const [isSimulating, setIsSimulating] = useState(false);
   const [simStatus, setSimStatus] = useState("Sẵn sàng");
   const [mobileTab, setMobileTab] = useState("call");
@@ -53,7 +58,7 @@ export default function useCallSimulation() {
   const [ledgerLogs, setLedgerLogs] = useState(createInitialLedgerLogs);
   const { clearTimeouts, scheduleTimeout } = useTimeoutRegistry();
 
-  const setters = {
+  const mockSetters = {
     setBookingData,
     setBrainMode,
     setBtnPhonePayBg,
@@ -94,34 +99,102 @@ export default function useCallSimulation() {
     setDrawerTimerText
   });
 
-  const resetSimulation = () => resetSimulationState(setters, clearTimeouts);
-  const issueReceipt = (currentBookingData) => issueBoardingPass(currentBookingData, setters);
-  const triggerPayment = (depositAmount) => triggerPhonePaySheet(depositAmount, setters);
-  const simulateWalletPayment = () => {
-    runWalletPaymentSequence({ bookingData, issueReceipt, scheduleTimeout, setters });
+  // ---- API simulation (always called unconditionally for hook rules) ---
+  const server = useServerSimulation(
+    apiMode ? apiClient : null,
+    apiBaseUrl,
+    currentScenarioIdx,
+    scenarios
+  );
+
+  // ---- Mock simulation actions (apiMode=false) -------------------------
+  const mockReset = () => resetSimulationState(mockSetters, clearTimeouts);
+  const mockIssueReceipt = (currentBookingData) =>
+    issueBoardingPass(currentBookingData, mockSetters);
+  const mockTriggerPayment = (depositAmount) =>
+    triggerPhonePaySheet(depositAmount, mockSetters);
+  const mockSimulateWalletPayment = () => {
+    runWalletPaymentSequence({
+      bookingData,
+      issueReceipt: mockIssueReceipt,
+      scheduleTimeout,
+      setters: mockSetters
+    });
   };
-  const startSimulation = () => {
+  const mockStartSimulation = () => {
     startDialogueSimulation({
       bookingData,
       currentScenarioIdx,
       isSimulating,
       scenarios,
       scheduleTimeout,
-      setters,
-      triggerPayment
+      setters: mockSetters,
+      triggerPayment: mockTriggerPayment
     });
   };
+  const mockHandleTamper = () => tamperAgreement(bookingData, mockSetters);
+
   const selectScenario = (idx) => {
-    if (isSimulating) {
-      alert("Vui lòng đợi cuộc gọi hiện tại kết thúc hoặc bấm 'Đặt lại' trước khi chọn kịch bản khác.");
+    if (apiMode ? server.isSimulating : isSimulating) {
+      alert(
+        "Vui lòng đợi cuộc gọi hiện tại kết thúc hoặc bấm 'Đặt lại' trước khi chọn kịch bản khác."
+      );
       return;
     }
-
     setCurrentScenarioIdx(idx);
-    resetSimulation();
+    if (apiMode) server.resetSimulation();
+    else mockReset();
   };
-  const handleTamperAgreement = () => tamperAgreement(bookingData, setters);
 
+  // ---- Unified surface (picks API or mock branch) ----------------------
+  if (apiMode) {
+    return {
+      isMobile,
+      currentScenarioIdx,
+      isSimulating: server.isSimulating,
+      simStatus: server.simStatus,
+      mobileTab: "call",
+      setMobileTab: () => {},
+      phoneCallStatusText: server.simStatus,
+      phoneCallColor: server.error ? "var(--danger-red)" : "var(--text-muted)",
+      isWaveAnimating: server.isSimulating,
+      callDuration: 0,
+      subtitles: { speaker: "", text: "" },
+      bookingData: createInitialBookingData(),
+      showBoardingPass: server.showBoardingPass,
+      showPaymentDrawer: server.showPaymentDrawer,
+      drawerTimerText: DEFAULT_PAYMENT_TIMER,
+      btnPhonePayText: DEFAULT_PAYMENT_BUTTON,
+      btnPhonePayDisabled: false,
+      btnPhonePayBg: "var(--primary-blue)",
+      isTampered: server.isTampered,
+      transcript: server.transcript,
+      scores: server.scores,
+      performance: createInitialPerformance(),
+      brainMode: "fast",
+      prefetchContent: "",
+      showPrefetch: false,
+      timelineSteps: server.timelineSteps,
+      ledgerLogs: server.ledgerLogs,
+      selectScenario,
+      startSimulation: server.startSimulation,
+      resetSimulation: server.resetSimulation,
+      simulateWalletPayment: () =>
+        server.simulateWalletPayment(server.paymentIntentId, {
+          amount: { currency: "VND", minor: 300000 },
+          recipient: "mock-recipient-wallet",
+          reference: ""
+        }),
+      tamperAgreement: () => server.tamperAgreement(server.receiptId),
+      // Phase 7 extras exposed for UI
+      serverCallId: server.callId,
+      serverBookingId: server.bookingId,
+      serverReceiptId: server.receiptId,
+      serverError: server.error
+    };
+  }
+
+  // Mock branch — unchanged behaviour
   return {
     isMobile,
     currentScenarioIdx,
@@ -151,9 +224,9 @@ export default function useCallSimulation() {
     timelineSteps,
     ledgerLogs,
     selectScenario,
-    startSimulation,
-    resetSimulation,
-    simulateWalletPayment,
-    tamperAgreement: handleTamperAgreement
+    startSimulation: mockStartSimulation,
+    resetSimulation: mockReset,
+    simulateWalletPayment: mockSimulateWalletPayment,
+    tamperAgreement: mockHandleTamper
   };
 }

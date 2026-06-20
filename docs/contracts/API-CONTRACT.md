@@ -1,6 +1,6 @@
 # Call-to-Cash Risk Copilot — API Contract
 
-> **Status:** MVP technical contract v1  
+> **Status:** MVP technical contract v1 — updated for Phase 7  
 > **Owner:** Backend Lead + Frontend Lead  
 > **Base URL:** `/v1`  
 > **Related docs:** [Data Model](../architecture/DATA-MODEL.md), [State Machines](../architecture/STATE-MACHINES.md), [Event Contract](./EVENT-CONTRACT.md), [Error Codes](./ERROR-CODES.md)
@@ -511,9 +511,11 @@ An exact idempotency replay returns the locked agreement. Reusing the key with a
 
 ---
 
-## 7. Phase 5 Mock Payment APIs
+## 7. Phase 5/7 Mock Payment APIs
 
-The Phase 5 provider is explicitly deterministic mock payment. Solana endpoints remain deferred to Phase 8 and are not exposed by the Phase 5 API.
+The Phase 5/7 provider is explicitly deterministic mock payment. Solana endpoints remain deferred to Phase 8 and are not exposed by the Phase 5/7 API.
+
+Phase 7 adds `POST /v1/payments/mock/simulate-failure` for demo failure flows and enforces payment intent expiry in `POST /v1/payments/mock/verify`.
 
 ### 7.1 `POST /v1/payments/mock/create`
 
@@ -631,6 +633,60 @@ Returns current payment state for the active/latest payment intent of a booking.
 
 ---
 
+### 7.4 `POST /v1/payments/mock/simulate-failure` _(DEMO_MODE only — Phase 7)_
+
+Forces a payment intent into a deterministic failure outcome for demo presentations. Forbidden outside `DEMO_MODE=true`.
+
+**No `Idempotency-Key` required.**
+
+#### Request
+
+```json
+{
+  "paymentIntentId": "pi_01J...",
+  "outcome": "EXPIRED" 
+}
+```
+
+`outcome` must be one of: `"EXPIRED"` | `"WRONG_AMOUNT"` | `"WRONG_REFERENCE"` | `"WRONG_RECIPIENT"`
+
+#### Response — `200 OK`
+
+For `EXPIRED`: sets `expiresAt` to the past so the next `POST /v1/payments/mock/verify` returns `410 PAYMENT_INTENT_EXPIRED`.
+
+```json
+{
+  "success": true,
+  "data": {
+    "paymentIntentId": "pi_01J...",
+    "outcome": "EXPIRED",
+    "message": "Payment intent forcibly expired. Next verify call will return PAYMENT_INTENT_EXPIRED."
+  },
+  "meta": { "requestId": "req_01J..." }
+}
+```
+
+For `WRONG_AMOUNT` / `WRONG_REFERENCE` / `WRONG_RECIPIENT`: immediately submits a verification with deliberately wrong values, moves payment intent to `REJECTED`, booking to `MANUAL_REVIEW_REQUIRED`, and emits `payment.failed`.
+
+```json
+{
+  "success": true,
+  "data": {
+    "paymentIntentId": "pi_01J...",
+    "outcome": "WRONG_AMOUNT",
+    "verificationResult": { "error": { "statusCode": 422, "code": "PAYMENT_AMOUNT_MISMATCH", "message": "..." } }
+  },
+  "meta": { "requestId": "req_01J..." }
+}
+```
+
+#### Guards
+
+- `DEMO_MODE=true` or `403 AUTH_FORBIDDEN`;
+- payment intent must exist and be in `CREATED` or `PENDING` state.
+
+---
+
 ## 8. Trust Receipt APIs
 
 Payment confirmation creates the proof record and Trust Receipt once in the same authoritative flow. There is no separate client command to issue a Phase 5 receipt.
@@ -723,7 +779,7 @@ The normal endpoint keeps the connection open, sends committed events after the 
 | Agora token | `apps/api` | `@call-to-cash/agora`, `@call-to-cash/config` |
 | Risk | `apps/api` | `@call-to-cash/ai`, `@call-to-cash/db`, `@call-to-cash/shared` |
 | Booking/agreement | `apps/api` | `@call-to-cash/db`, `@call-to-cash/shared` |
-| Phase 5 mock payment/proof | `apps/api` | `@call-to-cash/domain`, `@call-to-cash/db`, `@call-to-cash/shared` |
+| Phase 5/7 mock payment/proof | `apps/api` | `@call-to-cash/domain`, `@call-to-cash/db`, `@call-to-cash/shared` |
 | Receipt | `apps/api` | `@call-to-cash/db`, `@call-to-cash/shared` |
 
 ---

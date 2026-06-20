@@ -7,11 +7,13 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "test": "node --test src/config/runtime.test.js src/contractsBoundary.test.js src/features/simulation/dashboardModel.test.js src/features/simulation/simulationHelpers.test.js src/sourceLineCount.test.js",
+    "test": "node --experimental-test-module-mocks --test src/config/runtime.test.js src/contractsBoundary.test.js src/features/simulation/dashboardModel.test.js src/features/simulation/simulationHelpers.test.js src/sourceLineCount.test.js src/lib/apiClient.test.js src/features/simulation/hooks/useServerState.test.js",
     "preview": "vite preview"
   },
   "dependencies": {
     "@call-to-cash/shared": "workspace:*",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "lucide-react": "^1.21.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",

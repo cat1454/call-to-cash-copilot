@@ -401,3 +401,21 @@ export type UpdateBookingRequest = z.infer<typeof UpdateBookingRequestSchema>;
 export type ConfirmBookingRequest = z.infer<typeof ConfirmBookingRequestSchema>;
 export type CreateMockPaymentIntentRequest = z.infer<typeof CreateMockPaymentIntentRequestSchema>;
 export type VerifyMockPaymentRequest = z.infer<typeof VerifyMockPaymentRequestSchema>;
+
+export const SimulatePaymentFailureOutcome = [
+  "EXPIRED",
+  "WRONG_AMOUNT",
+  "WRONG_REFERENCE",
+  "WRONG_RECIPIENT"
+] as const;
+
+export const SimulatePaymentFailureRequestSchema = z
+  .object({
+    paymentIntentId: PaymentIntentIdSchema,
+    outcome: z.enum(SimulatePaymentFailureOutcome)
+  })
+  .strict();
+
+export type SimulatePaymentFailureRequest = z.infer<
+  typeof SimulatePaymentFailureRequestSchema
+>;
