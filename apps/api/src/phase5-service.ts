@@ -9,19 +9,16 @@ import {
   getRequiredNextAction,
   serializeCanonicalAgreement,
   transitionBooking,
-  transitionCall,
   transitionPaymentIntent,
   transitionReceipt,
   validateBookingFields
 } from "@call-to-cash/domain";
 import type { StateTransitionResult } from "@call-to-cash/domain";
-import { InventoryRepository, Prisma, type DatabaseClient } from "@call-to-cash/db";
+import { Prisma, type DatabaseClient } from "@call-to-cash/db";
 import {
   AGREEMENT_CANONICALIZATION_VERSION,
   AgreementStatus,
   BookingStatus,
-  CallSourceMode,
-  CallStatus,
   ConfirmationMethod,
   Currency,
   EventEnvelopeSchema,
@@ -33,8 +30,6 @@ import {
   RISK_POLICY_VERSION,
   ReceiptStatus,
   RiskNextAction,
-  TranscriptSource,
-  TranscriptSpeaker,
   type Agreement,
   type BookingDraft,
   type ErrorCode,
@@ -44,21 +39,9 @@ import {
   type SimulatePaymentFailureRequest
 } from "@call-to-cash/shared";
 import type { CriticalBlockerCode } from "@call-to-cash/domain";
-
-export class ApiCommandError extends Error {
-  constructor(
-    readonly statusCode: number,
-    readonly code: ErrorCode,
-    message: string,
-    readonly details?: Record<string, unknown>,
-    readonly retryable = false
-  ) {
-    super(message);
-  }
-}
+import { ApiCommandError } from "./platform/http/api-command-error.js";
 
 type Transaction = Prisma.TransactionClient;
-type CallStatusValue = EnumValue<typeof CallStatus>;
 type BookingStatusValue = EnumValue<typeof BookingStatus>;
 type PaymentIntentStatusValue = EnumValue<typeof PaymentIntentStatus>;
 type ReceiptStatusValue = EnumValue<typeof ReceiptStatus>;
@@ -156,11 +139,11 @@ function maskPhone(phone: string): string {
   return `${digits.slice(0, 4)}***${digits.slice(-3)}`;
 }
 
-function redactContent(content: string): string {
+export function redactContent(content: string): string {
   return content.replace(/\b0\d{8,10}\b/gu, (phone) => maskPhone(phone));
 }
 
-function extractFacts(content: string): ExtractedFacts {
+export function extractFacts(content: string): ExtractedFacts {
   const normalized = normalizeForSearch(content);
   const phone = content.match(/\b0\d{8,10}\b/u)?.[0];
   const passengerCount =
@@ -449,403 +432,6 @@ function shortSignature(value: string): string {
 export class Phase5ReplayService {
   constructor(private readonly client: DatabaseClient) {}
 
-  async createCall(input: {
-    sourceMode: (typeof CallSourceMode)[keyof typeof CallSourceMode];
-    customerId?: string;
-    operatorId?: string;
-    requestId: string;
-  }): Promise<ServiceData> {
-    const now = new Date();
-    const publicId = opaqueId("call");
-    const channelName = `ctc_${publicId}`;
-
-    return this.client.$transaction(async (transaction) => {
-      const customer =
-        input.customerId === undefined
-          ? null
-          : await transaction.user.findUnique({ where: { publicId: input.customerId } });
-      const operator =
-        input.operatorId === undefined
-          ? null
-          : await transaction.user.findUnique({ where: { publicId: input.operatorId } });
-      const call = await transaction.callSession.create({
-        data: {
-          publicId,
-          customerId: customer?.id ?? null,
-          operatorId: operator?.id ?? null,
-          status: "CREATED",
-          channelName,
-          purpose: "BOOKING",
-          sourceMode: input.sourceMode,
-          analysisEnabled: true,
-          createdAt: now
-        }
-      });
-
-      await transaction.auditLog.create({
-        data: {
-          actorType: "SYSTEM",
-          action: "CALL_CREATED",
-          aggregateType: "CALL",
-          aggregateId: publicId,
-          requestId: input.requestId,
-          afterState: { status: "CREATED", sourceMode: input.sourceMode },
-          createdAt: now
-        }
-      });
-      await appendEvent(transaction, {
-        callId: call.publicId,
-        event: EventName.CallCreated,
-        data: {
-          status: CallStatus.Created,
-          channelName: call.channelName,
-          sourceMode: call.sourceMode
-        },
-        requestId: input.requestId,
-        occurredAt: now
-      });
-
-      return {
-        callId: call.publicId,
-        status: call.status,
-        channelName: call.channelName,
-        sourceMode: call.sourceMode,
-        createdAt: iso(call.createdAt)
-      };
-    });
-  }
-
-  async getCall(callId: string): Promise<ServiceData> {
-    const call = await this.client.callSession.findUnique({
-      where: { publicId: callId },
-      include: { booking: true }
-    });
-    if (call === null) {
-      throw new ApiCommandError(404, "CALL_NOT_FOUND", "Call session was not found.");
-    }
-
-    return {
-      callId: call.publicId,
-      status: call.status,
-      channelName: call.channelName,
-      startedAt: call.startedAt === null ? null : iso(call.startedAt),
-      endedAt: call.endedAt === null ? null : iso(call.endedAt),
-      booking:
-        call.booking === null
-          ? null
-          : {
-              bookingId: call.booking.publicId,
-              status: call.booking.status
-            }
-    };
-  }
-
-  async endCall(callId: string, reason: string, requestId: string): Promise<ServiceData> {
-    const now = new Date();
-    return this.client.$transaction(async (transaction) => {
-      const call = await transaction.callSession.findUnique({ where: { publicId: callId } });
-      if (call === null) {
-        throw new ApiCommandError(404, "CALL_NOT_FOUND", "Call session was not found.");
-      }
-      const targetStatus =
-        call.status === CallStatus.Created ? CallStatus.Cancelled : CallStatus.Ended;
-      const endedAt = call.endedAt ?? now;
-      const updated =
-        call.status === CallStatus.Ended || call.status === CallStatus.Cancelled
-          ? call
-          : await transaction.callSession.update({
-              where: { id: call.id },
-              data: {
-                status: requireTransition(
-                  transitionCall(call.status as CallStatusValue, targetStatus),
-                  "Call state transition is not allowed."
-                ),
-                endedAt
-              }
-            });
-
-      await appendEvent(transaction, {
-        callId: call.publicId,
-        bookingId: null,
-        event: EventName.CallEnded,
-        data: {
-          status: updated.status,
-          reason,
-          endedAt: iso(endedAt)
-        },
-        requestId,
-        occurredAt: now
-      });
-
-      return {
-        callId: updated.publicId,
-        status: updated.status,
-        endedAt: iso(endedAt)
-      };
-    });
-  }
-
-  async submitTranscriptTurn(
-    callId: string,
-    input: {
-      clientTurnId: string;
-      sequenceNo: number;
-      speaker: (typeof TranscriptSpeaker)[keyof typeof TranscriptSpeaker];
-      content: string;
-      language: string;
-      isFinal: boolean;
-      startedAt?: string | undefined;
-      endedAt?: string | undefined;
-      sttConfidence?: number | undefined;
-      source: (typeof TranscriptSource)[keyof typeof TranscriptSource];
-    },
-    requestId: string
-  ): Promise<ServiceData> {
-    if (!input.isFinal) {
-      throw new ApiCommandError(
-        422,
-        "TRANSCRIPT_NOT_FINAL",
-        "Only final transcript turns persist."
-      );
-    }
-
-    const now = new Date();
-    const facts = extractFacts(input.content);
-    const persisted = await this.client.$transaction(async (transaction) => {
-      const call = await transaction.callSession.findUnique({
-        where: { publicId: callId }
-      });
-      if (call === null) {
-        throw new ApiCommandError(404, "CALL_NOT_FOUND", "Call session was not found.");
-      }
-      if (["ENDED", "FAILED", "CANCELLED"].includes(call.status)) {
-        throw new ApiCommandError(
-          409,
-          "CALL_NOT_ACTIVE",
-          "Call is not accepting transcript turns."
-        );
-      }
-
-      const replay = await transaction.transcriptTurn.findUnique({
-        where: {
-          callSessionId_providerEventId: {
-            callSessionId: call.id,
-            providerEventId: input.clientTurnId
-          }
-        }
-      });
-      if (replay !== null) {
-        const replayBooking = await transaction.booking.findUnique({
-          where: { callSessionId: call.id }
-        });
-        if (replayBooking === null) {
-          throw new ApiCommandError(
-            409,
-            "BOOKING_NOT_FOUND",
-            "Duplicate transcript turn has no linked booking."
-          );
-        }
-        return {
-          call,
-          booking: replayBooking,
-          turn: replay,
-          duplicate: true
-        };
-      }
-
-      const turn = await transaction.transcriptTurn.create({
-        data: {
-          publicId: opaqueId("turn"),
-          callSessionId: call.id,
-          providerEventId: input.clientTurnId,
-          sequenceNo: input.sequenceNo,
-          speaker: input.speaker,
-          contentRedacted: redactContent(input.content),
-          language: input.language,
-          isFinal: input.isFinal,
-          ...(input.sttConfidence === undefined ? {} : { sttConfidence: input.sttConfidence }),
-          startedAt: input.startedAt === undefined ? null : new Date(input.startedAt),
-          endedAt: input.endedAt === undefined ? null : new Date(input.endedAt),
-          source: input.source,
-          createdAt: now
-        }
-      });
-      const activeCall =
-        call.status === CallStatus.Created
-          ? await transaction.callSession.update({
-              where: { id: call.id },
-              data: {
-                status: requireTransition(
-                  transitionCall(call.status as CallStatusValue, CallStatus.Active),
-                  "Call cannot become active from its current state."
-                ),
-                startedAt: call.startedAt ?? now
-              }
-            })
-          : call;
-      const booking = await this.upsertBookingFromFacts(transaction, activeCall.id, facts, now);
-
-      await transaction.bookingExtraction.create({
-        data: {
-          publicId: opaqueId("ext"),
-          callSessionId: activeCall.id,
-          sourceTurnFrom: input.sequenceNo,
-          sourceTurnTo: input.sequenceNo,
-          extractionVersion: "deterministic-replay-v1",
-          payload: asJson({
-            routeFrom: facts.routeFrom,
-            routeTo: facts.routeTo,
-            passengerCount: facts.passengerCount,
-            pickupPoint: facts.pickupPoint,
-            contactMasked: facts.contactPhoneMasked
-          }),
-          fieldConfidence: asJson({ deterministic: 1 }),
-          missingFields: asJson([]),
-          contradictions: asJson([]),
-          status: "ACCEPTED"
-        }
-      });
-
-      return { call: activeCall, booking, turn, duplicate: false };
-    });
-
-    await this.ensureInventoryHold(persisted.booking.id, facts, requestId, now);
-    await this.recomputeRiskAndEvents(persisted.call.publicId, persisted.booking.publicId, {
-      requestId,
-      occurredAt: now,
-      transcriptTurn: persisted.turn,
-      emitTranscript: !persisted.duplicate
-    });
-
-    return {
-      turnId: persisted.turn.publicId,
-      callId,
-      accepted: true as const,
-      analysisQueued: false
-    };
-  }
-
-  private async upsertBookingFromFacts(
-    transaction: Transaction,
-    callId: string,
-    facts: ExtractedFacts,
-    now: Date
-  ) {
-    const existing = await transaction.booking.findUnique({
-      where: { callSessionId: callId }
-    });
-    const departure =
-      facts.routeFrom !== undefined &&
-      facts.routeTo !== undefined &&
-      facts.departureHint !== undefined
-        ? await transaction.tripDeparture.findFirst({
-            where: {
-              routeFrom: facts.routeFrom,
-              routeTo: facts.routeTo,
-              operationalStatus: "SCHEDULED",
-              departureAtUtc: { gt: now }
-            },
-            orderBy: { departureAtUtc: "asc" }
-          })
-        : null;
-    const passengerCount = facts.passengerCount ?? existing?.passengerCount ?? null;
-    const updateData = {
-      ...(facts.routeFrom === undefined ? {} : { routeFrom: facts.routeFrom }),
-      ...(facts.routeTo === undefined ? {} : { routeTo: facts.routeTo }),
-      ...(facts.pickupPoint === undefined
-        ? {}
-        : {
-            pickupPointDisplay: facts.pickupPoint,
-            pickupPointEncrypted: `demo-encrypted:${facts.pickupPoint}`
-          }),
-      ...(facts.contactPhoneMasked === undefined
-        ? {}
-        : {
-            contactPhoneMasked: facts.contactPhoneMasked,
-            contactPhoneEncrypted: "demo-encrypted:[PHONE]"
-          }),
-      ...(facts.passengerCount === undefined ? {} : { passengerCount: facts.passengerCount }),
-      ...(departure === null
-        ? {}
-        : {
-            tripDepartureId: departure.id,
-            routeFrom: departure.routeFrom,
-            routeTo: departure.routeTo,
-            departureAtUtc: departure.departureAtUtc,
-            departureTimezone: departure.departureTimezone,
-            currency: departure.currency,
-            totalAmountMinor:
-              passengerCount === null ? null : passengerCount * departure.farePerSeatMinor,
-            depositAmountMinor: departure.depositAmountMinor,
-            refundPolicyVersion: departure.refundPolicyVersion
-          }),
-      updatedAt: now
-    };
-
-    if (existing !== null) {
-      return transaction.booking.update({
-        where: { id: existing.id },
-        data: { ...updateData, version: { increment: 1 } }
-      });
-    }
-
-    const booking = await transaction.booking.create({
-      data: {
-        publicId: opaqueId("bk"),
-        callSessionId: callId,
-        status: BookingStatus.Draft,
-        currency: "VND",
-        ...updateData
-      }
-    });
-    await transaction.callSession.update({
-      where: { id: callId },
-      data: { bookingId: booking.id }
-    });
-
-    const status = await transitionBookingThrough(transaction, booking.id, BookingStatus.Draft, [
-      BookingStatus.FieldsPartial
-    ]);
-    return { ...booking, status };
-  }
-
-  private async ensureInventoryHold(
-    bookingId: string,
-    facts: ExtractedFacts,
-    requestId: string,
-    now: Date
-  ): Promise<void> {
-    if (facts.passengerCount === undefined) {
-      return;
-    }
-
-    const booking = await this.client.booking.findUnique({
-      where: { id: bookingId },
-      include: { inventoryHolds: true }
-    });
-    if (
-      booking === null ||
-      booking.tripDepartureId === null ||
-      booking.passengerCount === null ||
-      booking.inventoryHolds.some(
-        (hold) => hold.status === "ACTIVE" && hold.expiresAt.getTime() > now.getTime()
-      )
-    ) {
-      return;
-    }
-
-    await new InventoryRepository(this.client).reserve({
-      publicId: opaqueId("hold"),
-      idempotencyKey: `hold-${booking.publicId}-v${booking.version}`,
-      bookingId: booking.id,
-      departureId: booking.tripDepartureId,
-      quantity: booking.passengerCount,
-      now,
-      expiresAt: new Date(now.getTime() + 15 * 60_000),
-      requestId
-    });
-  }
-
   private async loadBookingForRisk(transaction: Transaction, publicId: string) {
     const booking = await transaction.booking.findUnique({
       where: { publicId },
@@ -901,204 +487,6 @@ export class Phase5ReplayService {
     });
 
     return { ...booking, inventoryHolds, agreements, paymentIntents } satisfies BookingForRisk;
-  }
-
-  private async recomputeRiskAndEvents(
-    callId: string,
-    bookingId: string,
-    input: {
-      requestId: string;
-      occurredAt: Date;
-      transcriptTurn?: {
-        publicId: string;
-        sequenceNo: number;
-        speaker: string;
-        contentRedacted: string;
-        isFinal: boolean;
-        createdAt: Date;
-      };
-      emitTranscript?: boolean;
-      refundPolicyConfirmed?: boolean;
-      explicitConfirmation?: boolean;
-      agreementLocked?: boolean;
-      criticalBlockers?: CriticalBlockerCode[];
-    }
-  ) {
-    return this.client.$transaction(async (transaction) => {
-      const booking = await this.loadBookingForRisk(transaction, bookingId);
-      const agreementLocked = input.agreementLocked ?? latestLockedAgreement(booking) !== undefined;
-      const risk = deriveRisk(booking, input.occurredAt, {
-        refundPolicyConfirmed: input.refundPolicyConfirmed ?? agreementLocked,
-        explicitConfirmation: input.explicitConfirmation ?? agreementLocked,
-        agreementLocked,
-        ...(input.criticalBlockers === undefined
-          ? {}
-          : { criticalBlockers: input.criticalBlockers })
-      });
-      const currentStatus = booking.status as BookingStatusValue;
-      const operationallyReady = isOperationallyReady(booking, input.occurredAt);
-      const transitionTargets: BookingStatusValue[] = [];
-      if (agreementLocked && currentStatus === BookingStatus.AgreementReady) {
-        transitionTargets.push(BookingStatus.AgreementLocked);
-      } else if (operationallyReady) {
-        if (currentStatus === BookingStatus.Draft) {
-          transitionTargets.push(BookingStatus.FieldsPartial);
-        }
-        if (
-          currentStatus === BookingStatus.Draft ||
-          currentStatus === BookingStatus.FieldsPartial
-        ) {
-          transitionTargets.push(BookingStatus.BookingDraftReady);
-        }
-        if (
-          currentStatus === BookingStatus.Draft ||
-          currentStatus === BookingStatus.FieldsPartial ||
-          currentStatus === BookingStatus.BookingDraftReady
-        ) {
-          transitionTargets.push(BookingStatus.AgreementReady);
-        }
-      } else if (currentStatus === BookingStatus.Draft) {
-        transitionTargets.push(BookingStatus.FieldsPartial);
-      }
-      const nextStatus =
-        transitionTargets.length === 0
-          ? currentStatus
-          : await transitionBookingThrough(
-              transaction,
-              booking.id,
-              currentStatus,
-              transitionTargets
-            );
-      const updatedBooking = { ...booking, status: nextStatus };
-      const assessmentVersion =
-        (await transaction.riskAssessment.count({ where: { bookingId: booking.id } })) + 1;
-      const assessment = await transaction.riskAssessment.create({
-        data: {
-          publicId: opaqueId("risk"),
-          callSessionId: (
-            await transaction.callSession.findUniqueOrThrow({ where: { publicId: callId } })
-          ).id,
-          bookingId: booking.id,
-          assessmentVersion,
-          policyVersion: RISK_POLICY_VERSION,
-          completenessScore: risk.completenessScore,
-          disputeRiskScore: risk.disputeRisk,
-          paymentReadinessScore: risk.paymentReadiness,
-          gateDecision: risk.paymentGate,
-          nextAction: risk.nextAction,
-          reasonCodes: asJson(risk.reasonCodes),
-          evidence: asJson(risk.evidence),
-          createdAt: input.occurredAt
-        }
-      });
-
-      if (input.emitTranscript === true && input.transcriptTurn !== undefined) {
-        await appendEvent(transaction, {
-          callId,
-          bookingId,
-          event: EventName.TranscriptTurnCreated,
-          data: {
-            turnId: input.transcriptTurn.publicId,
-            sequenceNo: input.transcriptTurn.sequenceNo,
-            speaker: input.transcriptTurn.speaker,
-            content: input.transcriptTurn.contentRedacted,
-            isFinal: true,
-            timestamp: iso(input.transcriptTurn.createdAt)
-          },
-          requestId: input.requestId,
-          occurredAt: input.occurredAt
-        });
-      }
-      await appendEvent(transaction, {
-        callId,
-        bookingId,
-        event: EventName.BookingUpdated,
-        data: {
-          status: updatedBooking.status,
-          changedFields: ["transcript"],
-          agreementInvalidated: false,
-          nextAction: RiskNextAction.RenderUpdatedAgreement
-        },
-        requestId: input.requestId,
-        occurredAt: input.occurredAt
-      });
-      await appendEvent(transaction, {
-        callId,
-        bookingId,
-        event: EventName.RiskScoreUpdated,
-        data: {
-          assessmentId: assessment.publicId,
-          completenessScore: risk.completenessScore,
-          disputeRisk: risk.disputeRisk,
-          paymentReadiness: risk.paymentReadiness,
-          paymentGate: risk.paymentGate,
-          nextAction: risk.nextAction,
-          missingFields: risk.missingFields,
-          reasonCodes: risk.reasonCodes,
-          customerMessage: risk.customerMessage
-        },
-        requestId: input.requestId,
-        occurredAt: input.occurredAt
-      });
-      await appendEvent(transaction, {
-        callId,
-        bookingId,
-        event: EventName.RiskPaymentGateUpdated,
-        data: {
-          previousDecision: PaymentGateStatus.Locked,
-          paymentGate: risk.paymentGate,
-          nextAction: risk.nextAction,
-          reasonCodes: risk.reasonCodes,
-          agreementVersion: latestLockedAgreement(booking)?.version ?? null
-        },
-        requestId: input.requestId,
-        occurredAt: input.occurredAt
-      });
-
-      return { risk, assessment };
-    });
-  }
-
-  async getRisk(callId: string): Promise<ServiceData> {
-    const risk = await this.client.riskAssessment.findFirst({
-      where: { callSession: { publicId: callId } },
-      orderBy: { createdAt: "desc" },
-      include: { booking: true, callSession: true }
-    });
-    if (risk === null) {
-      throw new ApiCommandError(
-        409,
-        "RISK_ASSESSMENT_NOT_READY",
-        "Risk assessment is not ready.",
-        undefined,
-        true
-      );
-    }
-    const reasonCodes = risk.reasonCodes as RiskReasonCode[];
-    const missingFields = reasonCodes
-      .filter((code) => code.startsWith("MISSING_") || code.endsWith("_NOT_CONFIRMED"))
-      .map((code) => {
-        if (code === "REFUND_POLICY_NOT_CONFIRMED") return "refundPolicyConfirmation";
-        return code
-          .replace("MISSING_", "")
-          .toLowerCase()
-          .replace(/_([a-z])/gu, (_, letter: string) => letter.toUpperCase());
-      });
-
-    return {
-      callId: risk.callSession?.publicId ?? callId,
-      bookingId: risk.booking?.publicId ?? null,
-      assessmentId: risk.publicId,
-      completenessScore: risk.completenessScore,
-      disputeRisk: risk.disputeRiskScore,
-      paymentReadiness: risk.paymentReadinessScore,
-      paymentGate: risk.gateDecision,
-      nextAction: risk.nextAction,
-      missingFields,
-      reasonCodes,
-      customerMessage: customerMessageFor(reasonCodes, risk.gateDecision),
-      assessedAt: iso(risk.createdAt)
-    };
   }
 
   async getBooking(bookingId: string): Promise<ServiceData> {
@@ -2068,7 +1456,8 @@ export class Phase5ReplayService {
       return {
         paymentIntentId: intent.publicId,
         outcome: "EXPIRED",
-        message: "Payment intent forcibly expired. Next verify call will return PAYMENT_INTENT_EXPIRED."
+        message:
+          "Payment intent forcibly expired. Next verify call will return PAYMENT_INTENT_EXPIRED."
       };
     }
 
@@ -2077,10 +1466,7 @@ export class Phase5ReplayService {
       paymentIntentId: input.paymentIntentId,
       observedAmount: {
         currency: "VND",
-        minor:
-          input.outcome === "WRONG_AMOUNT"
-            ? intent.amountMinor + 1
-            : intent.amountMinor
+        minor: input.outcome === "WRONG_AMOUNT" ? intent.amountMinor + 1 : intent.amountMinor
       },
       observedRecipient:
         input.outcome === "WRONG_RECIPIENT" ? "wrong-recipient-wallet" : intent.recipientWallet,
@@ -2090,15 +1476,13 @@ export class Phase5ReplayService {
     };
 
     const idempotencyKey = `sim-fail-${input.outcome}-${intent.publicId}-${requestId}`;
-    return this.verifyMockPayment(verifyInput, idempotencyKey, requestId).then(
-      (result) => ({
-        paymentIntentId: intent.publicId,
-        outcome: input.outcome,
-        verificationResult: result,
-        booking: booking.publicId,
-        call: call.publicId
-      })
-    );
+    return this.verifyMockPayment(verifyInput, idempotencyKey, requestId).then((result) => ({
+      paymentIntentId: intent.publicId,
+      outcome: input.outcome,
+      verificationResult: result,
+      booking: booking.publicId,
+      call: call.publicId
+    }));
   }
 
   async getEvents(callId: string, lastEventId?: string): Promise<EventEnvelope[]> {
