@@ -11,7 +11,7 @@ import {
   latestActiveHold,
   latestLockedAgreement,
   loadBookingForRisk
-} from "../../booking/queries/get-booking-risk-context.js";
+} from "../../booking/index.js";
 import { appendEvent } from "../../../platform/events/event-log.js";
 import { ApiCommandError } from "../../../platform/http/api-command-error.js";
 import { createMockPaymentExpectation } from "../../../platform/providers/mock-payment-provider.js";
