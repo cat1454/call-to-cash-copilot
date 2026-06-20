@@ -4,9 +4,11 @@ This file outlines build commands, styling rules, and security guidelines for Cl
 
 ## Commands
 
-- **Local Dev Server**: `npm run dev -- --host`
-- **Build compilation**: `npm run build`
-- **Project linting**: `npm run lint`
+- **Install dependencies**: `corepack pnpm install`
+- **Local Dev Server**: `corepack pnpm dev`
+- **Build compilation**: `corepack pnpm build`
+- **Project linting**: `corepack pnpm lint`
+- **Project tests**: `corepack pnpm test`
 
 ## Visual Styling Compliance (V6 Specs)
 
@@ -23,9 +25,9 @@ This file outlines build commands, styling rules, and security guidelines for Cl
 
 ## Core Code Architecture
 
-- **Lifting State Up**: Shared simulation states (scenarios, speech transcript lists, and Solana security receipt hashes) must be managed inside [App.jsx](src/App.jsx) and passed down cleanly to [PhoneScreen.jsx](src/components/PhoneScreen.jsx) and [DesktopConsole.jsx](src/components/DesktopConsole.jsx).
+- **Lifting State Up**: Shared simulation states (scenarios, speech transcript lists, and Solana security receipt hashes) must be managed inside [App.jsx](apps/web/src/App.jsx) and passed down cleanly to [PhoneScreen.jsx](apps/web/src/components/PhoneScreen.jsx) and [DesktopConsole.jsx](apps/web/src/components/DesktopConsole.jsx).
 - **Immutability**: Avoid direct state mutation. Always return fresh copied objects when applying changes using React's hook setters.
-- **Service Worker & Manifest**: Do not break the PWA configuration inside `index.html` and `main.jsx`.
+- **Service Worker & Manifest**: Do not break the PWA configuration inside `apps/web/index.html` and `apps/web/src/main.jsx`.
 
 ## Security & Verification Ledger
 

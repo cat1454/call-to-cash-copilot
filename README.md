@@ -1,135 +1,84 @@
 # Call-to-Cash Risk Copilot
 
-An interactive hackathon demonstration console for a voice-first transaction decision operator. Call-to-Cash Risk Copilot uses **Agora Conversational AI** for real-time speech interaction and **Solana Devnet** for secure, on-chain deposit confirmation and agreement proof verification.
+An interactive hackathon demonstration console for a voice-first transaction decision operator. Call-to-Cash Risk Copilot simulates Agora Conversational AI telemetry, a real-time risk gate, Solana Pay deposits, and tamper-evident trust receipts.
 
-```
-+-------------------------------------------------------+
-|                 guided voice demo                     |
-|                                                       |
-|  [🎙️ Press Mic] -> [Live Subtitles] -> [Readiness Bar]  |
-|                                                       |
-|             [Unlock Payment Gate decision]            |
-|                                                       |
-|                 [Solana Pay Deposit]                  |
-|                           |                           |
-|            +--------------+--------------+            |
-|            |                             |            |
-|     (Confirm Tx)                 (Anchor Hash)        |
-|            |                             |            |
-|     (Real-time Timer)                    v            |
-|            v                     [Agreement Proof]    |
-|    [Deposit Receipt]                     |            |
-|            +--------------+--------------+            |
-|                           |                           |
-|                     (Đối soát / Match)                |
-|                           v                           |
-|                  [Verified Ticket Pass]               |
-+-------------------------------------------------------+
+```text
+Customer voice -> Booking extraction -> Risk scoring -> Payment gate
+       -> Solana Pay deposit -> Ledger proof -> Verified trust receipt
 ```
 
----
+## Core product positioning
 
-## Core Product Positioning
-- **The Concept**: Most hotlines use simple voicebots to answer questions. Risk Copilot is a **Revenue Operator** that decides when a conversation is structured, safe, and explicitly confirmed to open a deposit link and generate verifiable proof.
-- **Customer UX (Mobile)**: The passenger experience is entirely abstract. They see booking summaries, a simple deposit drawer with a **real-time transaction countdown timer**, and a secure verification ticket with a **visual barcode**. Solana runs at the backend to confirm transactions and anchor proofs.
-- **Judge Console (Desktop)**: A side-by-side presentation view showing the smartphone client on the left, a Guided Voice Demo in the center, and a detailed **Mentor Console** on the right (exposing Agora telemetry, raw JSON extractions, and the cryptographic tampering test).
+- **Revenue operator**: decides when a conversation is complete, safe, and explicitly confirmed before opening payment.
+- **Customer UX**: shows booking summaries, a deposit drawer, a reservation timer, and a verified ticket.
+- **Mentor console**: exposes the simulated transcript, risk telemetry, booking extraction, ledger proof, and tamper demonstration.
 
----
+## Decision pipeline
 
-## Technical Architecture & Pipeline
+1. The voice layer produces live transcript turns and latency telemetry.
+2. The extraction layer builds route, departure time, passenger count, and phone fields.
+3. The risk engine measures completeness, dispute risk, and payment readiness.
+4. The payment gate stays locked until `Completeness >= 85`, `Readiness >= 80`, `Dispute Risk <= 35`, and the customer explicitly confirms.
+5. The payment drawer creates a simulated Solana Pay deposit request.
+6. The ledger auditor anchors and verifies a proof derived from the agreed booking.
+7. The trust receipt reports `MATCH`; the Tamper action produces `MISMATCH` and invalidates the ticket.
 
-1. **Agora Voice Layer**: Transmits audio and yields live subtitles and performance latency metrics off-chain.
-2. **AI Extraction**: Pulls structured entity fields (route, departure time, passenger seats, phone) from the conversation transcript.
-3. **Risk Scoring Engine**: Measures `Completeness`, `Dispute Risk`, and `Payment Readiness`.
-4. **Payment Gate**: Keeps the payment link **LOCKED** until `Completeness >= 85`, `Readiness >= 80`, `Dispute Risk <= 35`, and the customer says "Đồng ý" (Explicit Confirmation).
-5. **Solana Pay Drawer**: Generates a standard transaction request referencing the deposit amount and booking reference. A ticking timer tracks transaction reservation expiration (10 minutes countdown).
-6. **On-chain Ledger Auditor**: Detects transaction confirmations. Computes a secure hash of the ticket specifications and anchors it on-chain in a transaction memo.
-7. **Trust Receipt**: Recalculates the ticket hash locally and compares it with the on-chain proof. If they match, issues a `Verified Ticket Pass`. If a database modification occurs (Tamper simulation), stamps a red `MISMATCH` warning and invalidates the boarding pass, displaying an educational tamper-warning dashboard explaining the cryptographic mismatch to judges.
+## Repository structure
 
----
-
-## Codebase Foundation Documents
-
-For developers and AI coding assistants operating in this repository, check the following guidelines:
-- [AGENTS.md](./AGENTS.md): Architectural details of the three simulated AI actors.
-- [RULES.md](./RULES.md): Coding rules, strict gate logic, and cryptographic verification boundaries.
-- [DESIGN.md](./DESIGN.md): Visual design style guide, mobile-optimized color tokens, and button active states.
-- [MAINTAINABILITY.md](./MAINTAINABILITY.md): Guidelines for refactoring, clean file formatting, and component decoupling.
-- [CLAUDE.md](./CLAUDE.md): Directives for Claude Code operations.
-
----
-
-## Project Structure & Clean Code Refactoring
-
-The codebase follows a modular, **feature-based directory structure** to separate concerns and ensure every file is readable and strictly under **200 lines**:
-
-```
-.
-├── public/
-│   ├── manifest.json        # Web manifest for PWA installability
-│   ├── sw.js                # Service Worker for offline asset caching
-│   └── favicon.svg          # Stylized bus application icon
-├── src/
-│   ├── components/          # Layout Coordinators (Orchestrators)
-│   │   ├── PhoneScreen.jsx    # Smartphone layout wrapper and tab sliders
-│   │   └── DesktopConsole.jsx # Dashboard layout organizer
-│   ├── features/            # Feature-Based Modules
-│   │   ├── simulation/        # Voice Dialogue & Metrics
-│   │   │   ├── hooks/
-│   │   │   │   └── useCallSimulation.js # Custom simulation hook (controllers)
-│   │   │   └── components/
-│   │   │       ├── ScenarioSelector.jsx
-│   │   │       ├── VoiceSimulatorPanel.jsx
-│   │   │       ├── AIDecisionPanel.jsx
-│   │   │       ├── SaaSTelemetryPanel.jsx
-│   │   │       ├── DecisionTimeline.jsx
-│   │   │       └── PhoneCallView.jsx
-│   │   ├── payment/           # Solana Pay Gateway & On-chain Audit Proofs
-│   │   │   └── components/
-│   │   │       ├── PhonePaymentDrawer.jsx
-│   │   │       └── SolanaLedgerCard.jsx
-│   │   └── ticket/            # Passenger Tickets & Boarding Passes
-│   │       └── components/
-│   │           └── PhoneReceiptView.jsx
-│   ├── data/
-│   │   └── scenarios.js     # Simulated speech dialog scenarios dataset
-│   ├── App.jsx              # Application mount point & layout coordinator
-│   ├── index.css            # Custom CSS tokens, sliding layouts & keyframes
-│   └── main.jsx             # React entry point & PWA sw registration
-├── AGENTS.md                # System agent details
-├── DESIGN.md                # UI color tokens & spacing rules
-├── RULES.md                 # Project coding standards
-├── MAINTAINABILITY.md       # Keep files under 200 lines directives
-└── CLAUDE.md                # Claude Code CLI rules
+```text
+call-to-cash-risk-copilot/
+├── apps/
+│   ├── web/                  # React/Vite demo, PWA assets, and frontend tests
+│   │   ├── public/
+│   │   ├── src/
+│   │   ├── eslint.config.js
+│   │   ├── index.html
+│   │   ├── package.json
+│   │   └── vite.config.js
+│   └── api/                  # Backend boundary; framework intentionally undecided
+├── packages/
+│   ├── shared/               # Future shared contracts and schemas
+│   ├── db/                   # Future persistence and migrations
+│   ├── agora/                # Future Agora provider integration
+│   ├── solana/               # Future Solana Pay and proof integration
+│   ├── ai/                   # Future extraction and risk engine
+│   └── config/               # Future shared environment/lint/type config
+├── docs/
+├── ECC/                      # Local agent tooling; excluded from the workspace
+├── package.json
+├── pnpm-workspace.yaml
+└── turbo.json
 ```
 
----
+The placeholder API and packages contain no implementation or public exports yet. The working simulation remains self-contained in `apps/web`.
 
-## Local Setup & Development
+## Local development
 
-Ensure you have **Node.js (v22+)** and **npm** installed.
+Requirements: Node.js 22+ and Corepack.
 
-### 1. Install Dependencies
 ```bash
-npm install
+corepack pnpm install
+corepack pnpm dev
 ```
 
-### 2. Run Local Development Server
-```bash
-npm run dev -- --host
-```
-This boots the Vite dev server and binds to your local network.
-- Local: `http://localhost:5173/`
-- Network: `http://<your-local-ip>:5173/`
+The Vite app is available at `http://localhost:5173/` by default.
 
-### 3. Build for Production
-```bash
-npm run build
-```
-This compiles assets into the `dist/` directory.
+Root commands:
 
-### 4. Code Quality & Lint
 ```bash
-npm run lint
+corepack pnpm dev       # Start the web app through Turbo
+corepack pnpm test      # Run workspace structure and frontend tests
+corepack pnpm lint      # Run package lint tasks
+corepack pnpm build     # Build apps/web/dist
+corepack pnpm preview   # Preview the frontend production build
 ```
-Checks for ESLint rules and syntax violations.
+
+When Corepack shims are enabled, the shorter `pnpm dev`, `pnpm test`, and related commands work identically.
+
+## Foundation documents
+
+- [AGENTS.md](./AGENTS.md): simulated agent roles and system boundaries.
+- [RULES.md](./docs/RULES.md): coding, risk-gate, and ledger verification rules.
+- [DESIGN.md](./docs/DESIGN.md): UI tokens and responsive design guidance.
+- [MAINTAINABILITY.md](./docs/MAINTAINABILITY.md): source organization and refactoring guidance.
+- [Backend roadmap](./docs/BACKEND_ROADMAP_2026.md): framework-neutral backend phases and API contract.

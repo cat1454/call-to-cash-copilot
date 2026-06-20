@@ -1,0 +1,6 @@
+{
+  "name": "@call-to-cash/db",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Reserved persistence boundary for database schema, migrations, and clients."
+}

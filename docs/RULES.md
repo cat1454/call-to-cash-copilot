@@ -13,9 +13,9 @@ This document outlines mandatory rules and coding constraints for developers and
 ---
 
 ## 2. Coding & React Standards
-- **Lifting State**: All active call transcript sequences, customer extraction metrics, and cryptographic hashes must be managed centrally inside `src/App.jsx` to ensure perfect synchrony between the client (mockup) and the Auditor console.
+- **Lifting State**: All active call transcript sequences, customer extraction metrics, and cryptographic hashes must be managed centrally inside `apps/web/src/App.jsx` to ensure perfect synchrony between the client (mockup) and the Auditor console.
 - **State Mutability**: Direct modification of React state arrays/objects is forbidden. Always use shallow copies (`[...]`, `{...}`) inside set hooks.
-- **Component Limits**: Keep visual components modular. View layout, phone simulator screen, and developer consoles must live in separate files under `src/components/`.
+- **Component Limits**: Keep visual components modular. View layout, phone simulator screen, and developer consoles must live in separate files under `apps/web/src/components/`.
 
 ---
 

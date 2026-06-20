@@ -1,7 +1,8 @@
 # Backend Roadmap 2026 - Call-to-Cash Risk Copilot
 
-Cập nhật: 2026-06-19  
+Cập nhật: 2026-06-20
 Phạm vi: roadmap backend và API contract, chưa triển khai code backend.
+Trạng thái quyết định: `apps/api` và các package tích hợp mới chỉ là ranh giới kiến trúc; framework, runtime, ORM và công cụ migration chưa được chọn.
 
 ## 1. Mục Tiêu
 
@@ -15,31 +16,29 @@ Mục tiêu backend là đưa demo từ mock state trong browser sang một API 
 
 Backend cần làm 5 việc chính:
 
-- Lưu conversation session, transcript turns, booking draft, risk snapshots, payment sessions, ledger proofs và trust receipts trong Postgres.
+- Lưu conversation session, transcript turns, booking draft, risk snapshots, payment sessions, ledger proofs và trust receipts trong một persistence store bền vững.
 - Chuyển logic payment gate từ `gateUnlocked` mock thành rule engine có điều kiện rõ ràng.
 - Tạo API/SSE contract ổn định để frontend React có thể thay mock bằng API adapter.
 - Đặt các adapter ports cho Mock, Agora và Solana để hackathon demo vẫn chạy được khi API thật chưa sẵn sàng.
 - Giữ đúng guardrail của proposal V6: khách hàng thấy "cọc tiền", "giữ chỗ", "biên nhận xác minh"; chỉ Mentor Console mới thấy proof/hash/tx detail.
 
-## 2. Tech Stack 2026 Đề Xuất
+## 2. Trạng Thái Tech Stack
 
-| Lớp | Công nghệ | Lý do chọn năm 2026 |
+| Lớp | Trạng thái | Ràng buộc đã chốt |
 | --- | --- | --- |
-| API framework | FastAPI | Type-hint-first, OpenAPI tự động, phù hợp contract nhanh, hỗ trợ streaming response/SSE. |
-| Runtime | Python 3.14.x | Python 3.14 là feature release ổn định hiện hành năm 2026; dùng type/runtime support mới nhưng tránh claim vào tính năng experimental. |
-| Schema/validation | Pydantic v2 + Pydantic Settings | FastAPI đã deprecate hướng Pydantic v1 cho các Python mới; Settings quản lý env/secrets có type validation. |
-| Database | PostgreSQL 18.x | Nhanh và production-ready; PostgreSQL 18 có AIO, `uuidv7()`, cải tiến index/upgrade. PostgreSQL 19 đang beta nên không chọn cho demo backend. |
-| ORM | SQLAlchemy 2.x async ORM | `AsyncSession` phù hợp FastAPI, tách domain/service/repository rõ ràng. |
-| Migration | Alembic | Migration chuẩn của SQLAlchemy, có autogenerate và SQL/offline mode. |
-| Driver | asyncpg | PostgreSQL async driver phổ biến cho Python backend. |
-| Realtime UI updates | Server-Sent Events (SSE) | Đủ cho transcript/score/payment/proof updates một chiều từ backend sang frontend, đơn giản hơn WebSocket cho MVP. |
-| Local dev | Docker Compose | Chạy Postgres + API local bằng `.env`, dễ demo và onboarding. |
-| Tests | pytest + httpx AsyncClient | Test async FastAPI app và DB flow. |
+| API framework và runtime | Chưa chọn | Phải hỗ trợ REST commands, webhook endpoints, health check và SSE. |
+| Schema/validation | Chưa chọn | API payload và environment variables phải được validate bằng schema có type. |
+| Database | Chưa chọn | PostgreSQL là ứng viên, không phải cam kết của scaffold hiện tại. |
+| ORM/data access | Chưa chọn | Domain/service core không được phụ thuộc trực tiếp vào driver hoặc ORM. |
+| Migration | Chưa chọn | Phải hỗ trợ migration lặp lại được trên database rỗng và trong CI. |
+| Realtime UI updates | SSE cho MVP | Đủ cho transcript, score, payment và proof updates một chiều. |
+| Local development | Chưa chọn | Phải có một lệnh khởi động API và persistence dependencies sau khi stack được duyệt. |
+| Tests | Theo runtime được chọn | Phải có unit tests, API integration tests và migration verification. |
 
 Quyết định quan trọng:
 
-- Không dùng PostgreSQL 19 trong MVP vì năm 2026 nó vẫn ở beta.
-- Không đưa Commerce Kit của Solana vào phase đầu như dependency bắt buộc vì tài liệu Solana ghi Commerce Kit còn beta. Phase đầu chỉ cần Solana Pay URL/QR protocol và adapter interface.
+- Không thêm framework, ORM, database client hoặc schema file vào `apps/api`/`packages/db` trước khi có architecture decision riêng.
+- Không đưa Commerce Kit của Solana vào phase đầu như dependency bắt buộc. Phase đầu chỉ cần Solana Pay URL/QR protocol và adapter interface.
 - Không expose Solana/blockchain/hash trong customer-facing flow; chỉ hiện trong Mentor Console hoặc technical details.
 
 ## 3. Kiến Trúc Backend Mục Tiêu
@@ -49,7 +48,7 @@ React/Vite UI
   |
   | REST commands + SSE events
   v
-FastAPI Backend
+Backend API (framework/runtime TBD)
   |
   +-- Conversation Service
   +-- Booking Draft Service
@@ -69,7 +68,7 @@ FastAPI Backend
   +-- EventPublisher
         +-- SSE stream
 
-PostgreSQL
+Persistence store (technology TBD)
   +-- sessions
   +-- conversation_turns
   +-- booking_drafts
@@ -574,10 +573,10 @@ Exit criteria:
 
 Output:
 
-- `backend/` FastAPI app.
-- `pyproject.toml` hoặc dependency file cho Python.
-- Docker Compose: API + PostgreSQL 18.
-- Pydantic Settings config.
+- Chốt framework, runtime, persistence và migration tooling bằng architecture decision.
+- Khởi tạo backend app trong `apps/api/`.
+- Khởi tạo persistence implementation trong `packages/db/` nếu cần.
+- Typed environment validation phù hợp với runtime được chọn.
 - Health endpoint: `GET /health`.
 - CORS cho Vite local.
 
@@ -585,14 +584,14 @@ Exit criteria:
 
 - Chạy được API local.
 - OpenAPI docs hiện endpoint skeleton.
-- Kết nối Postgres thành công.
+- Kết nối persistence store thành công.
 
 ### Phase 2 - Database & Migrations
 
 Output:
 
-- SQLAlchemy async models.
-- Alembic initial migration.
+- Persistence models qua data-access layer đã chọn.
+- Initial migration bằng migration tool đã chọn.
 - Repositories cho sessions, turns, bookings, risk snapshots, payments, proofs, receipts.
 
 Exit criteria:
@@ -718,7 +717,7 @@ Exit criteria:
 
 Backend được xem là sẵn sàng để gắn API khi:
 
-- Có FastAPI app chạy local với Postgres 18.
+- Có app trong `apps/api` chạy local với persistence stack đã được duyệt.
 - Có OpenAPI docs cho tất cả endpoint trong contract.
 - Có SSE stream cho session events.
 - Có DB migrations cho domain model.
@@ -730,14 +729,8 @@ Backend được xem là sẵn sàng để gắn API khi:
 
 ## 12. Nguồn Cập Nhật 2026
 
-- FastAPI docs: https://fastapi.tiangolo.com/
-- FastAPI Pydantic migration notes: https://fastapi.tiangolo.com/how-to/migrate-from-pydantic-v1-to-pydantic-v2/
-- Python 3.14 docs: https://docs.python.org/3/whatsnew/3.14.html
-- PostgreSQL 18 release notes: https://www.postgresql.org/docs/release/18.0/
-- PostgreSQL release archive/current minors: https://www.postgresql.org/docs/release/
-- SQLAlchemy async docs: https://docs.sqlalchemy.org/en/latest/orm/extensions/asyncio.html
-- Alembic docs: https://alembic.sqlalchemy.org/
-- Pydantic Settings docs: https://docs.pydantic.dev/latest/concepts/pydantic_settings/
+Các nguồn framework/database cụ thể sẽ được bổ sung sau architecture decision.
+
 - Solana Pay docs: https://solana.com/docs/payments/accept-payments/solana-pay
 - Solana Payment with Memo: https://solana.com/docs/payments/send-payments/payment-with-memo
 - Agora Conversational AI event notifications: https://docs.agora.io/en/conversational-ai/develop/event-notifications

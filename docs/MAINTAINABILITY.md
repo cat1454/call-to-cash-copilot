@@ -8,11 +8,11 @@ Tài liệu này quy định các tiêu chuẩn và nguyên tắc thiết kế m
 - **Nguyên tắc**: Các file React component không được vượt quá **350 - 400 dòng code**.
 - **Khi file quá dài**: Nếu một component bắt đầu phình to, bắt buộc phải tách nhỏ các phần giao diện phụ hoặc logic xử lý riêng ra thành các component con hoặc utility helper:
   - Ví dụ: `DesktopConsole.jsx` hiện tại chứa Scenarios, Transcript Console, Telemetry và Replay. Nếu cần mở rộng thêm, ta phải tách chúng thành:
-    - `src/components/ScenarioSelector.jsx`
-    - `src/components/AgoraConsole.jsx`
-    - `src/components/TelemetryDashboard.jsx`
-    - `src/components/TimelineReplay.jsx`
-- **Mã nguồn chức năng**: Tuyệt đối không nhét chung logic tính toán, dữ liệu mock lớn hoặc các thuật toán phức tạp vào cùng file giao diện. Dữ liệu hội thoại phải được cô lập ở [scenarios.js](src/data/scenarios.js).
+    - `apps/web/src/components/ScenarioSelector.jsx`
+    - `apps/web/src/components/AgoraConsole.jsx`
+    - `apps/web/src/components/TelemetryDashboard.jsx`
+    - `apps/web/src/components/TimelineReplay.jsx`
+- **Mã nguồn chức năng**: Tuyệt đối không nhét chung logic tính toán, dữ liệu mock lớn hoặc các thuật toán phức tạp vào cùng file giao diện. Dữ liệu hội thoại phải được cô lập ở [scenarios.js](apps/web/src/data/scenarios.js).
 
 ---
 
@@ -22,7 +22,7 @@ Tài liệu này quy định các tiêu chuẩn và nguyên tắc thiết kế m
 - **Tầng Quản lý Trạng thái (App.jsx - State Controller)**: Đóng vai trò là bộ não quản lý toàn bộ state dùng chung (Lifting State Up). Phối hợp hành động giữa điện thoại của khách hàng và console đối soát của Auditor.
 - **Tầng Kiểu dáng (Styling Layer)**:
   - Tránh lạm dụng inline-style trong React JSX. Chỉ dùng inline-style cho các giá trị động cần thay đổi theo state (như tỷ lệ % của progress bar hay màu sắc trạng thái cuộc gọi).
-  - Tất cả style cố định phải được khai báo tập trung trong [index.css](src/index.css) để dễ tùy chỉnh responsive và đồng bộ giao diện.
+  - Tất cả style cố định phải được khai báo tập trung trong [index.css](apps/web/src/index.css) để dễ tùy chỉnh responsive và đồng bộ giao diện.
 
 ---
 

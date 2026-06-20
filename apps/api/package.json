@@ -1,0 +1,6 @@
+{
+  "name": "@call-to-cash/api",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Reserved backend boundary for the Call-to-Cash Risk Copilot."
+}

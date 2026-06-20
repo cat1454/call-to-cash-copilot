@@ -1,0 +1,6 @@
+{
+  "name": "@call-to-cash/agora",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Reserved Agora integration boundary."
+}

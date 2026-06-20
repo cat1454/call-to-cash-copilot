@@ -1,0 +1,6 @@
+{
+  "name": "@call-to-cash/solana",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Reserved Solana Pay and ledger-proof integration boundary."
+}

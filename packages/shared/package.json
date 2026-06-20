@@ -1,0 +1,6 @@
+{
+  "name": "@call-to-cash/shared",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Reserved shared contracts boundary for types, enums, and schemas."
+}

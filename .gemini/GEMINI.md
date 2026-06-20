@@ -17,10 +17,10 @@ This guide outlines baseline workflows, coding standards, and visual compliance 
 
 ## Core Code Architecture
 
-- **Lifting State Up**: Shared simulation states (scenarios, speech transcript lists, and Solana security receipt hashes) must be managed inside [App.jsx](src/App.jsx) and passed down cleanly to [PhoneScreen.jsx](src/components/PhoneScreen.jsx) and [DesktopConsole.jsx](src/components/DesktopConsole.jsx).
+- **Lifting State Up**: Shared simulation states (scenarios, speech transcript lists, and Solana security receipt hashes) must be managed inside [App.jsx](../apps/web/src/App.jsx) and passed down cleanly to [PhoneScreen.jsx](../apps/web/src/components/PhoneScreen.jsx) and [DesktopConsole.jsx](../apps/web/src/components/DesktopConsole.jsx).
 - **Immutability**: Avoid direct state mutation. Always return fresh copied objects when applying changes using React's hook setters.
 - **Service Worker & Manifest**: Do not break the PWA configuration:
-  - Keep the web manifest link (`manifest.json`) and service worker (`sw.js`) registration in `main.jsx` and `index.html`.
+  - Keep the web manifest link (`manifest.json`) and service worker (`sw.js`) registration in `apps/web/src/main.jsx` and `apps/web/index.html`.
 
 ## Security & Verification Ledger
 

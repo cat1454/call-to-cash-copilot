@@ -7,11 +7,11 @@ This document defines operating boundaries, automated workflows, and delivery st
 0. **ECC Skill Scan First**: Before starting any task, do a lightweight scan of the local `ECC/` repository, especially its skills, commands, rules, and context docs, to choose the most relevant skill/workflow and understand the user's requirement more accurately before editing or answering.
 1. **Planning Mode**: Before implementing new features or making visual changes, document the proposals in `implementation_plan.md` and wait for user approval.
 2. **State Syncing**: Ensure that all simulated speech dialogues, telemetry scores, and PWA configurations are documented in structural files and managed via standard React patterns.
-3. **PWA Integration**: Maintain caching rules inside [sw.js](public/sw.js) for assets such as `favicon.svg`, `icon-192.png`, and `icon-512.png`.
+3. **PWA Integration**: Maintain caching rules inside [sw.js](../apps/web/public/sw.js) for assets such as `favicon.svg`, `icon-192.png`, and `icon-512.png`.
 
 ## Code Quality Standards
 
-- **Functional Cohesion**: Keep components small. Split visual elements into specialized files under `src/components/`.
+- **Functional Cohesion**: Keep components small. Split visual elements into specialized files under `apps/web/src/components/`.
 - **File Length Limit**: Keep each source file under 300 lines whenever practical. If a file approaches 200 lines and still needs new logic, split focused helpers, hooks, components, or data models into separate files before adding more code.
 - **Typographical Safety**: Follow formatting guidelines:
   - Header text wraps: Use `text-wrap: balance` for clean header lines.
@@ -21,5 +21,5 @@ This document defines operating boundaries, automated workflows, and delivery st
 
 ## Security & Blockchain Anchoring
 
-- **Audit Contract**: Ensure the integrity of the proof verification path in [App.jsx](src/App.jsx). The `tamperAgreement` logic must correctly simulate malicious database tampering and prompt warning mismatch flags on both mobile client passes and the Mentor telemetry ledger.
+- **Audit Contract**: Ensure the integrity of the proof verification path in [App.jsx](../apps/web/src/App.jsx). The `tamperAgreement` logic must correctly simulate malicious database tampering and prompt warning mismatch flags on both mobile client passes and the Mentor telemetry ledger.
 - **Privacy Policy**: Never expose phone numbers or other sensitive user metadata on-chain. Always mask phone inputs (`0912***678`) before logging off-chain or hashing for Solana anchoring.

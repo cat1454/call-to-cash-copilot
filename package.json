@@ -1,29 +1,18 @@
 {
-  "name": "solona",
+  "name": "call-to-cash-risk-copilot",
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "packageManager": "pnpm@11.1.1",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint .",
-    "test": "node --test src/features/simulation/dashboardModel.test.js src/features/simulation/simulationHelpers.test.js src/sourceLineCount.test.js",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "lucide-react": "^1.21.0",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6"
+    "dev": "turbo run dev --filter=@call-to-cash/web",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "node --test tests/workspaceStructure.test.js && turbo run test",
+    "preview": "pnpm --filter @call-to-cash/web preview"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.1",
-    "eslint": "^10.3.0",
-    "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.2",
-    "globals": "^17.6.0",
-    "vite": "^8.0.12"
+    "pnpm": "11.1.1",
+    "turbo": "2.9.18"
   }
 }
