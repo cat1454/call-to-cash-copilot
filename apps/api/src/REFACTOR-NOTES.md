@@ -236,3 +236,11 @@ These failures are pre-existing repository hygiene/format issues and are intenti
 - `getEvents`
 
 `phase5-service.ts` is intentionally retained as the small receipt/call-events facade until **Stage F: Receipt and Call Events extraction**. Its direct source importers are limited to bootstrap dependency composition/types and the receipt/call-events routes in `bootstrap/register-routes.ts`.
+
+## Stage F extraction performed in this slice
+
+- Registered receipt routes from `modules/receipt` and call event routes from `modules/call-events`; neither route group calls `Phase5ReplayService`.
+- Moved Trust Receipt read projection, read-only verification, demo-only candidate comparison, mismatch/manual-review transaction, and `receipt.verified` append into `modules/receipt`.
+- Moved committed call-stream read, finite `snapshot=true` replay, `Last-Event-ID` filtering, live polling, heartbeat, and close cleanup into `modules/call-events`.
+- Kept the public route DTOs, error codes, event names, response envelopes, SSE headers, 100 ms polling interval, 15 second heartbeat, and privacy-safe projections unchanged.
+- Removed the obsolete `Phase5ReplayService` bootstrap dependency after migrating its last active methods.

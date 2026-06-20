@@ -593,10 +593,24 @@ test(
     const agreementAfter = await prismaAfter.agreement.findUniqueOrThrow({
       where: { id: agreementBefore.id }
     });
-    await prismaAfter.$disconnect();
 
     assert.deepEqual(agreementAfter.canonicalPayload, agreementBefore.canonicalPayload);
     assert.equal(agreementAfter.payloadHashSha256, agreementBefore.payloadHashSha256);
+    const receiptVerificationEvent = await prismaAfter.auditLog.findFirstOrThrow({
+      where: {
+        aggregateType: "CALL_STREAM",
+        action: "EVENT_RECEIPT_VERIFIED",
+        metadata: { path: ["event"], equals: EventName.ReceiptVerified }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+    assert.equal((receiptVerificationEvent.afterState as { event: string }).event, EventName.ReceiptVerified);
+    const bookingAfterTamper = await prismaAfter.booking.findUniqueOrThrow({
+      where: { publicId: happyBookingId },
+      select: { status: true }
+    });
+    assert.equal(bookingAfterTamper.status, "MANUAL_REVIEW_REQUIRED");
+    await prismaAfter.$disconnect();
 
     await app.close();
     await happyApp.close();
