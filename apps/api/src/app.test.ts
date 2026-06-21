@@ -246,6 +246,22 @@ test("GET /health returns the standard success envelope", async () => {
   await app.close();
 });
 
+test("GET / returns a safe API discovery envelope", async () => {
+  const app = buildApp(demoConfig);
+  const response = await app.inject({ method: "GET", url: "/" });
+
+  assert.equal(response.statusCode, 200);
+  const payload = response.json();
+  assert.equal(ApiSuccessEnvelopeSchema.safeParse(payload).success, true);
+  assert.deepEqual(payload.data, {
+    service: "call-to-cash-api",
+    health: "/health",
+    readiness: "/ready"
+  });
+
+  await app.close();
+});
+
 test("GET /ready fails safely when the selected Solana provider is not configured", async () => {
   const databaseClient = {
     $queryRaw: async () => [{ ready: 1 }]
