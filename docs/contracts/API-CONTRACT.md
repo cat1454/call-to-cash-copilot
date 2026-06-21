@@ -73,10 +73,11 @@ The `code` is stable and machine-readable. The `message` is safe for the caller.
 
 ---
 
-### 1.6 Operational health endpoints
+### 1.6 API discovery and operational health endpoints
 
-`GET /health` and `GET /ready` are unversioned operational endpoints. They use the standard success envelope but never expose secrets, raw dependency errors, or customer data.
+`GET /`, `GET /health`, and `GET /ready` are unversioned operational endpoints. They use the standard success envelope but never expose secrets, raw dependency errors, or customer data.
 
+- `/` identifies the API and advertises only the `/health` and `/ready` paths. It does not expose route inventory, configuration, or provider credentials.
 - `/health` reports that the API process is alive.
 - `/ready` reports current runtime mode, configured adapter names, and PostgreSQL readiness. It returns `503 DATABASE_UNAVAILABLE` when the database is missing or unavailable.
 - These endpoints are not customer authentication or transaction-state APIs.
