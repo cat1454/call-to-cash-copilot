@@ -1,15 +1,6 @@
-/**
- * Phase 6/7 REST API Client
- *
- * Wraps the Call-to-Cash Phase 5 API contract endpoints.
- * All functions throw ApiClientError on failure so the SSE adapter and
- * useApiMode hook can decide whether to fall back to mock simulation.
- *
- * Contract reference: docs/contracts/API-CONTRACT.md
- * Security: never send provider secrets, wallet keys, or full transcript here.
- */
+// REST boundary: never send provider secrets, wallet keys, or full transcript here.
 
-import { VerifyMockPaymentRequestSchema } from "@call-to-cash/shared";
+import { VerifyMockPaymentRequestSchema, VerifyPaymentRequestSchema } from "@call-to-cash/shared";
 
 /** @typedef {{ code: string; message: string; details?: unknown; retryable: boolean }} ApiError */
 
@@ -199,6 +190,10 @@ export function createApiClient(baseUrl, fetchFn = globalThis.fetch) {
     return post("/v1/payments/mock/create", { bookingId }, { "Idempotency-Key": idempotencyKey });
   }
 
+  async function createPayment({ bookingId }, idempotencyKey) {
+    return post("/v1/payments/create", { bookingId }, { "Idempotency-Key": idempotencyKey });
+  }
+
   /**
    * POST /v1/payments/mock/verify
    *
@@ -218,6 +213,20 @@ export function createApiClient(baseUrl, fetchFn = globalThis.fetch) {
       });
     }
     return post("/v1/payments/mock/verify", parsed.data, {
+      "Idempotency-Key": idempotencyKey
+    });
+  }
+
+  async function verifyPayment(payload, idempotencyKey) {
+    const parsed = VerifyPaymentRequestSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new ApiClientError(400, {
+        code: "VALIDATION_ERROR",
+        message: "Payment verification data is incomplete.",
+        retryable: false
+      });
+    }
+    return post("/v1/payments/verify", parsed.data, {
       "Idempotency-Key": idempotencyKey
     });
   }
@@ -277,7 +286,9 @@ export function createApiClient(baseUrl, fetchFn = globalThis.fetch) {
     getRisk,
     getBooking,
     confirmBooking,
+    createPayment,
     createMockPayment,
+    verifyPayment,
     verifyMockPayment,
     getPaymentStatus,
     simulatePaymentFailure,

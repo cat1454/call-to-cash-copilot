@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useRef } from "react";
 
 import { ACTION } from "./serverSimulationState.js";
-import { clearServerSession, readServerSession, writeServerSession } from "./serverSession.js";
+import {
+  clearServerSession,
+  readServerSession,
+  shouldPersistServerSession,
+  writeServerSession
+} from "./serverSession.js";
 
 function toError(caught) {
   return caught instanceof Error ? caught : new Error(String(caught));
@@ -20,15 +25,23 @@ export function useServerSessionRecovery({
   const attemptedRef = useRef(false);
 
   useEffect(() => {
-    if (state.callId) {
+    if (
+      shouldPersistServerSession({
+        callId: state.callId,
+        receiptId: state.receiptId,
+        paymentGate: state.paymentGate
+      })
+    ) {
       writeServerSession(undefined, {
         callId: state.callId,
         bookingId: state.bookingId,
         paymentIntentId: state.paymentIntentId,
         receiptId: state.receiptId
       });
+    } else if (state.callId) {
+      clearServerSession();
     }
-  }, [state.bookingId, state.callId, state.paymentIntentId, state.receiptId]);
+  }, [state.bookingId, state.callId, state.paymentGate, state.paymentIntentId, state.receiptId]);
 
   useEffect(() => {
     if (!apiClient || !apiBaseUrl || attemptedRef.current) return;

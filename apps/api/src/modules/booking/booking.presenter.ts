@@ -31,7 +31,15 @@ export function presentBooking(booking: {
     fareTotalVnd: booking.totalAmountMinor,
     depositAmountVnd: booking.depositAmountMinor,
     refundPolicyVersion: booking.refundPolicyVersion,
-    agreementVersion: booking.agreements[0]?.version ?? null,
+    agreementVersion: [
+      "AGREEMENT_LOCKED",
+      "PAYMENT_PENDING",
+      "PAYMENT_CONFIRMED",
+      "BOOKING_CONFIRMED",
+      "RECEIPT_ISSUED"
+    ].includes(booking.status)
+      ? (booking.agreements[0]?.version ?? null)
+      : (booking.agreements[0]?.version ?? 0) + 1,
     paymentGate: booking.riskAssessments[0]?.gateDecision ?? PaymentGateStatus.Locked
   };
 }

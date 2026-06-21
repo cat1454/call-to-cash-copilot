@@ -79,7 +79,13 @@ export default function App() {
 
           <div className="flex min-h-6 items-center gap-1.5 rounded-full border border-[#a7f3d0] bg-[#ecfdf5] px-2.5 py-1 text-xs leading-4 font-medium text-[#065f46]">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#10b981]" />
-            <span>{DEMO_MODE ? "Payment: Deterministic Mock" : "Solana: Chưa kết nối"}</span>
+            <span>
+              {sim.paymentIntent?.provider === "solana_devnet"
+                ? "Solana: Devnet demo"
+                : DEMO_MODE
+                  ? "Payment: Deterministic Mock"
+                  : "Payment: Server verified"}
+            </span>
           </div>
         </div>
       </div>
@@ -130,6 +136,7 @@ export default function App() {
       bookingData={sim.bookingData}
       showBoardingPass={sim.showBoardingPass}
       showPaymentDrawer={sim.showPaymentDrawer}
+      paymentIntent={sim.paymentIntent}
       drawerTimerText={sim.drawerTimerText}
       btnPhonePayText={sim.btnPhonePayText}
       btnPhonePayDisabled={sim.btnPhonePayDisabled}

@@ -130,6 +130,7 @@ Error codes are a product and integration contract. They let the web app display
 | `PAYMENT_INTENT_CANCELLED` | 409 | No | agreement changed or booking cancelled |
 | `PAYMENT_VERIFICATION_PENDING` | 202 | Yes | show “đang xác nhận” state |
 | `PAYMENT_TRANSACTION_NOT_FOUND` | 404 | Yes | chain data may not be available yet |
+| `PAYMENT_TRANSACTION_FAILED` | 422 | No | chain execution failed; do not create proof or receipt |
 | `PAYMENT_TRANSACTION_REUSED` | 409 | No | signature already belongs to another intent |
 | `PAYMENT_AMOUNT_MISMATCH` | 422 | No | manual review; never auto-confirm |
 | `PAYMENT_RECIPIENT_MISMATCH` | 422 | No | manual review/security escalation |

@@ -1,5 +1,6 @@
 import type { DatabaseClient } from "@call-to-cash/db";
 import type { SimulatePaymentFailureRequest } from "@call-to-cash/shared";
+import type { PaymentProvider } from "@call-to-cash/solana";
 
 import { ApiCommandError } from "../../../platform/http/api-command-error.js";
 import type { ServiceData } from "../types.js";
@@ -8,6 +9,7 @@ import { verifyPaymentInTransaction } from "./verify-payment.js";
 
 export async function simulatePaymentFailure(
   client: DatabaseClient,
+  mockPaymentProvider: PaymentProvider,
   input: SimulatePaymentFailureRequest,
   requestId: string
 ): Promise<ServiceData> {
@@ -57,13 +59,17 @@ export async function simulatePaymentFailure(
     transactionSignature: `sim_fail_${opaqueId("tx")}`
   };
   const idempotencyKey = `sim-fail-${input.outcome}-${intent.publicId}-${requestId}`;
-  return verifyPaymentInTransaction(client, verifyInput, idempotencyKey, requestId).then(
-    (result) => ({
-      paymentIntentId: intent.publicId,
-      outcome: input.outcome,
-      verificationResult: result,
-      booking: booking.publicId,
-      call: call.publicId
-    })
-  );
+  return verifyPaymentInTransaction(
+    client,
+    mockPaymentProvider,
+    verifyInput,
+    idempotencyKey,
+    requestId
+  ).then((result) => ({
+    paymentIntentId: intent.publicId,
+    outcome: input.outcome,
+    verificationResult: result,
+    booking: booking.publicId,
+    call: call.publicId
+  }));
 }

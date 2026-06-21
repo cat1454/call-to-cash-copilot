@@ -172,6 +172,7 @@ export default function useCallSimulation() {
       bookingData: server.bookingData,
       showBoardingPass: server.showBoardingPass,
       showPaymentDrawer: server.showPaymentDrawer,
+      paymentIntent: server.paymentIntent,
       drawerTimerText: DEFAULT_PAYMENT_TIMER,
       btnPhonePayText: server.paymentActionPending
         ? "Đang xác minh thanh toán..."
@@ -222,6 +223,7 @@ export default function useCallSimulation() {
     bookingData,
     showBoardingPass,
     showPaymentDrawer,
+    paymentIntent: null,
     drawerTimerText,
     btnPhonePayText,
     btnPhonePayDisabled,

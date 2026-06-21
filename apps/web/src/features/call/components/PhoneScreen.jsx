@@ -33,6 +33,7 @@ export default function PhoneScreen({
   bookingData,
   showBoardingPass,
   showPaymentDrawer,
+  paymentIntent,
   drawerTimerText,
   btnPhonePayText,
   btnPhonePayDisabled,
@@ -159,8 +160,10 @@ export default function PhoneScreen({
         </div>
 
         <PhonePaymentDrawer
+          key={paymentIntent?.paymentIntentId ?? "no-payment-intent"}
           showPaymentDrawer={showPaymentDrawer}
           bookingData={bookingData}
+          paymentIntent={paymentIntent}
           drawerTimerText={drawerTimerText}
           simulateWalletPayment={simulateWalletPayment}
           btnPhonePayDisabled={btnPhonePayDisabled}
@@ -233,8 +236,10 @@ export default function PhoneScreen({
             </div>
 
             <PhonePaymentDrawer
+              key={paymentIntent?.paymentIntentId ?? "no-payment-intent"}
               showPaymentDrawer={showPaymentDrawer}
               bookingData={bookingData}
+              paymentIntent={paymentIntent}
               drawerTimerText={drawerTimerText}
               simulateWalletPayment={simulateWalletPayment}
               btnPhonePayDisabled={btnPhonePayDisabled}

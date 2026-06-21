@@ -72,3 +72,28 @@ test("refresh recovery reloads authoritative booking, payment, and receipt read 
     ]
   );
 });
+
+test("recovery does not request risk before a booking exists", async () => {
+  let riskRequests = 0;
+  const actions = [];
+  const apiClient = {
+    getCall: async (callId) => ({ callId, status: "ACTIVE", booking: null }),
+    getRisk: async () => {
+      riskRequests += 1;
+      throw new Error("Risk is not ready");
+    }
+  };
+
+  await recoverServerState(
+    apiClient,
+    (action) => actions.push(action),
+    makeInitialState(),
+    "call_public2"
+  );
+
+  assert.equal(riskRequests, 0);
+  assert.deepEqual(
+    actions.map((action) => action.type),
+    [ACTION.CALL_SYNCED, ACTION.RECOVERY_COMPLETE]
+  );
+});

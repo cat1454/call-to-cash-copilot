@@ -17,8 +17,10 @@
     "@call-to-cash/db": "workspace:*",
     "@call-to-cash/domain": "workspace:*",
     "@call-to-cash/shared": "workspace:*",
+    "@call-to-cash/solana": "workspace:*",
     "@fastify/cors": "^11.2.0",
     "@fastify/rate-limit": "^11.0.0",
+    "dotenv": "^17.2.3",
     "fastify": "^5.0.0",
     "zod": "^4.0.0"
   }

@@ -3,6 +3,8 @@ import { describe, test } from "node:test";
 
 import { EventName } from "@call-to-cash/shared";
 
+import { buildVerificationPayload } from "./serverPayment.js";
+
 import {
   ACTION,
   makeInitialState,
@@ -11,6 +13,13 @@ import {
 } from "./serverSimulationState.js";
 
 const occurredAt = "2026-06-21T10:00:00.000Z";
+
+test("Solana verification sends only the server-owned payment intent ID", () => {
+  assert.deepEqual(
+    buildVerificationPayload({ provider: "solana_devnet", paymentIntentId: "pi_public01" }),
+    { paymentIntentId: "pi_public01" }
+  );
+});
 
 function envelope(event, data, sequence = 1, overrides = {}) {
   return {
@@ -200,5 +209,53 @@ describe("server simulation event projection", () => {
     assert.equal(failed.paymentActionPending, false);
     assert.equal(failed.paymentGate, "MANUAL_REVIEW_REQUIRED");
     assert.equal(failed.booking.status, "MANUAL_REVIEW_REQUIRED");
+  });
+
+  test("stores only the approved Solana Devnet payment request projection", () => {
+    const state = reducer(makeInitialState(), {
+      type: ACTION.PAYMENT_INTENT_CREATED,
+      intent: {
+        paymentIntentId: "pi_public01",
+        bookingId: "bk_public01",
+        agreementId: "agr_public01",
+        status: "CREATED",
+        amount: { currency: "VND", minor: 300000 },
+        recipient: "11111111111111111111111111111111",
+        reference: "11111111111111111111111111111111",
+        expiresAt: occurredAt,
+        idempotencyKey: "create-key",
+        provider: "solana_devnet",
+        providerPayment: {
+          provider: "solana_devnet",
+          cluster: "devnet",
+          amountLamports: 1000000,
+          amountSol: "0.001",
+          solanaPayUrl: "solana:11111111111111111111111111111111?amount=0.001",
+          qrPayload: "solana:11111111111111111111111111111111?amount=0.001",
+          memo: "ctc:v1:ref:1111111111:proof:aaaaaaaaaaaa:amt:lfls",
+          rawPhone: "0912345678",
+          transcript: "private transcript"
+        }
+      }
+    });
+
+    assert.equal(state.paymentIntent.provider, "solana_devnet");
+    assert.equal(state.paymentIntent.providerPayment.amountLamports, 1000000);
+    assert.doesNotMatch(JSON.stringify(state.paymentIntent), /0912345678|private transcript/u);
+  });
+
+  test("retryable chain verification keeps the payment drawer open", () => {
+    const state = reducer(
+      { ...makeInitialState(), showPaymentDrawer: true, paymentActionPending: true },
+      {
+        type: ACTION.PAYMENT_PENDING,
+        error: { code: "PAYMENT_TRANSACTION_UNCONFIRMED", message: "Still confirming." }
+      }
+    );
+
+    assert.equal(state.showPaymentDrawer, true);
+    assert.equal(state.paymentActionPending, false);
+    assert.equal(state.simStatus, "Đang chờ giao dịch trên Devnet...");
+    assert.equal(state.error, null);
   });
 });

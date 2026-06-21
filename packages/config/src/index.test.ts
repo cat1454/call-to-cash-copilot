@@ -10,6 +10,15 @@ test("runtime config defaults to explicit deterministic demo providers", () => {
     port: 3001,
     demoMode: true,
     paymentProvider: "mock",
+    solanaDevnet: {
+      cluster: "devnet",
+      rpcUrl: "https://api.devnet.solana.com/",
+      recipientPublicKey: "",
+      demoAmountLamports: 1_000_000,
+      paymentLabel: "Call-to-Cash Demo",
+      commitment: "confirmed",
+      ready: false
+    },
     voiceProvider: "replay",
     aiProvider: "deterministic",
     logLevel: "info",
@@ -22,6 +31,35 @@ test("runtime config rejects invalid provider modes", () => {
     () => readRuntimeConfig({ PAYMENT_PROVIDER: "solana-mainnet" }),
     /PAYMENT_PROVIDER/
   );
+});
+
+test("Solana Devnet is opt-in and missing recipient config fails readiness without failing startup", () => {
+  const config = readRuntimeConfig({ PAYMENT_PROVIDER: "solana_devnet" });
+
+  assert.equal(config.paymentProvider, "solana_devnet");
+  assert.equal(config.solanaDevnet.ready, false);
+  assert.equal(config.solanaDevnet.cluster, "devnet");
+});
+
+test("runtime config accepts the minimum complete Solana Devnet configuration", () => {
+  const config = readRuntimeConfig({
+    PAYMENT_PROVIDER: "solana_devnet",
+    SOLANA_CLUSTER: "devnet",
+    SOLANA_RPC_URL: "https://rpc.example.test",
+    SOLANA_RECIPIENT_PUBLIC_KEY: "11111111111111111111111111111111",
+    SOLANA_DEMO_AMOUNT_LAMPORTS: "2000000",
+    SOLANA_PAYMENT_LABEL: "CTC Devnet"
+  });
+
+  assert.deepEqual(config.solanaDevnet, {
+    cluster: "devnet",
+    rpcUrl: "https://rpc.example.test/",
+    recipientPublicKey: "11111111111111111111111111111111",
+    demoAmountLamports: 2_000_000,
+    paymentLabel: "CTC Devnet",
+    commitment: "confirmed",
+    ready: true
+  });
 });
 
 test("runtime config parses an explicit false demo mode", () => {
@@ -45,4 +83,3 @@ test("runtime config rejects negative RATE_LIMIT_MAX", () => {
 test("runtime config allows RATE_LIMIT_MAX=0 to disable limiting", () => {
   assert.equal(readRuntimeConfig({ RATE_LIMIT_MAX: "0" }).rateLimitMax, 0);
 });
-

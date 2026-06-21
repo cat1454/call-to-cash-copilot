@@ -10,7 +10,11 @@ export function registerHealthRoutes(app: FastifyInstance, dependencies: ApiDepe
   app.get("/ready", async (request) =>
     successEnvelope(
       request.id,
-      await getReadinessStatus(dependencies.config, dependencies.databaseClient)
+      await getReadinessStatus(
+        dependencies.config,
+        dependencies.databaseClient,
+        dependencies.paymentProvider
+      )
     )
   );
 }

@@ -11,16 +11,16 @@ Voice and payment experiences need realtime updates, but the frontend must not d
 
 ## 1. Delivery guarantees
 
-| Property | MVP rule |
-|---|---|
-| Transport | SSE `GET /v1/calls/:callId/events` |
-| Direction | server → browser only; commands remain REST |
-| Delivery | at-least-once; consumers must deduplicate by `eventId` |
-| Ordering | guaranteed per `callId`/aggregate stream by `sequence`; not globally |
-| Recovery | client reconnects with `Last-Event-ID`, then calls REST summary endpoints if gap remains |
-| Source of truth | PostgreSQL-backed REST APIs, never event cache alone |
-| Publication | durable transactional event log; SSE reads only committed rows |
-| Sensitive data | redacted/minimized; no raw phone, token, secret, raw audio URL, or full hidden reasoning |
+| Property        | MVP rule                                                                                 |
+| --------------- | ---------------------------------------------------------------------------------------- |
+| Transport       | SSE `GET /v1/calls/:callId/events`                                                       |
+| Direction       | server → browser only; commands remain REST                                              |
+| Delivery        | at-least-once; consumers must deduplicate by `eventId`                                   |
+| Ordering        | guaranteed per `callId`/aggregate stream by `sequence`; not globally                     |
+| Recovery        | client reconnects with `Last-Event-ID`, then calls REST summary endpoints if gap remains |
+| Source of truth | PostgreSQL-backed REST APIs, never event cache alone                                     |
+| Publication     | durable transactional event log; SSE reads only committed rows                           |
+| Sensitive data  | redacted/minimized; no raw phone, token, secret, raw audio URL, or full hidden reasoning |
 
 ---
 
@@ -44,17 +44,17 @@ Every event uses one envelope over SSE. A future transport may reuse the envelop
 
 ### Field rules
 
-| Field | Rule |
-|---|---|
-| `eventId` | immutable unique id; use to deduplicate |
-| `event` | stable dotted event name |
-| `version` | payload schema version; increment only for breaking payload changes |
-| `occurredAt` | server timestamp, UTC |
-| `correlationId` | request/job trace id where available |
-| `callId` | required for call-stream events |
-| `bookingId` | nullable before booking materialization |
-| `sequence` | monotonic within one call stream |
-| `data` | event-specific, JSON schema/Zod validated |
+| Field           | Rule                                                                |
+| --------------- | ------------------------------------------------------------------- |
+| `eventId`       | immutable unique id; use to deduplicate                             |
+| `event`         | stable dotted event name                                            |
+| `version`       | payload schema version; increment only for breaking payload changes |
+| `occurredAt`    | server timestamp, UTC                                               |
+| `correlationId` | request/job trace id where available                                |
+| `callId`        | required for call-stream events                                     |
+| `bookingId`     | nullable before booking materialization                             |
+| `sequence`      | monotonic within one call stream                                    |
+| `data`          | event-specific, JSON schema/Zod validated                           |
 
 ### SSE encoding
 
@@ -314,11 +314,12 @@ Do not broadcast private wallet configuration that does not need to be shown. Th
   "bookingId": "bk_01J...",
   "data": {
     "paymentIntentId": "pi_01J...",
-    "status": "PENDING",
-    "transactionSignatureShort": "5x9a...q2Lp"
+    "status": "PENDING"
   }
 }
 ```
+
+`transactionSignatureShort` is optional. It is absent while automatic reference discovery has not found a candidate transaction yet.
 
 #### `payment.confirmed`
 
@@ -403,14 +404,14 @@ When proof does not match, use the same event name with `status: "MISMATCH"`, a 
 
 ### Recommended UI reducers
 
-| UI area | Event source | Recovery endpoint |
-|---|---|---|
-| call indicator | `call.*` | `GET /v1/calls/:callId` |
-| transcript | `transcript.turn.created` | `GET /v1/calls/:callId/transcript` |
-| decision panel | `transcript.analysis.updated`, `risk.*` | `GET /v1/calls/:callId/risk` |
-| booking agreement | `booking.*` | booking read endpoint / call summary |
-| payment CTA/status | `payment.*` | `GET /v1/payments/:bookingId/status` |
-| receipt view | `receipt.*` | `GET /v1/receipts/:receiptId` |
+| UI area            | Event source                            | Recovery endpoint                    |
+| ------------------ | --------------------------------------- | ------------------------------------ |
+| call indicator     | `call.*`                                | `GET /v1/calls/:callId`              |
+| transcript         | `transcript.turn.created`               | `GET /v1/calls/:callId/transcript`   |
+| decision panel     | `transcript.analysis.updated`, `risk.*` | `GET /v1/calls/:callId/risk`         |
+| booking agreement  | `booking.*`                             | booking read endpoint / call summary |
+| payment CTA/status | `payment.*`                             | `GET /v1/payments/:bookingId/status` |
+| receipt view       | `receipt.*`                             | `GET /v1/receipts/:receiptId`        |
 
 ---
 

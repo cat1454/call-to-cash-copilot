@@ -2,7 +2,7 @@
 
 > **Status:** Accepted for MVP / hackathon implementation  
 > **Owner:** Tech Lead  
-> **Last updated:** 2026-06-20  
+> **Last updated:** 2026-06-21
 > **Related docs:** [Pipeline](./PIPELINE.md), [Booking Contract](../product/BOOKING-CONTRACT.md), [Risk Scoring](../product/RISK-SCORING.md), [Local Setup](../operations/LOCAL-SETUP.md), [Deployment](../operations/DEPLOYMENT.md), [Incident Runbook](../operations/INCIDENT-RUNBOOK.md)
 
 This document records the decisions that keep Call-to-Cash coherent as the codebase grows. It is intentionally opinionated: every decision states what is allowed, what is prohibited, and what would justify revisiting the choice.
@@ -280,6 +280,15 @@ canonical agreement JSON
 ```
 
 A proof match shows integrity of the stored snapshot against the anchored reference. It is not a legal ruling about who is at fault in a dispute.
+
+### Phase 8 implementation decision
+
+- `SolanaDevnetPaymentProvider` implements the same create/verify provider boundary as deterministic mock payment; it does not create a second business flow.
+- The API exposes provider-neutral aliases while retaining `/v1/payments/mock/*` for deterministic tests and fallback.
+- Solana Pay URLs are created server-side. References are random base58 encodings of 32 bytes; memos contain only versioned opaque reference/proof/amount fragments.
+- Devnet verification uses JSON-RPC `getSignatureStatuses` plus parsed `getTransaction` data and checks confirmation, execution success, native SOL recipient/lamports, reference-account presence, expiry, and signature uniqueness.
+- RPC calls execute outside the database transaction. The payment module re-loads state and commits transaction/proof/receipt/event records atomically only after a confirmed provider result.
+- No Prisma migration is required: existing payment-intent recipient/reference/memo fields and minimized payment-transaction JSON metadata carry the Phase 8 provider facts.
 
 ---
 

@@ -24,18 +24,26 @@ export function isDefinitivePaymentMismatch(error) {
   ].includes(error?.code);
 }
 
+export function isRetryablePaymentPending(error) {
+  return [
+    "PAYMENT_VERIFICATION_PENDING",
+    "PAYMENT_TRANSACTION_NOT_FOUND",
+    "PAYMENT_TRANSACTION_UNCONFIRMED",
+    "SOLANA_RPC_UNAVAILABLE",
+    "SOLANA_RPC_TIMEOUT"
+  ].includes(error?.code);
+}
+
 export async function recoverServerState(apiClient, dispatch, state, callId, hints = {}) {
   const result = {};
   const call = await apiClient.getCall(callId);
   result.call = call;
   dispatch({ type: ACTION.CALL_SYNCED, call });
 
-  try {
+  if (call.booking !== null) {
     const risk = await apiClient.getRisk(callId);
     result.risk = risk;
     dispatch({ type: ACTION.RISK_SYNCED, risk });
-  } catch {
-    // A newly-created call has no risk assessment until its first final turn.
   }
 
   const bookingId = hints.bookingId ?? call.booking?.bookingId ?? state.bookingId;

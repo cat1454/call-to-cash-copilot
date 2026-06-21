@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createPrismaClient } from "@call-to-cash/db";
+import { createPrismaClient, type DatabaseClient } from "@call-to-cash/db";
+import {
+  SolanaDevnetPaymentProvider,
+  encodeBase58,
+  type SolanaParsedTransaction,
+  type SolanaRpcClient
+} from "@call-to-cash/solana";
 
 import {
   createMockPaymentExpectation,
@@ -24,10 +30,30 @@ const demoConfig = {
   port: 3001,
   demoMode: true,
   paymentProvider: "mock",
+  solanaDevnet: {
+    cluster: "devnet",
+    rpcUrl: "https://api.devnet.solana.com/",
+    recipientPublicKey: "",
+    demoAmountLamports: 1_000_000,
+    paymentLabel: "Call-to-Cash Demo",
+    commitment: "confirmed",
+    ready: false
+  },
   voiceProvider: "replay",
   aiProvider: "deterministic",
   logLevel: "silent" as const,
   rateLimitMax: 0
+} as const;
+
+const solanaRecipient = encodeBase58(new Uint8Array(32).fill(21));
+const solanaConfig = {
+  ...demoConfig,
+  paymentProvider: "solana_devnet",
+  solanaDevnet: {
+    ...demoConfig.solanaDevnet,
+    recipientPublicKey: solanaRecipient,
+    ready: true
+  }
 } as const;
 
 if (databaseUrl !== undefined) {
@@ -202,6 +228,18 @@ test("GET /health returns the standard success envelope", async () => {
   await app.close();
 });
 
+test("GET /ready fails safely when the selected Solana provider is not configured", async () => {
+  const databaseClient = {
+    $queryRaw: async () => [{ ready: 1 }]
+  } as unknown as DatabaseClient;
+  const app = buildApp({ ...demoConfig, paymentProvider: "solana_devnet" }, { databaseClient });
+  const response = await app.inject({ method: "GET", url: "/ready" });
+
+  assert.equal(response.statusCode, 503);
+  assert.equal(response.json().error.code, ErrorCodeSchema.enum.SOLANA_RPC_UNAVAILABLE);
+  await app.close();
+});
+
 test(
   "Phase 5 replay persists call, transcript, booking risk and recoverable SSE events",
   { skip: phase5SkipReason() },
@@ -310,10 +348,14 @@ test(
       });
       const call = (await callResponse.json()).data;
       const eventResponse = await fetch(`${address}/v1/calls/${call.callId}/events`, {
-        headers: { Accept: "text/event-stream" },
+        headers: { Accept: "text/event-stream", Origin: "http://localhost:5174" },
         signal: controller.signal
       });
       assert.equal(eventResponse.status, 200);
+      assert.equal(
+        eventResponse.headers.get("access-control-allow-origin"),
+        "http://localhost:5174"
+      );
       assert.ok(eventResponse.body);
       const reader = eventResponse.body.getReader();
       const decoder = new TextDecoder();
@@ -604,7 +646,10 @@ test(
       },
       orderBy: { createdAt: "desc" }
     });
-    assert.equal((receiptVerificationEvent.afterState as { event: string }).event, EventName.ReceiptVerified);
+    assert.equal(
+      (receiptVerificationEvent.afterState as { event: string }).event,
+      EventName.ReceiptVerified
+    );
     const bookingAfterTamper = await prismaAfter.booking.findUniqueOrThrow({
       where: { publicId: happyBookingId },
       select: { status: true }
@@ -614,6 +659,143 @@ test(
 
     await app.close();
     await happyApp.close();
+  }
+);
+
+test(
+  "Phase 8 generic payment routes verify Devnet RPC evidence before proof and receipt creation",
+  { skip: phase5SkipReason() },
+  async () => {
+    assert.ok(databaseUrl);
+    let expectedReference = "";
+    let confirmationStatus: "processed" | "confirmed" = "processed";
+    const transactionSignature = encodeBase58(new Uint8Array(64).fill(22));
+    const rpcClient: SolanaRpcClient = {
+      async getSignaturesForAddress(value) {
+        assert.equal(value, expectedReference);
+        return [{ signature: transactionSignature, confirmationStatus, err: null }];
+      },
+      async getSignatureStatus() {
+        return { confirmationStatus, err: null };
+      },
+      async getTransaction(): Promise<SolanaParsedTransaction> {
+        return {
+          slot: 999,
+          blockTime: 1_782_000_000,
+          meta: { err: null, innerInstructions: [] },
+          transaction: {
+            message: {
+              accountKeys: [
+                { pubkey: encodeBase58(new Uint8Array(32).fill(23)) },
+                { pubkey: solanaRecipient },
+                { pubkey: expectedReference }
+              ],
+              instructions: [
+                {
+                  program: "system",
+                  parsed: {
+                    type: "transfer",
+                    info: {
+                      source: encodeBase58(new Uint8Array(32).fill(23)),
+                      destination: solanaRecipient,
+                      lamports: 1_000_000
+                    }
+                  }
+                }
+              ]
+            },
+            signatures: [transactionSignature]
+          }
+        };
+      }
+    };
+    const paymentProvider = new SolanaDevnetPaymentProvider({
+      rpcUrl: solanaConfig.solanaDevnet.rpcUrl,
+      recipientPublicKey: solanaRecipient,
+      amountLamports: solanaConfig.solanaDevnet.demoAmountLamports,
+      label: solanaConfig.solanaDevnet.paymentLabel,
+      commitment: solanaConfig.solanaDevnet.commitment,
+      rpcClient
+    });
+    const app = buildApp(solanaConfig, { paymentProvider });
+    const { bookingId } = await confirmReplayBooking(app);
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/v1/payments/create",
+      headers: { "Idempotency-Key": `solana-payment-${uniqueSuffix()}` },
+      payload: { bookingId }
+    });
+    assert.equal(createResponse.statusCode, 201, JSON.stringify(createResponse.json()));
+    const payment = createResponse.json().data;
+    expectedReference = payment.reference;
+    assert.equal(payment.provider, "solana_devnet");
+    assert.equal(payment.providerPayment.cluster, "devnet");
+    assert.equal(payment.providerPayment.amountLamports, 1_000_000);
+    assert.match(payment.providerPayment.solanaPayUrl, /^solana:/u);
+
+    const pendingResponse = await app.inject({
+      method: "POST",
+      url: "/v1/payments/verify",
+      headers: { "Idempotency-Key": `solana-pending-${uniqueSuffix()}` },
+      payload: {
+        paymentIntentId: payment.paymentIntentId
+      }
+    });
+    assert.equal(pendingResponse.statusCode, 202, JSON.stringify(pendingResponse.json()));
+    assert.equal(
+      pendingResponse.json().error.code,
+      ErrorCodeSchema.enum.PAYMENT_TRANSACTION_UNCONFIRMED
+    );
+    const pendingPrisma = createPrismaClient({ databaseUrl });
+    assert.equal(
+      await pendingPrisma.proofRecord.count({
+        where: { booking: { publicId: bookingId } }
+      }),
+      0
+    );
+    assert.equal(
+      await pendingPrisma.trustReceipt.count({ where: { booking: { publicId: bookingId } } }),
+      0
+    );
+    await pendingPrisma.$disconnect();
+    confirmationStatus = "confirmed";
+
+    const verifyResponse = await app.inject({
+      method: "POST",
+      url: "/v1/payments/verify",
+      headers: { "Idempotency-Key": `solana-verify-${uniqueSuffix()}` },
+      payload: {
+        paymentIntentId: payment.paymentIntentId
+      }
+    });
+    assert.equal(verifyResponse.statusCode, 200, JSON.stringify(verifyResponse.json()));
+    assert.equal(verifyResponse.json().data.status, "CONFIRMED");
+
+    const prisma = createPrismaClient({ databaseUrl });
+    const transaction = await prisma.paymentTransaction.findUniqueOrThrow({
+      where: { txSignature: transactionSignature }
+    });
+    assert.equal(transaction.chain, "SOLANA_DEVNET");
+    assert.equal(transaction.observedAmountMinor, 1_000_000);
+    assert.equal(transaction.observedRecipientWallet, solanaRecipient);
+    assert.equal(transaction.observedReference, expectedReference);
+    assert.equal(transaction.slot, 999n);
+    const serializedMetadata = JSON.stringify(transaction.rawChainMetadata);
+    assert.match(serializedMetadata, /"cluster":"devnet"/u);
+    assert.doesNotMatch(serializedMetadata, /0912345678|transcript|canonicalPayload/iu);
+    assert.equal(
+      await prisma.proofRecord.count({ where: { paymentTransactionId: transaction.id } }),
+      1
+    );
+    assert.equal(
+      await prisma.trustReceipt.count({
+        where: { paymentIntent: { publicId: payment.paymentIntentId } }
+      }),
+      1
+    );
+    await prisma.$disconnect();
+    await app.close();
   }
 );
 

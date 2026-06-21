@@ -11,6 +11,7 @@ export async function createVerifiedProofRecord(
     paymentTransactionId: string;
     agreementHash: string;
     reference: string;
+    chain: "MOCK" | "SOLANA_DEVNET";
     now: Date;
   }
 ): Promise<{ id: string; publicId: string }> {
@@ -21,7 +22,10 @@ export async function createVerifiedProofRecord(
       agreementId: input.agreementId,
       paymentTransactionId: input.paymentTransactionId,
       proofHashSha256: input.agreementHash,
-      anchorType: PaymentAnchorType.ServerAttestation,
+      anchorType:
+        input.chain === "SOLANA_DEVNET"
+          ? PaymentAnchorType.SolanaReference
+          : PaymentAnchorType.ServerAttestation,
       anchorValue: input.reference,
       verificationStatus: ProofStatus.Pending
     }
