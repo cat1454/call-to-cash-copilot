@@ -11,14 +11,7 @@ import { ACTION, makeInitialState, reducer } from "./serverSimulationState";
 import { buildVerificationPayload } from "./serverPayment.js";
 import { useServerSessionRecovery } from "./useServerSessionRecovery.js";
 import { useSolanaPaymentPolling } from "./useSolanaPaymentPolling.js";
-function toError(caught) {
-  return caught instanceof Error ? caught : new Error(String(caught));
-}
-
-function idempotencyKey(prefix) {
-  const suffix = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
-  return `${prefix}-${suffix}`;
-}
+import { idempotencyKey, toError } from "./serverSimulationUtils.js";
 export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, scenarios) {
   const [state, dispatch] = useReducer(reducer, undefined, makeInitialState);
   const [currentTurnIdx, setCurrentTurnIdx] = useState(0);
@@ -161,6 +154,16 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
     }
   }, [apiClient, connectSse]);
 
+  const connectLiveCall = useCallback(
+    (call) => {
+      callIdRef.current = call.callId;
+      dispatch({ type: ACTION.START });
+      dispatch({ type: ACTION.CALL_CREATED, call, live: true });
+      connectSse(call.callId);
+    },
+    [connectSse]
+  );
+
   const triggerPayment = useCallback(async () => {
     const bookingId = stateRef.current.bookingId;
     if (!apiClient || !bookingId || paymentCreatingRef.current) return;
@@ -288,6 +291,7 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
     ...state,
     currentTurnIdx,
     startSimulation,
+    connectLiveCall,
     simulateWalletPayment,
     tamperAgreement,
     resetSimulation

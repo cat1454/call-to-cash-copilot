@@ -25,6 +25,8 @@ import { useTimeoutRegistry } from "./useTimeoutRegistry";
 import { useViewportMode } from "./useViewportMode";
 import { useApiMode } from "./useApiMode";
 import useServerSimulation from "./useServerSimulation";
+import { VOICE_PROVIDER } from "../../../config/runtime";
+import { useLiveVoiceSession } from "../../voice/useLiveVoiceSession";
 
 export default function useCallSimulation() {
   const isMobile = useViewportMode();
@@ -105,6 +107,10 @@ export default function useCallSimulation() {
     apiBaseUrl,
     currentScenarioIdx,
     scenarios
+  );
+  const liveVoice = useLiveVoiceSession(
+    apiMode && VOICE_PROVIDER === "agora" ? apiClient : null,
+    (call) => server.connectLiveCall(call)
   );
 
   useEffect(() => {
@@ -189,7 +195,7 @@ export default function useCallSimulation() {
       timelineSteps: server.timelineSteps,
       ledgerLogs: server.ledgerLogs,
       selectScenario,
-      startSimulation: server.startSimulation,
+      startSimulation: VOICE_PROVIDER === "agora" ? liveVoice.start : server.startSimulation,
       resetSimulation: () => {
         setMobileTab("call");
         server.resetSimulation();
@@ -199,7 +205,9 @@ export default function useCallSimulation() {
       serverCallId: server.callId,
       serverBookingId: server.bookingId,
       serverReceiptId: server.receiptId,
-      serverError: server.error
+      serverError: server.error,
+      voiceConnectionState: VOICE_PROVIDER === "agora" ? liveVoice.connectionState : null,
+      stopLiveVoice: liveVoice.stop
     };
   }
 
@@ -241,6 +249,8 @@ export default function useCallSimulation() {
     startSimulation: mockStartSimulation,
     resetSimulation: mockReset,
     simulateWalletPayment: mockSimulateWalletPayment,
-    tamperAgreement: mockHandleTamper
+    tamperAgreement: mockHandleTamper,
+    voiceConnectionState: null,
+    stopLiveVoice: () => {}
   };
 }

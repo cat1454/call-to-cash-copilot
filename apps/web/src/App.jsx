@@ -115,6 +115,8 @@ export default function App() {
         resetSimulation={sim.resetSimulation}
         isSimulating={sim.isSimulating}
         readinessScore={readinessScore}
+        voiceConnectionState={sim.voiceConnectionState}
+        stopLiveVoice={sim.stopLiveVoice}
       />
 
       <AIDecisionPanel decision={decision} scores={sim.scores} />

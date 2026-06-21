@@ -171,6 +171,10 @@ Consent is granular, recorded, versioned, and revocable where technically/operat
 
 ## 5. Data minimization and redaction
 
+### 5.0 Phase 9 live-audio consent
+
+Live Agora metadata, browser RTC join, Conversation AI Engine start, and final transcript ingestion require a current `ANALYSIS = GRANTED` record. Revocation stops future transcription and triggers browser-track/provider-agent shutdown. The browser receives no Agora App Certificate, CAI customer credential, webhook secret, or agent-property configuration. Provider event signatures and tokens are never logged.
+
 ### 5.1 Before AI analysis/logging
 
 Mask or tokenize where not required for the immediate task:

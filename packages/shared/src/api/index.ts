@@ -125,6 +125,51 @@ export const EndCallResponseSchema = z
   })
   .strict();
 
+export const RecordLiveAudioConsentRequestSchema = z
+  .object({
+    policyVersion: z.string().min(1).max(100)
+  })
+  .strict();
+
+export const VoiceSessionStatusSchema = z.enum([
+  "CONSENT_REQUIRED",
+  "READY",
+  "STARTING",
+  "CONNECTED",
+  "STOPPING",
+  "ENDED",
+  "FAILED"
+]);
+
+export const CreateVoiceSessionRequestSchema = z
+  .object({
+    consent: RecordLiveAudioConsentRequestSchema
+  })
+  .strict();
+
+export const VoiceSessionResponseSchema = z
+  .object({
+    callId: CallIdSchema,
+    status: VoiceSessionStatusSchema,
+    analysisConsent: z.enum(["GRANTED", "REVOKED", "DECLINED"]),
+    channelName: z.string().min(1),
+    agentStarted: z.boolean()
+  })
+  .strict();
+
+export const StartVoiceSessionResponseSchema = VoiceSessionResponseSchema.extend({
+  status: z.literal("CONNECTED"),
+  rtc: z
+    .object({
+      appId: z.string().min(1),
+      channelName: z.string().min(1),
+      uid: z.number().int().positive(),
+      token: z.string().min(1),
+      expiresAt: IsoTimestampSchema
+    })
+    .strict()
+});
+
 const TranscriptTurnSubmissionContentSchema = z
   .object({
     clientTurnId: z.string().min(1),

@@ -44,7 +44,7 @@ Default projections must not expose raw phone, full transcript, canonical agreem
 
 ## Future extension points
 
-Solana devnet provider, Agora transcript input, auth/RBAC hooks, and richer observability.
+Agora transcript input, auth/RBAC hooks, richer observability, and additional payment providers behind the existing provider-neutral boundary.
 
 ## Non-goals
 
