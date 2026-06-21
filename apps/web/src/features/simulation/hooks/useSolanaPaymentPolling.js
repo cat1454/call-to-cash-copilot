@@ -1,5 +1,10 @@
 import { useEffect } from "react";
 
+export function scheduleSolanaPaymentPoll(verifyPayment, timers = globalThis) {
+  const timer = timers.setTimeout(() => void verifyPayment(), 3_000);
+  return () => timers.clearTimeout(timer);
+}
+
 export function useSolanaPaymentPolling(state, verifyPayment) {
   useEffect(() => {
     if (
@@ -10,8 +15,7 @@ export function useSolanaPaymentPolling(state, verifyPayment) {
       return;
     }
 
-    const timer = setTimeout(() => void verifyPayment(), 3_000);
-    return () => clearTimeout(timer);
+    return scheduleSolanaPaymentPoll(verifyPayment);
   }, [
     state.paymentActionPending,
     state.paymentIntent?.provider,

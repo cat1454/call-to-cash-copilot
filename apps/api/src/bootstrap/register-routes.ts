@@ -1,8 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import {
-  ApiErrorEnvelopeSchema,
-  ErrorCodeSchema
-} from "@call-to-cash/shared";
+import { ApiErrorEnvelopeSchema, ErrorCodeSchema } from "@call-to-cash/shared";
 
 import { registerCallSessionRoutes } from "../modules/call-session/call-session.routes.js";
 import { registerCallEventRoutes } from "../modules/call-events/call-events.routes.js";

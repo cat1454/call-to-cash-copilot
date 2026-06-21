@@ -18,6 +18,7 @@ packages/db/src/generated/
 # Local tool artifacts
 .playwright-mcp/
 extracted_text.txt
+/scratch/
 
 # Editor directories and files
 .vscode/*

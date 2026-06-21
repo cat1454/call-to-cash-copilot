@@ -93,27 +93,29 @@ function uniqueSuffix(): string {
   return `${Date.now()}${Math.random().toString(16).slice(2)}`;
 }
 
-async function seedFutureDeparture() {
+async function seedFutureDeparture(resetDatabase = true) {
   assert.ok(databaseUrl);
   const prisma = createPrismaClient({ databaseUrl });
   const suffix = uniqueSuffix();
 
-  await prisma.$transaction([
-    prisma.trustReceipt.deleteMany(),
-    prisma.proofRecord.deleteMany(),
-    prisma.paymentTransaction.deleteMany(),
-    prisma.paymentIntent.deleteMany(),
-    prisma.agreement.deleteMany(),
-    prisma.inventoryHold.deleteMany(),
-    prisma.riskAssessment.deleteMany(),
-    prisma.bookingExtraction.deleteMany(),
-    prisma.consentRecord.deleteMany(),
-    prisma.transcriptTurn.deleteMany(),
-    prisma.callSession.updateMany({ data: { bookingId: null } }),
-    prisma.booking.deleteMany(),
-    prisma.callSession.deleteMany(),
-    prisma.tripDeparture.deleteMany()
-  ]);
+  if (resetDatabase) {
+    await prisma.$transaction([
+      prisma.trustReceipt.deleteMany(),
+      prisma.proofRecord.deleteMany(),
+      prisma.paymentTransaction.deleteMany(),
+      prisma.paymentIntent.deleteMany(),
+      prisma.agreement.deleteMany(),
+      prisma.inventoryHold.deleteMany(),
+      prisma.riskAssessment.deleteMany(),
+      prisma.bookingExtraction.deleteMany(),
+      prisma.consentRecord.deleteMany(),
+      prisma.transcriptTurn.deleteMany(),
+      prisma.callSession.updateMany({ data: { bookingId: null } }),
+      prisma.booking.deleteMany(),
+      prisma.callSession.deleteMany(),
+      prisma.tripDeparture.deleteMany()
+    ]);
+  }
   await prisma.tripDeparture.create({
     data: {
       publicId: `dep_${suffix}`,
@@ -146,8 +148,8 @@ function parseSseEvents(payload: string) {
     });
 }
 
-async function createReplayBooking(app: ReturnType<typeof buildApp>) {
-  await seedFutureDeparture();
+async function createReplayBooking(app: ReturnType<typeof buildApp>, resetDatabase = true) {
+  await seedFutureDeparture(resetDatabase);
 
   const callResponse = await app.inject({
     method: "POST",
@@ -191,8 +193,8 @@ async function createReplayBooking(app: ReturnType<typeof buildApp>) {
   };
 }
 
-async function confirmReplayBooking(app: ReturnType<typeof buildApp>) {
-  const replay = await createReplayBooking(app);
+async function confirmReplayBooking(app: ReturnType<typeof buildApp>, resetDatabase = true) {
+  const replay = await createReplayBooking(app, resetDatabase);
   const confirmationKey = `confirm-${uniqueSuffix()}`;
   const confirmResponse = await app.inject({
     method: "POST",
@@ -793,6 +795,32 @@ test(
         where: { paymentIntent: { publicId: payment.paymentIntentId } }
       }),
       1
+    );
+
+    const secondBooking = await confirmReplayBooking(app, false);
+    const secondCreateResponse = await app.inject({
+      method: "POST",
+      url: "/v1/payments/create",
+      headers: { "Idempotency-Key": `solana-payment-reuse-${uniqueSuffix()}` },
+      payload: { bookingId: secondBooking.bookingId }
+    });
+    assert.equal(secondCreateResponse.statusCode, 201, JSON.stringify(secondCreateResponse.json()));
+    const secondPayment = secondCreateResponse.json().data;
+    expectedReference = secondPayment.reference;
+
+    const reusedResponse = await app.inject({
+      method: "POST",
+      url: "/v1/payments/verify",
+      headers: { "Idempotency-Key": `solana-verify-reuse-${uniqueSuffix()}` },
+      payload: { paymentIntentId: secondPayment.paymentIntentId }
+    });
+    assert.equal(reusedResponse.statusCode, 409, JSON.stringify(reusedResponse.json()));
+    assert.equal(reusedResponse.json().error.code, ErrorCodeSchema.enum.PAYMENT_TRANSACTION_REUSED);
+    assert.equal(
+      await prisma.trustReceipt.count({
+        where: { paymentIntent: { publicId: secondPayment.paymentIntentId } }
+      }),
+      0
     );
     await prisma.$disconnect();
     await app.close();

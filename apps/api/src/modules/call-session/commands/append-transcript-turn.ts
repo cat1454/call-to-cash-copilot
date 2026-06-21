@@ -4,10 +4,7 @@ import { Prisma } from "@call-to-cash/db";
 import { CallStatus } from "@call-to-cash/shared";
 import { transitionCall, type StateTransitionResult } from "@call-to-cash/domain";
 
-import {
-  bookingDraftWriter,
-  recomputeBookingRiskAndEvents
-} from "../../booking/index.js";
+import { bookingDraftWriter, recomputeBookingRiskAndEvents } from "../../booking/index.js";
 import type { BookingDraftWriter } from "../../booking/index.js";
 import { ApiCommandError } from "../../../platform/http/api-command-error.js";
 import { redactContent } from "../call-session.presenter.js";

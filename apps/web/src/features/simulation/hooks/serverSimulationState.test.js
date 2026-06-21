@@ -4,6 +4,7 @@ import { describe, test } from "node:test";
 import { EventName } from "@call-to-cash/shared";
 
 import { buildVerificationPayload } from "./serverPayment.js";
+import { scheduleSolanaPaymentPoll } from "./useSolanaPaymentPolling.js";
 
 import {
   ACTION,
@@ -19,6 +20,34 @@ test("Solana verification sends only the server-owned payment intent ID", () => 
     buildVerificationPayload({ provider: "solana_devnet", paymentIntentId: "pi_public01" }),
     { paymentIntentId: "pi_public01" }
   );
+});
+
+test("Solana polling schedules one verification after three seconds and can be cancelled", () => {
+  const scheduledDelays = [];
+  const clearedTimers = [];
+  let verificationCount = 0;
+  const timers = {
+    setTimeout(callback, delay) {
+      scheduledDelays.push(delay);
+      callback();
+      return 17;
+    },
+    clearTimeout(timer) {
+      clearedTimers.push(timer);
+    }
+  };
+
+  const cancel = scheduleSolanaPaymentPoll(
+    () => {
+      verificationCount += 1;
+    },
+    timers
+  );
+  cancel();
+
+  assert.deepEqual(scheduledDelays, [3_000]);
+  assert.equal(verificationCount, 1);
+  assert.deepEqual(clearedTimers, [17]);
 });
 
 function envelope(event, data, sequence = 1, overrides = {}) {
