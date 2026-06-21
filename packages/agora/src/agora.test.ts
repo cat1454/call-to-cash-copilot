@@ -39,3 +39,23 @@ test("deduplicator only accepts a provider turn once", () => {
   assert.equal(deduplicator.accept("provider-turn-1"), true);
   assert.equal(deduplicator.accept("provider-turn-1"), false);
 });
+
+test("normalization preserves interim status so the API can refuse durable admission", () => {
+  const turn = normalizeTranscriptEvent({
+    type: "transcript.turn",
+    eventId: "evt_interim",
+    callId: "call_012345",
+    channelName: "ctc_call_012345",
+    sessionId: "agent_1",
+    occurredAt: "2026-06-21T10:00:00.000Z",
+    turn: {
+      id: "provider-turn-interim",
+      sequenceNo: 3,
+      speaker: "CUSTOMER",
+      text: "Tôi muốn đi...",
+      language: "vi-VN",
+      final: false
+    }
+  });
+  assert.equal(turn.isFinal, false);
+});

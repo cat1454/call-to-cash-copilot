@@ -6,6 +6,8 @@ import { IconButton } from "../../../components/ui/IconButton";
 import { Progress } from "../../../components/ui/Progress";
 import { SectionHeading } from "../../../components/ui/SectionHeading";
 import { Card, CardHeader, CardBody } from "../../../components/ui/Card";
+import { LiveVoiceStatus } from "../../voice/LiveVoiceStatus";
+import { getVoiceModeLabel } from "../../../config/runtime";
 
 const STATUS_LABELS = {
   "Sẵn sàng": "Sẵn sàng đàm thoại",
@@ -34,7 +36,11 @@ export default function VoiceSimulatorPanel({
   isSimulating,
   readinessScore,
   voiceConnectionState,
-  stopLiveVoice
+  stopLiveVoice,
+  voiceMode,
+  retryLiveVoice,
+  continueInReplayMode,
+  endVoiceSession
 }) {
   const [liveConsent, setLiveConsent] = useState(false);
   const statusLabel = STATUS_LABELS[simStatus] ?? simStatus;
@@ -77,11 +83,18 @@ export default function VoiceSimulatorPanel({
       </CardHeader>
 
       <CardBody className="gap-4 p-5">
+        <div className="rounded-full bg-[#f3f4f6] px-3 py-1.5 text-center text-xs font-medium text-[#4b5563]">
+          {getVoiceModeLabel(voiceMode)}
+        </div>
         {voiceConnectionState && (
-          <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-[#374151]">
-            <p className="font-medium" role="status">
-              Agora: {voiceConnectionState.replaceAll("_", " ")}
-            </p>
+          <>
+            <LiveVoiceStatus
+              state={voiceConnectionState}
+              onRetry={retryLiveVoice}
+              onReplay={continueInReplayMode}
+              onEnd={endVoiceSession}
+            />
+            <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-[#374151]">
             <label className="mt-2 flex items-start gap-2 leading-4">
               <input
                 type="checkbox"
@@ -90,7 +103,8 @@ export default function VoiceSimulatorPanel({
               />
               <span>Tôi đồng ý dùng âm thanh trực tiếp để tạo phụ đề và phân tích đặt vé.</span>
             </label>
-          </div>
+            </div>
+          </>
         )}
         {/* Transcript area */}
         <section

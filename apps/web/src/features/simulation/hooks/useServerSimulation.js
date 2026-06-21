@@ -92,7 +92,6 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
       if (!apiClient) return;
       const recovered = await recoverServerState(callId);
       const booking = recovered.booking;
-      console.log("[finishReplay] recovered booking:", JSON.stringify(booking));
       if (booking?.status === "AGREEMENT_READY" && booking.agreementVersion) {
         const confirmation = await apiClient.confirmBooking(
           booking.bookingId,

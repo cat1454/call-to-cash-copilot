@@ -89,7 +89,7 @@ PowerShell:
 Copy-Item .env.example .env
 ```
 
-The repository-root `.env` is the canonical local server configuration. The API entrypoint resolves this file explicitly even though pnpm runs the API package with `apps/api` as its working directory. Do not create or depend on `apps/api/.env`; package-local files are ignored and are not part of the documented startup path.
+The repository-root `.env` is the canonical local server configuration. The API entrypoint resolves this file explicitly even though pnpm runs the API package with `apps/api` as its working directory. Do not create or depend on `apps/api/.env`; package-local files are ignored and are not part of the documented startup path. Vite reads browser-safe values from `apps/web/.env`; copy `apps/web/.env.example` and never place server credentials there.
 
 Current variables:
 
@@ -121,7 +121,7 @@ AGORA_CAI_PROPERTIES_JSON=
 AI_PROVIDER=deterministic
 
 VITE_DEMO_MODE=true
-VITE_API_BASE_URL=http://localhost:3001
+VITE_API_BASE_URL=http://127.0.0.1:3001
 VITE_VOICE_PROVIDER=replay
 ```
 
@@ -162,6 +162,12 @@ Or run them independently:
 ```bash
 pnpm dev:api
 pnpm dev:web
+```
+
+After both processes are running, verify the complete local configuration without printing secret values:
+
+```bash
+pnpm demo:preflight
 ```
 
 Current defaults:

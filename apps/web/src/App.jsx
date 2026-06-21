@@ -8,7 +8,7 @@ import DecisionTimeline from "./features/simulation/components/DecisionTimeline"
 import useCallSimulation from "./features/simulation/hooks/useCallSimulation";
 import { WorkspaceLayout } from "./components/layout/WorkspaceLayout";
 import Hook from "./components/Hook";
-import { DEMO_MODE } from "./config/runtime";
+import { DEMO_MODE, getVoiceModeLabel } from "./config/runtime";
 import { getAIDecision, getReadinessScore } from "./features/simulation/helpers/appHelpers";
 
 export default function App() {
@@ -69,12 +69,12 @@ export default function App() {
 
         <div className="flex flex-wrap items-center gap-2">
           <span className="min-h-6 whitespace-nowrap rounded-full bg-[#f3f4f6] px-2.5 py-1 text-xs leading-4 font-medium text-[#6b7280]">
-            {DEMO_MODE ? "DEMO MODE · DETERMINISTIC" : "LIVE MODE · ADAPTERS PENDING"}
+            {getVoiceModeLabel(sim.voiceMode)}
           </span>
 
           <div className="flex min-h-6 items-center gap-1.5 rounded-full border border-[#a7f3d0] bg-[#ecfdf5] px-2.5 py-1 text-xs leading-4 font-medium text-[#065f46]">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#10b981]" />
-            <span>{DEMO_MODE ? "Agora: Transcript Replay" : "Agora: Chưa kết nối"}</span>
+            <span>{getVoiceModeLabel(sim.voiceMode)}</span>
           </div>
 
           <div className="flex min-h-6 items-center gap-1.5 rounded-full border border-[#a7f3d0] bg-[#ecfdf5] px-2.5 py-1 text-xs leading-4 font-medium text-[#065f46]">
@@ -117,6 +117,10 @@ export default function App() {
         readinessScore={readinessScore}
         voiceConnectionState={sim.voiceConnectionState}
         stopLiveVoice={sim.stopLiveVoice}
+        voiceMode={sim.voiceMode}
+        retryLiveVoice={sim.retryLiveVoice}
+        continueInReplayMode={sim.continueInReplayMode}
+        endVoiceSession={sim.endVoiceSession}
       />
 
       <AIDecisionPanel decision={decision} scores={sim.scores} />
@@ -156,6 +160,7 @@ export default function App() {
       timelineSteps={sim.timelineSteps}
       ledgerLogs={sim.ledgerLogs}
       paymentGate={sim.paymentGate}
+      voiceMode={sim.voiceMode}
     />
   );
 

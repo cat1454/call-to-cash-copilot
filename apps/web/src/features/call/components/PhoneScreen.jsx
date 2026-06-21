@@ -1,11 +1,11 @@
 import { Wifi, Signal, Battery, Smartphone } from "lucide-react";
 import { cn } from "../../../lib/cn";
 import { Button } from "../../../components/ui/Button";
-import { DEMO_MODE } from "../../../config/runtime";
 import PhoneCallView from "../../simulation/components/PhoneCallView";
 import PhoneDashboardView from "../../simulation/components/PhoneDashboardView";
 import PhoneReceiptView from "../../ticket/components/PhoneReceiptView";
 import PhonePaymentDrawer from "../../payment/components/PhonePaymentDrawer";
+import { getVoiceModeLabel } from "../../../config/runtime";
 
 /**
  * PhoneScreen — Customer-facing interface.
@@ -50,7 +50,8 @@ export default function PhoneScreen({
   prefetchContent,
   timelineSteps,
   ledgerLogs,
-  paymentGate
+  paymentGate,
+  voiceMode
 }) {
   const renderCallView = () => (
     <PhoneCallView
@@ -104,7 +105,7 @@ export default function PhoneScreen({
         <header className="w-full min-w-0 shrink-0 overflow-hidden border-b border-[#e5e7eb] bg-white px-4 py-3">
           <div className="mb-3 flex items-center justify-between gap-3">
             <span className="rounded-full bg-[#f3f4f6] px-2.5 py-1 text-xs leading-4 font-medium text-[#6b7280]">
-              {DEMO_MODE ? "Demo mode" : "Live mode"}
+              {getVoiceModeLabel(voiceMode)}
             </span>
 
             <span className="text-xs leading-4 font-normal text-[#6b7280]">Customer app</span>

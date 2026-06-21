@@ -32,6 +32,7 @@ export default function useCallSimulation() {
   const isMobile = useViewportMode();
   const { apiMode, apiBaseUrl, apiClient, isProbing } = useApiMode();
   const [currentScenarioIdx, setCurrentScenarioIdx] = useState(0);
+  const [voiceMode, setVoiceMode] = useState(VOICE_PROVIDER);
 
   // ---- Mock simulation state (used only when apiMode=false) -----------
   const [isSimulating, setIsSimulating] = useState(false);
@@ -109,7 +110,7 @@ export default function useCallSimulation() {
     scenarios
   );
   const liveVoice = useLiveVoiceSession(
-    apiMode && VOICE_PROVIDER === "agora" ? apiClient : null,
+    apiMode && voiceMode === "agora" ? apiClient : null,
     (call) => server.connectLiveCall(call)
   );
 
@@ -159,6 +160,20 @@ export default function useCallSimulation() {
 
   // ---- Unified surface (picks API or mock branch) ----------------------
   if (apiMode) {
+    const retryLiveVoice = async () => {
+      await liveVoice.stop();
+      await liveVoice.start();
+    };
+    const continueInReplayMode = async () => {
+      await liveVoice.stop();
+      server.resetSimulation();
+      setVoiceMode("replay");
+      setTimeout(() => void server.startSimulation(), 0);
+    };
+    const endVoiceSession = async () => {
+      await liveVoice.stop();
+      server.resetSimulation();
+    };
     return {
       apiMode,
       isProbing,
@@ -195,7 +210,7 @@ export default function useCallSimulation() {
       timelineSteps: server.timelineSteps,
       ledgerLogs: server.ledgerLogs,
       selectScenario,
-      startSimulation: VOICE_PROVIDER === "agora" ? liveVoice.start : server.startSimulation,
+      startSimulation: voiceMode === "agora" ? liveVoice.start : server.startSimulation,
       resetSimulation: () => {
         setMobileTab("call");
         server.resetSimulation();
@@ -206,8 +221,12 @@ export default function useCallSimulation() {
       serverBookingId: server.bookingId,
       serverReceiptId: server.receiptId,
       serverError: server.error,
-      voiceConnectionState: VOICE_PROVIDER === "agora" ? liveVoice.connectionState : null,
-      stopLiveVoice: liveVoice.stop
+      voiceMode,
+      voiceConnectionState: voiceMode === "agora" ? liveVoice.connectionState : null,
+      stopLiveVoice: liveVoice.stop,
+      retryLiveVoice,
+      continueInReplayMode,
+      endVoiceSession
     };
   }
 
@@ -251,6 +270,10 @@ export default function useCallSimulation() {
     simulateWalletPayment: mockSimulateWalletPayment,
     tamperAgreement: mockHandleTamper,
     voiceConnectionState: null,
-    stopLiveVoice: () => {}
+    voiceMode: "replay",
+    stopLiveVoice: () => {},
+    retryLiveVoice: () => {},
+    continueInReplayMode: () => {},
+    endVoiceSession: () => {}
   };
 }
