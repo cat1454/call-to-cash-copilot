@@ -6,7 +6,8 @@ import {
   CreateMockPaymentIntentRequestSchema,
   PaymentIntentIdSchema,
   SimulatePaymentFailureRequestSchema,
-  VerifyMockPaymentRequestSchema
+  VerifyMockPaymentRequestSchema,
+  VerifySolanaPaymentRequestSchema
 } from "@call-to-cash/shared";
 
 import type { ApiDependencies } from "../../bootstrap/types.js";
@@ -16,12 +17,38 @@ import { parseWithSchema } from "../../platform/http/validation.js";
 import { createPaymentHandlers } from "./payment.handlers.js";
 
 export function registerPaymentRoutes(app: FastifyInstance, dependencies: ApiDependencies): void {
-  const handlers = createPaymentHandlers(dependencies.databaseClient);
+  const handlers = createPaymentHandlers(
+    dependencies.databaseClient,
+    dependencies.paymentProvider,
+    dependencies.mockPaymentProvider
+  );
   const PaymentParamsSchema = z.object({ bookingId: BookingIdSchema }).strict();
+
+  app.post("/v1/payments/create", async (request, reply) => {
+    const body = parseWithSchema(CreateMockPaymentIntentRequestSchema, request.body);
+    const result = await handlers.createConfigured(
+      body.bookingId,
+      requireIdempotencyKey(request.headers),
+      request.id
+    );
+    return reply.code(result.statusCode).send(successEnvelope(request.id, result.data));
+  });
+
+  app.post("/v1/payments/verify", async (request) => {
+    const schema =
+      dependencies.paymentProvider?.name === "solana_devnet"
+        ? VerifySolanaPaymentRequestSchema
+        : VerifyMockPaymentRequestSchema;
+    const body = parseWithSchema(schema, request.body);
+    return successEnvelope(
+      request.id,
+      await handlers.verifyConfigured(body, requireIdempotencyKey(request.headers), request.id)
+    );
+  });
 
   app.post("/v1/payments/mock/create", async (request, reply) => {
     const body = parseWithSchema(CreateMockPaymentIntentRequestSchema, request.body);
-    const result = await handlers.create(
+    const result = await handlers.createMock(
       body.bookingId,
       requireIdempotencyKey(request.headers),
       request.id
@@ -34,7 +61,7 @@ export function registerPaymentRoutes(app: FastifyInstance, dependencies: ApiDep
     PaymentIntentIdSchema.parse(body.paymentIntentId);
     return successEnvelope(
       request.id,
-      await handlers.verify(body, requireIdempotencyKey(request.headers), request.id)
+      await handlers.verifyMock(body, requireIdempotencyKey(request.headers), request.id)
     );
   });
 

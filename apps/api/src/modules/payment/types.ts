@@ -10,7 +10,7 @@ export type Transaction = Prisma.TransactionClient;
 export type ServiceData = Record<string, unknown>;
 export type BookingStatusValue = EnumValue<typeof BookingStatus>;
 
-export type MockPaymentCreateResult = {
+export type PaymentIntentCreateResult = {
   statusCode: number;
   data: ServiceData;
 };

@@ -2,10 +2,12 @@
 
 ## 1. Purpose
 
-Own the mock payment intent lifecycle, server-side observation verification, payment-safe projections, and the proof/Trust Receipt side effects of a successful verification.
+Own the provider-neutral payment intent lifecycle, server-side observation verification, payment-safe projections, and the proof/Trust Receipt side effects of a successful verification.
 
 ## 2. Owned routes
 
+- `POST /v1/payments/create`
+- `POST /v1/payments/verify`
 - `POST /v1/payments/mock/create`
 - `POST /v1/payments/mock/verify`
 - `POST /v1/payments/mock/simulate-failure`
@@ -17,7 +19,7 @@ Payment intent creation, verification, demo-only failure simulation, payment-sta
 
 ## 4. Inputs and outputs
 
-Inputs are existing shared payment request DTOs, server request IDs, and required idempotency keys. Outputs retain the documented public payment-intent, verification, failure, and status response shapes.
+Inputs are shared provider-neutral or legacy mock request DTOs, server request IDs, and required idempotency keys. Devnet input accepts only the payment intent ID; the server discovers signatures by the stored opaque reference and loads expected recipient, lamports, memo, agreement, and expiry from durable state.
 
 ## 5. Allowed dependencies
 
@@ -25,7 +27,7 @@ Inputs are existing shared payment request DTOs, server request IDs, and require
 
 ## 6. Forbidden dependencies
 
-No browser-supplied authority, direct Prisma access from routes, booking or agreement policy ownership, agreement mutation, Solana SDKs, wallet private keys, or receipt read/tamper-verification ownership.
+No browser-supplied authority, direct Prisma access from routes, booking or agreement policy ownership, agreement mutation, wallet private keys, or receipt read/tamper-verification ownership.
 
 ## 7. Transaction and event rules
 
@@ -54,8 +56,8 @@ Public projections exclude raw provider metadata, raw phone numbers, full transc
 
 ## 12. Future extension points
 
-`platform/providers/mock-payment-provider.ts` is the deterministic provider implementation. A future `SolanaDevnetPaymentProvider` must implement the same expectation/validation boundary and feed these commands without bypassing payment rules.
+`platform/providers/mock-payment-provider.ts` is the deterministic provider implementation. `@call-to-cash/solana` supplies `SolanaDevnetPaymentProvider`; both feed the same payment commands without bypassing payment rules.
 
 ## 13. Non-goals
 
-No Solana integration, frontend work, DTO/event/error/schema changes, migration, receipt read extraction, receipt tamper verification extraction, or call-event extraction in Stage E.
+No mainnet, wallet custody/private keys, token issuance, trading, lending, prediction, or provider-owned business transitions.

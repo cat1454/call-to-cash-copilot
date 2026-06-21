@@ -1,6 +1,6 @@
 # Call-to-Cash Risk Copilot - Local Development Setup
 
-> **Status:** Phase 0-7 workspace, contracts, domain kernel, PostgreSQL/Prisma persistence, authoritative replay API, durable SSE recovery, deterministic mock payment, proof, and Trust Receipt flow are executable. Phase 6 structured logging, CORS, rate limiting, and web REST/SSE adapter are implemented. Phase 7 payment failure outcomes, simulate-failure demo endpoint, server read-model hooks, and useServerSimulation are implemented. Solana, Agora, LLM, Redis, and MinIO remain later phases.
+> **Status:** Phase 0-8 workspace is executable. Deterministic mock remains the default payment provider; Solana Devnet is an opt-in demonstration provider with server-side verification. Agora, LLM, Redis, and MinIO remain later phases.
 
 ## 1. Current local architecture
 
@@ -8,7 +8,7 @@
 Browser (apps/web)
   - React/Vite scripted demo
   - explicit demo-mode disclosure
-  - browser-side simulated booking/payment/proof flow
+  - server-owned payment request rendering and automatic reference-based verification
 
 Fastify API (apps/api)
   - GET /health
@@ -17,6 +17,7 @@ Fastify API (apps/api)
   - authoritative replay call/transcript/risk/booking routes
   - long-lived SSE stream plus Last-Event-ID recovery
   - idempotent deterministic mock payment/proof/receipt flow
+  - optional Solana Devnet request and verification provider
   - Phase 6: structured Pino JSON logging, CORS, per-IP rate limiting
 
 Web adapter (apps/web/src/lib/)
@@ -29,6 +30,8 @@ Phase 7 web hooks (apps/web/src/features/simulation/hooks/)
   - useServerSimulation.js — API-driven simulation loop; wired into useCallSimulation
   - useCallSimulation.js — branches API/mock based on apiMode
 
+The browser restores only an in-progress demo session after refresh. Completed receipt and manual-review screens clear their browser recovery pointer so a reload starts a fresh presentation; API/database records are not deleted.
+
 PostgreSQL 18 (Docker Compose)
   - durable source of truth on host port 55432
   - reviewed Prisma migration and idempotent demo seed
@@ -38,7 +41,7 @@ packages/*
   - shared executable contracts and deterministic domain kernel
   - packages/db Prisma client, inventory repository, safe receipt trace projection
   - apps/api orchestration writes through Prisma/domain boundaries
-  - provider packages remain scaffolds
+  - packages/solana owns Devnet URL/reference/memo/RPC verification helpers
 ```
 
 The API is the future authority boundary. The current browser simulation remains non-authoritative and must not be treated as a production transaction system.
@@ -96,6 +99,11 @@ DATABASE_URL=postgresql://call_to_cash:call_to_cash@127.0.0.1:55432/call_to_cash
 
 DEMO_MODE=true
 PAYMENT_PROVIDER=mock
+SOLANA_CLUSTER=devnet
+SOLANA_RPC_URL=https://api.devnet.solana.com
+SOLANA_RECIPIENT_PUBLIC_KEY=
+SOLANA_DEMO_AMOUNT_LAMPORTS=1000000
+SOLANA_PAYMENT_LABEL=Call-to-Cash Demo
 VOICE_PROVIDER=replay
 AI_PROVIDER=deterministic
 
@@ -105,7 +113,7 @@ VITE_API_BASE_URL=http://localhost:3001
 
 Only `VITE_*` values may be exposed to the browser. Never put provider certificates, private keys, database URLs, webhook secrets, or LLM keys in a `VITE_*` variable.
 
-Redis, object-storage, Agora, Solana, and LLM variables must be introduced only with their first implemented consumer and corresponding documentation/tests.
+Set `PAYMENT_PROVIDER=solana_devnet` only when a public Devnet recipient is configured. Missing/invalid Solana recipient configuration leaves process liveness intact but makes `/ready` fail closed. No private key is accepted. Redis, object-storage, Agora, and LLM variables remain deferred until their first implemented consumer.
 
 ## 5. Start PostgreSQL and apply durable state
 
@@ -158,7 +166,7 @@ curl http://127.0.0.1:3001/health
 curl http://127.0.0.1:3001/ready
 ```
 
-`/health` confirms that the Fastify process is alive. `/ready` reports the explicit demo/provider configuration and returns success only when PostgreSQL is reachable. External providers remain explicit replay/mock/deterministic adapters.
+`/health` confirms that the Fastify process is alive. `/ready` reports the explicit provider configuration and returns success only when PostgreSQL is reachable and the selected payment provider is configured.
 
 Phase 5 API smoke flow:
 
@@ -168,6 +176,8 @@ POST /v1/calls/:callId/transcript-turns
 GET  /v1/calls/:callId/risk
 GET  /v1/calls/:callId/events
 POST /v1/bookings/:bookingId/confirm
+POST /v1/payments/create
+POST /v1/payments/verify
 POST /v1/payments/mock/create
 POST /v1/payments/mock/verify
 GET  /v1/receipts/:receiptId
@@ -176,10 +186,12 @@ GET  /v1/receipts/:receiptId/verify
 
 Booking confirmation and both mock payment commands require `Idempotency-Key`. The normal events endpoint is long-lived; append `?snapshot=true` only for a finite diagnostic/recovery replay.
 
+For an optional real Devnet transaction, follow [SOLANA-DEVNET-SMOKE-TEST.md](./SOLANA-DEVNET-SMOKE-TEST.md). Do not claim a live Devnet result from fixture-backed unit/integration tests.
+
 Open the web URL and verify:
 
 1. A visible demo-mode badge is present.
-2. Provider labels say replay/mock/deterministic instead of claiming live Agora or Solana.
+2. Provider labels say deterministic mock or Solana Devnet demo without claiming mainnet or real settlement.
 3. The scripted mobile/desktop demo still completes.
 4. Refund copy consistently references policy `BUS-V1` version `1.0`: 80% refund with at least 12 hours notice.
 
@@ -215,34 +227,35 @@ Turbo's package-local DB task graph runs `prisma:generate` once before DB build/
 
 Do not expect the following commands or services to work until their pipeline phase is implemented:
 
-| Capability | Planned phase |
-|---|---:|
-| Web REST/SSE adapter and refresh recovery | **Phase 6 — done** |
-| Mock payment failure outcomes and simulate-failure demo endpoint | **Phase 7 — done** |
-| Server read-model hooks and useServerSimulation wiring | **Phase 7 — done** |
-| Solana devnet | Phase 8 |
-| Agora live voice/transcript | Phase 9 |
-| Optional LLM extraction | Phase 10 |
-| Redis, MinIO/S3, consent/media workflows | Phase 11 |
+| Capability                                                                          |      Planned phase |
+| ----------------------------------------------------------------------------------- | -----------------: |
+| Web REST/SSE adapter and refresh recovery                                           | **Phase 6 — done** |
+| Mock payment failure outcomes and simulate-failure demo endpoint                    | **Phase 7 — done** |
+| Server read-model hooks and useServerSimulation wiring                              | **Phase 7 — done** |
+| Solana Devnet provider, URL, automatic reference discovery, and server verification | **Phase 8 — done** |
+| Agora live voice/transcript                                                         |            Phase 9 |
+| Optional LLM extraction                                                             |           Phase 10 |
+| Redis, MinIO/S3, consent/media workflows                                            |           Phase 11 |
 
 Do not create speculative Redis or object-storage configuration before its consumer phase.
 
 ## 10. Common local problems
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| pnpm cannot verify npm TLS chain | organization proxy CA is missing from Node trust | configure `NODE_EXTRA_CA_CERTS` with the valid CA bundle |
-| API exits during startup | invalid port, boolean, or provider value | compare `.env` with `.env.example` |
-| PostgreSQL container port is unavailable | another process uses `55432` | set `POSTGRES_PORT` and update `DATABASE_URL` consistently |
-| Prisma cannot connect | container is unhealthy or `DATABASE_URL` differs | run `docker compose ps` and `pnpm db:migrate:status` |
-| PostgreSQL 18 reports an old data path | Compose volume mounted at the pre-v18 path | keep the committed mount at `/var/lib/postgresql` |
-| Web still shows fixture-owned state | API mode probe failed or VITE_API_BASE_URL not set | check console.warn from useApiMode; verify API is running on 3001 |
-| `dist` import is missing during typecheck | package dependency was not built | run the root command so Turbo follows `^build` dependencies |
-| UI claims live provider status | stale browser assets/cache | rebuild, unregister stale service worker if needed, and reload |
+| Symptom                                   | Likely cause                                       | Fix                                                               |
+| ----------------------------------------- | -------------------------------------------------- | ----------------------------------------------------------------- |
+| pnpm cannot verify npm TLS chain          | organization proxy CA is missing from Node trust   | configure `NODE_EXTRA_CA_CERTS` with the valid CA bundle          |
+| API exits during startup                  | invalid port, boolean, or provider value           | compare `.env` with `.env.example`                                |
+| PostgreSQL container port is unavailable  | another process uses `55432`                       | set `POSTGRES_PORT` and update `DATABASE_URL` consistently        |
+| Prisma cannot connect                     | container is unhealthy or `DATABASE_URL` differs   | run `docker compose ps` and `pnpm db:migrate:status`              |
+| PostgreSQL 18 reports an old data path    | Compose volume mounted at the pre-v18 path         | keep the committed mount at `/var/lib/postgresql`                 |
+| Web still shows fixture-owned state       | API mode probe failed or VITE_API_BASE_URL not set | check console.warn from useApiMode; verify API is running on 3001 |
+| `dist` import is missing during typecheck | package dependency was not built                   | run the root command so Turbo follows `^build` dependencies       |
+| UI claims live provider status            | stale browser assets/cache                         | rebuild, unregister stale service worker if needed, and reload    |
 
 ## 11. Safety notes
 
-- Keep `DEMO_MODE=true` with mock/replay/deterministic providers during Phase 1.
+- Keep `PAYMENT_PROVIDER=mock` unless intentionally running the documented Devnet smoke test.
+- Treat Devnet as demonstration proof only; never describe it as real VND settlement.
 - Do not point placeholder adapters at real credentials.
 - Do not disable TLS checks.
 - Do not commit `.env`, CA bundles, caches, generated build output, or alternate lockfiles.

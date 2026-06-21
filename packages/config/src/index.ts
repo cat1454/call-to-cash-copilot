@@ -1,4 +1,4 @@
-export const PAYMENT_PROVIDERS = ["mock", "solana-devnet"] as const;
+export const PAYMENT_PROVIDERS = ["mock", "solana_devnet"] as const;
 export const VOICE_PROVIDERS = ["replay", "agora"] as const;
 export const AI_PROVIDERS = ["deterministic", "llm"] as const;
 export const LOG_LEVELS = ["trace", "debug", "info", "warn", "error", "fatal", "silent"] as const;
@@ -14,6 +14,15 @@ export type RuntimeConfig = {
   port: number;
   demoMode: boolean;
   paymentProvider: PaymentProvider;
+  solanaDevnet: {
+    cluster: "devnet";
+    rpcUrl: string;
+    recipientPublicKey: string;
+    demoAmountLamports: number;
+    paymentLabel: string;
+    commitment: "confirmed";
+    ready: boolean;
+  };
   voiceProvider: VoiceProvider;
   aiProvider: AiProvider;
   /** Pino log level. Defaults to "info". Set LOG_LEVEL=debug for verbose output. */
@@ -62,15 +71,54 @@ function readPositiveInt(name: string, value: string | undefined, fallback: numb
   return n;
 }
 
+function readStrictPositiveInt(name: string, value: string | undefined, fallback: number): number {
+  const result = readPositiveInt(name, value, fallback);
+  if (result === 0) throw new Error(`${name} must be greater than zero`);
+  return result;
+}
+
+function readHttpUrl(name: string, value: string | undefined, fallback: string): string {
+  let url: URL;
+  try {
+    url = new URL(value ?? fallback);
+  } catch {
+    throw new Error(`${name} must be a valid URL`);
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") {
+    throw new Error(`${name} must use http or https`);
+  }
+  return url.toString();
+}
+
 export function readRuntimeConfig(
   env: Readonly<Record<string, string | undefined>> = process.env
 ): RuntimeConfig {
+  const recipientPublicKey = env.SOLANA_RECIPIENT_PUBLIC_KEY?.trim() ?? "";
+  const solanaCluster = readEnum(
+    "SOLANA_CLUSTER",
+    env.SOLANA_CLUSTER,
+    ["devnet"] as const,
+    "devnet"
+  );
   return {
     nodeEnv: env.NODE_ENV ?? "development",
     host: env.API_HOST ?? "127.0.0.1",
     port: readPort(env.API_PORT),
     demoMode: readBoolean("DEMO_MODE", env.DEMO_MODE, true),
     paymentProvider: readEnum("PAYMENT_PROVIDER", env.PAYMENT_PROVIDER, PAYMENT_PROVIDERS, "mock"),
+    solanaDevnet: {
+      cluster: solanaCluster,
+      rpcUrl: readHttpUrl("SOLANA_RPC_URL", env.SOLANA_RPC_URL, "https://api.devnet.solana.com"),
+      recipientPublicKey,
+      demoAmountLamports: readStrictPositiveInt(
+        "SOLANA_DEMO_AMOUNT_LAMPORTS",
+        env.SOLANA_DEMO_AMOUNT_LAMPORTS,
+        1_000_000
+      ),
+      paymentLabel: env.SOLANA_PAYMENT_LABEL?.trim() || "Call-to-Cash Demo",
+      commitment: "confirmed",
+      ready: recipientPublicKey.length > 0
+    },
     voiceProvider: readEnum("VOICE_PROVIDER", env.VOICE_PROVIDER, VOICE_PROVIDERS, "replay"),
     aiProvider: readEnum("AI_PROVIDER", env.AI_PROVIDER, AI_PROVIDERS, "deterministic"),
     logLevel: readEnum("LOG_LEVEL", env.LOG_LEVEL, LOG_LEVELS, "info"),

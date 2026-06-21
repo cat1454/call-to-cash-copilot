@@ -1,6 +1,7 @@
 import { Currency, PaymentIntentStatus, RiskNextAction } from "@call-to-cash/shared";
+import type { ProviderPaymentIntent } from "@call-to-cash/solana";
 
-import type { MockPaymentCreateResult, ServiceData } from "./types.js";
+import type { PaymentIntentCreateResult, ServiceData } from "./types.js";
 import { iso } from "./types.js";
 
 export function presentPaymentIntent(input: {
@@ -15,7 +16,24 @@ export function presentPaymentIntent(input: {
     expiresAt: Date;
     idempotencyKey: string;
   };
-}): MockPaymentCreateResult {
+  providerIntent: ProviderPaymentIntent;
+}): PaymentIntentCreateResult {
+  const providerPayment =
+    input.providerIntent.provider === "solana_devnet"
+      ? {
+          provider: "solana_devnet",
+          cluster: "devnet",
+          amountLamports: input.providerIntent.paymentAmount.minor,
+          amountSol: input.providerIntent.paymentAmount.display,
+          solanaPayUrl: input.providerIntent.solanaPayUrl,
+          qrPayload: input.providerIntent.qrPayload,
+          memo: input.providerIntent.memo
+        }
+      : {
+          provider: "mock",
+          mode: "deterministic_mock",
+          amountMinor: input.providerIntent.paymentAmount.minor
+        };
   return {
     statusCode: input.statusCode,
     data: {
@@ -27,7 +45,9 @@ export function presentPaymentIntent(input: {
       recipient: input.intent.recipientWallet,
       reference: input.intent.solanaReference,
       expiresAt: iso(input.intent.expiresAt),
-      idempotencyKey: input.intent.idempotencyKey
+      idempotencyKey: input.intent.idempotencyKey,
+      provider: input.providerIntent.provider,
+      providerPayment
     }
   };
 }

@@ -5,9 +5,10 @@ import { normalizeForSearch } from "./replay-normalizer.js";
 export function extractReplayFacts(content: string): ExtractedFacts {
   const normalized = normalizeForSearch(content);
   const phone = content.match(/\b0\d{8,10}\b/u)?.[0];
+  const textWithoutTimes = normalized.replace(/\b\d{1,2}(?::|h)\d{2}\b/gu, " ");
   const passengerCount =
     normalized.match(/(\d+)\s*(ve|khach|nguoi|cho)/u)?.[1] ??
-    normalized
+    textWithoutTimes
       .match(/\b\d{1,2}\b/gu)
       ?.map(Number)
       .find((value) => value > 0 && value <= 36)

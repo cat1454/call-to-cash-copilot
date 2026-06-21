@@ -6,6 +6,7 @@ import {
   PaymentIntentStatus,
   type BookingDraft
 } from "@call-to-cash/shared";
+import type { PaymentProvider, ProviderPaymentIntent } from "@call-to-cash/solana";
 
 import {
   latestActiveHold,
@@ -14,20 +15,20 @@ import {
 } from "../../booking/index.js";
 import { appendEvent } from "../../../platform/events/event-log.js";
 import { ApiCommandError } from "../../../platform/http/api-command-error.js";
-import { createMockPaymentExpectation } from "../../../platform/providers/mock-payment-provider.js";
 import { presentPaymentIntent } from "../payment.presenter.js";
-import type { MockPaymentCreateResult, Transaction } from "../types.js";
+import type { PaymentIntentCreateResult, Transaction } from "../types.js";
 import { iso, opaqueId, transitionBookingThrough } from "../types.js";
 
 const ACTIVE_PAYMENT_STATUSES = ["CREATED", "PENDING", "FAILED"] as const;
 
 export async function createPaymentIntent(
   transaction: Transaction,
+  provider: PaymentProvider,
   bookingId: string,
   idempotencyKey: string,
   requestId: string,
   now: Date
-): Promise<MockPaymentCreateResult> {
+): Promise<PaymentIntentCreateResult> {
   const existingForKey = await transaction.paymentIntent.findUnique({ where: { idempotencyKey } });
   if (existingForKey !== null) {
     const existingBooking = await transaction.booking.findUniqueOrThrow({
@@ -43,13 +44,19 @@ export async function createPaymentIntent(
     }
     const agreement = await transaction.agreement.findUniqueOrThrow({
       where: { id: existingForKey.agreementId },
-      select: { publicId: true }
+      select: { publicId: true, payloadHashSha256: true }
     });
+    const providerIntent = await restoreProviderIntent(
+      provider,
+      existingForKey,
+      agreement.payloadHashSha256
+    );
     return presentPaymentIntent({
       statusCode: 200,
       bookingId,
       agreementId: agreement.publicId,
-      intent: existingForKey
+      intent: existingForKey,
+      providerIntent
     });
   }
 
@@ -81,7 +88,10 @@ export async function createPaymentIntent(
   }
 
   const expiresAt = new Date(Math.min(hold.expiresAt.getTime(), now.getTime() + 15 * 60_000));
-  const expectation = createMockPaymentExpectation(opaqueId("ref"), agreement.payloadHashSha256);
+  const providerIntent = await provider.createIntent({
+    agreementHash: agreement.payloadHashSha256,
+    expectedAmountMinor: booking.depositAmountMinor ?? 0
+  });
   const intent = await transaction.paymentIntent.create({
     data: {
       publicId: opaqueId("pi"),
@@ -90,9 +100,9 @@ export async function createPaymentIntent(
       status: "CREATED",
       currency: "VND",
       amountMinor: booking.depositAmountMinor ?? 0,
-      recipientWallet: expectation.recipient,
-      solanaReference: expectation.reference,
-      memoReference: expectation.memoReference,
+      recipientWallet: providerIntent.recipient,
+      solanaReference: providerIntent.reference,
+      memoReference: providerIntent.memo,
       expiresAt,
       idempotencyKey
     }
@@ -123,17 +133,50 @@ export async function createPaymentIntent(
     statusCode: 201,
     bookingId,
     agreementId: agreement.publicId,
-    intent
+    intent,
+    providerIntent
+  });
+}
+
+async function restoreProviderIntent(
+  provider: PaymentProvider,
+  intent: {
+    amountMinor: number;
+    recipientWallet: string;
+    solanaReference: string;
+    memoReference: string;
+  },
+  agreementHash: string
+): Promise<ProviderPaymentIntent> {
+  const memoMatchesProvider =
+    (provider.name === "mock" && intent.memoReference.startsWith("mock:")) ||
+    (provider.name === "solana_devnet" && intent.memoReference.startsWith("ctc:v1:"));
+  if (!memoMatchesProvider) {
+    throw new ApiCommandError(
+      409,
+      "PAYMENT_CLUSTER_MISMATCH",
+      "Payment intent belongs to a different payment provider."
+    );
+  }
+  return provider.createIntent({
+    agreementHash,
+    expectedAmountMinor: intent.amountMinor,
+    persisted: {
+      recipient: intent.recipientWallet,
+      reference: intent.solanaReference,
+      memo: intent.memoReference
+    }
   });
 }
 
 export function createPaymentIntentInTransaction(
   client: DatabaseClient,
+  provider: PaymentProvider,
   bookingId: string,
   idempotencyKey: string,
   requestId: string
-): Promise<MockPaymentCreateResult> {
+): Promise<PaymentIntentCreateResult> {
   return client.$transaction((transaction) =>
-    createPaymentIntent(transaction, bookingId, idempotencyKey, requestId, new Date())
+    createPaymentIntent(transaction, provider, bookingId, idempotencyKey, requestId, new Date())
   );
 }

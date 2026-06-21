@@ -12,8 +12,10 @@ export async function subscribeCallEvents(
   cursor?: CallEventCursor
 ): Promise<FastifyReply> {
   const events = await readCommittedCallEvents(client, callId, cursor);
+  const corsOrigin = reply.getHeader("access-control-allow-origin");
   reply.hijack();
   reply.raw.writeHead(200, {
+    ...(typeof corsOrigin === "string" ? { "Access-Control-Allow-Origin": corsOrigin } : {}),
     "Content-Type": "text/event-stream; charset=utf-8",
     "Cache-Control": "no-cache, no-transform",
     Connection: "keep-alive",

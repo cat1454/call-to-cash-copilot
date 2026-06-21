@@ -10,6 +10,7 @@ import {
   ConfirmBookingRequestSchema,
   CreateBookingRequestSchema,
   CreateCallRequestSchema,
+  CreatePaymentIntentResponseSchema,
   CreateMockPaymentIntentRequestSchema,
   CreateTranscriptTurnRequestSchema,
   EventEnvelopeSchema,
@@ -20,7 +21,9 @@ import {
   ProofRecordSchema,
   ReceiptSummarySchema,
   RiskAnalysisRequestSchema,
-  TranscriptTurnSubmissionSchema
+  TranscriptTurnSubmissionSchema,
+  VerifyPaymentRequestSchema,
+  VerifySolanaPaymentRequestSchema
 } from "./index.js";
 
 const isoTimestamp = "2026-06-20T10:30:00.000Z";
@@ -172,6 +175,25 @@ test("event envelopes use stable names and reject unapproved event fields", () =
   assert.equal(EventNameSchema.safeParse("booking.confirmed").success, false);
 });
 
+test("payment pending event allows reference discovery before a signature exists", () => {
+  const event = EventEnvelopeSchema.safeParse({
+    eventId: "evt_01JTEST0003",
+    event: EventName.PaymentPending,
+    version: 1,
+    occurredAt: isoTimestamp,
+    correlationId: "req_01JTEST0001",
+    callId: "call_01JTEST0001",
+    bookingId: "bk_01JTEST0001",
+    sequence: 20,
+    data: {
+      paymentIntentId: "pi_01JTEST0001",
+      status: "PENDING"
+    }
+  });
+
+  assert.equal(event.success, true);
+});
+
 test("Phase 5 nested replay and mock-payment DTOs reject authority fields", () => {
   assert.equal(
     CreateTranscriptTurnRequestSchema.safeParse({
@@ -191,6 +213,55 @@ test("Phase 5 nested replay and mock-payment DTOs reject authority fields", () =
     CreateMockPaymentIntentRequestSchema.safeParse({
       bookingId: "bk_01JTEST0001",
       status: "CONFIRMED"
+    }).success,
+    false
+  );
+});
+
+test("Phase 8 payment DTOs expose only Devnet request data and allow server discovery", () => {
+  const response = CreatePaymentIntentResponseSchema.safeParse({
+    paymentIntentId: "pi_01JTEST0001",
+    bookingId: "bk_01JTEST0001",
+    agreementId: "agr_01JTEST0001",
+    status: "CREATED",
+    amount: { currency: "VND", minor: 300000 },
+    recipient: "11111111111111111111111111111111",
+    reference: "11111111111111111111111111111111",
+    expiresAt: isoTimestamp,
+    idempotencyKey: "phase8-create-key",
+    provider: "solana_devnet",
+    providerPayment: {
+      provider: "solana_devnet",
+      cluster: "devnet",
+      amountLamports: 1000000,
+      amountSol: "0.001",
+      solanaPayUrl:
+        "solana:11111111111111111111111111111111?amount=0.001&reference=11111111111111111111111111111111",
+      qrPayload:
+        "solana:11111111111111111111111111111111?amount=0.001&reference=11111111111111111111111111111111",
+      memo: "ctc:v1:ref:1111111111:proof:aaaaaaaaaaaa:amt:lfls"
+    }
+  });
+
+  assert.equal(response.success, true);
+  assert.equal(
+    CreatePaymentIntentResponseSchema.safeParse({
+      ...response.data,
+      providerPayment: { ...response.data?.providerPayment, rawPhone: "0912345678" }
+    }).success,
+    false
+  );
+  assert.equal(
+    VerifySolanaPaymentRequestSchema.safeParse({
+      paymentIntentId: "pi_01JTEST0001"
+    }).success,
+    true
+  );
+  assert.equal(
+    VerifyPaymentRequestSchema.safeParse({
+      paymentIntentId: "pi_01JTEST0001",
+      transactionSignature: "2".repeat(88),
+      confirmed: true
     }).success,
     false
   );

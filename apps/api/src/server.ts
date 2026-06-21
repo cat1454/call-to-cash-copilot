@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 import { readRuntimeConfig } from "@call-to-cash/config";
 
 import { buildApp } from "./app.js";

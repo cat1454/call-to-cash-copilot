@@ -181,7 +181,7 @@ const paymentPendingDataSchema = z
   .object({
     paymentIntentId: PaymentIntentIdSchema,
     status: z.literal(PaymentIntentStatus.Pending),
-    transactionSignatureShort: z.string().min(1)
+    transactionSignatureShort: z.string().min(1).optional()
   })
   .strict();
 

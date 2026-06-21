@@ -296,7 +296,30 @@ export const CreateMockPaymentIntentRequestSchema = z
   })
   .strict();
 
-export const CreateMockPaymentIntentResponseSchema = z
+export const PaymentProviderSchema = z.enum(["mock", "solana_devnet"]);
+
+export const ProviderPaymentDetailsSchema = z.discriminatedUnion("provider", [
+  z
+    .object({
+      provider: z.literal("mock"),
+      mode: z.literal("deterministic_mock"),
+      amountMinor: NonNegativeIntegerSchema
+    })
+    .strict(),
+  z
+    .object({
+      provider: z.literal("solana_devnet"),
+      cluster: z.literal("devnet"),
+      amountLamports: PositiveIntegerSchema,
+      amountSol: z.string().regex(/^\d+(?:\.\d+)?$/u),
+      solanaPayUrl: z.string().startsWith("solana:"),
+      qrPayload: z.string().startsWith("solana:"),
+      memo: z.string().regex(/^ctc:v1:/u)
+    })
+    .strict()
+]);
+
+const PaymentIntentResponseBaseSchema = z
   .object({
     paymentIntentId: PaymentIntentIdSchema,
     bookingId: BookingIdSchema,
@@ -310,6 +333,16 @@ export const CreateMockPaymentIntentResponseSchema = z
   })
   .strict();
 
+export const CreateMockPaymentIntentResponseSchema = PaymentIntentResponseBaseSchema.extend({
+  provider: PaymentProviderSchema.optional(),
+  providerPayment: ProviderPaymentDetailsSchema.optional()
+});
+
+export const CreatePaymentIntentResponseSchema = PaymentIntentResponseBaseSchema.extend({
+  provider: PaymentProviderSchema,
+  providerPayment: ProviderPaymentDetailsSchema
+});
+
 export const VerifyMockPaymentRequestSchema = z
   .object({
     paymentIntentId: PaymentIntentIdSchema,
@@ -319,6 +352,17 @@ export const VerifyMockPaymentRequestSchema = z
     transactionSignature: z.string().min(1).optional()
   })
   .strict();
+
+export const VerifySolanaPaymentRequestSchema = z
+  .object({
+    paymentIntentId: PaymentIntentIdSchema
+  })
+  .strict();
+
+export const VerifyPaymentRequestSchema = z.union([
+  VerifyMockPaymentRequestSchema,
+  VerifySolanaPaymentRequestSchema
+]);
 
 export const VerifyMockPaymentResponseSchema = z
   .object({
@@ -401,6 +445,8 @@ export type UpdateBookingRequest = z.infer<typeof UpdateBookingRequestSchema>;
 export type ConfirmBookingRequest = z.infer<typeof ConfirmBookingRequestSchema>;
 export type CreateMockPaymentIntentRequest = z.infer<typeof CreateMockPaymentIntentRequestSchema>;
 export type VerifyMockPaymentRequest = z.infer<typeof VerifyMockPaymentRequestSchema>;
+export type VerifySolanaPaymentRequest = z.infer<typeof VerifySolanaPaymentRequestSchema>;
+export type VerifyPaymentRequest = z.infer<typeof VerifyPaymentRequestSchema>;
 
 export const SimulatePaymentFailureOutcome = [
   "EXPIRED",
@@ -416,6 +462,4 @@ export const SimulatePaymentFailureRequestSchema = z
   })
   .strict();
 
-export type SimulatePaymentFailureRequest = z.infer<
-  typeof SimulatePaymentFailureRequestSchema
->;
+export type SimulatePaymentFailureRequest = z.infer<typeof SimulatePaymentFailureRequestSchema>;

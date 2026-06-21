@@ -139,6 +139,14 @@ Wallet private key / seed phrase
 
 **Important:** Solana transaction data/memo is public and durable. A hash is only safe if the input is not trivially guessable or reversible in the product context. Do not hash a phone number, small booking id, or short PII string by itself. Hash the canonical agreement payload plus server-controlled salt/version where appropriate, and retain verification method/version off-chain.
 
+#### Phase 8 Devnet provider profile
+
+- The provider is an opt-in demonstration adapter named `solana_devnet`; mock remains the default.
+- The transfer request contains only the configured public recipient, demo lamports, a random base58 32-byte reference, static demo label/message, and `ctc:v1` memo fragments derived from random reference/proof hash values.
+- The memo/reference must never contain raw or hashed-in-isolation phone, email, name, transcript, route, pickup point, or full agreement payload.
+- Server verification persists cluster, signature, confirmation status, slot/block time, observed recipient/lamports/reference, and match flags in minimized provider metadata.
+- A Devnet transaction is demonstration evidence only. Customer copy must not claim real VND settlement, investment value, token issuance, yield, trading, lending, or mainnet availability.
+
 ---
 
 ## 4. Consent policy

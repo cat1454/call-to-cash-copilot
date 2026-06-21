@@ -58,20 +58,20 @@ packages/
 
 ### 1.2 Technology decisions
 
-| Concern | Decision |
-|---|---|
-| New code | TypeScript |
-| API | Fastify |
-| Validation | Zod |
-| Persistence | PostgreSQL + Prisma |
-| API realtime transport | Server-Sent Events (SSE) for MVP |
-| Cache/queue | Redis only when a concrete worker/retry/buffer consumer exists |
-| Local object storage | MinIO, only when recording/media flow starts |
-| Staging/production media | private AWS S3, only when cloud recording is enabled |
-| Payment proof | server-side canonical JSON + SHA-256, linked to Solana payment/reference later |
-| Initial voice input | deterministic transcript replay |
-| Initial payment provider | deterministic mock provider |
-| Live chain target | Solana devnet before any mainnet decision |
+| Concern                  | Decision                                                                       |
+| ------------------------ | ------------------------------------------------------------------------------ |
+| New code                 | TypeScript                                                                     |
+| API                      | Fastify                                                                        |
+| Validation               | Zod                                                                            |
+| Persistence              | PostgreSQL + Prisma                                                            |
+| API realtime transport   | Server-Sent Events (SSE) for MVP                                               |
+| Cache/queue              | Redis only when a concrete worker/retry/buffer consumer exists                 |
+| Local object storage     | MinIO, only when recording/media flow starts                                   |
+| Staging/production media | private AWS S3, only when cloud recording is enabled                           |
+| Payment proof            | server-side canonical JSON + SHA-256, linked to Solana payment/reference later |
+| Initial voice input      | deterministic transcript replay                                                |
+| Initial payment provider | deterministic mock provider                                                    |
+| Live chain target        | Solana devnet before any mainnet decision                                      |
 
 ### 1.3 Naming decisions
 
@@ -604,7 +604,7 @@ web scenario/replay command → API/domain/DB → SSE + read APIs → React rend
 
 ## Exit criteria
 
-- Browser refresh recovers call/booking/payment/receipt state from API.
+- Browser refresh recovers in-progress call/booking/payment state from API. In demo mode, a terminal receipt or manual-review session starts fresh on reload; durable server records remain unchanged.
 - No component can create a receipt, confirm payment, or open the payment gate from local booleans.
 - Existing UI remains presentation-ready.
 

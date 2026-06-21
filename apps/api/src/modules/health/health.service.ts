@@ -1,6 +1,7 @@
 import type { RuntimeConfig } from "@call-to-cash/config";
 import { Prisma, type DatabaseClient } from "@call-to-cash/db";
 import { ErrorCodeSchema } from "@call-to-cash/shared";
+import type { PaymentProvider } from "@call-to-cash/solana";
 
 import { ApiCommandError } from "../../platform/http/api-command-error.js";
 
@@ -11,7 +12,11 @@ export function getHealthStatus() {
   };
 }
 
-export async function getReadinessStatus(config: RuntimeConfig, databaseClient?: DatabaseClient) {
+export async function getReadinessStatus(
+  config: RuntimeConfig,
+  databaseClient?: DatabaseClient,
+  paymentProvider?: PaymentProvider
+) {
   if (databaseClient === undefined) {
     throw new ApiCommandError(
       503,
@@ -29,6 +34,16 @@ export async function getReadinessStatus(config: RuntimeConfig, databaseClient?:
       503,
       ErrorCodeSchema.enum.DATABASE_UNAVAILABLE,
       "Database is unavailable.",
+      undefined,
+      true
+    );
+  }
+
+  if (config.paymentProvider === "solana_devnet" && paymentProvider === undefined) {
+    throw new ApiCommandError(
+      503,
+      ErrorCodeSchema.enum.SOLANA_RPC_UNAVAILABLE,
+      "Solana Devnet payment provider is not configured.",
       undefined,
       true
     );

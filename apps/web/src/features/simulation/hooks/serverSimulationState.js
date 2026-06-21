@@ -66,6 +66,7 @@ export const ACTION = {
   PAYMENT_INTENT_CREATED: "PAYMENT_INTENT_CREATED",
   PAYMENT_STATUS_SYNCED: "PAYMENT_STATUS_SYNCED",
   PAYMENT_ACTION_STARTED: "PAYMENT_ACTION_STARTED",
+  PAYMENT_PENDING: "PAYMENT_PENDING",
   PAYMENT_VERIFIED: "PAYMENT_VERIFIED",
   PAYMENT_REJECTED: "PAYMENT_REJECTED",
   RECEIPT_SYNCED: "RECEIPT_SYNCED",
@@ -169,6 +170,14 @@ export function reducer(state, action) {
     }
     case ACTION.PAYMENT_ACTION_STARTED:
       return { ...state, paymentActionPending: true, simStatus: "Đang xác minh thanh toán..." };
+    case ACTION.PAYMENT_PENDING:
+      return {
+        ...state,
+        paymentActionPending: false,
+        showPaymentDrawer: true,
+        error: null,
+        simStatus: "Đang chờ giao dịch trên Devnet..."
+      };
     case ACTION.PAYMENT_VERIFIED:
       return {
         ...state,

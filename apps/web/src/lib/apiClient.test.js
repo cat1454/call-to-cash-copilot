@@ -226,6 +226,38 @@ test("mock payment verification rejects an empty server reference before fetch",
   assert.equal(fetchMock.mock.calls.length, 0);
 });
 
+test("generic payment client uses provider-neutral create and verify routes", async () => {
+  const responses = [
+    {
+      paymentIntentId: "pi_public01",
+      bookingId: "bk_public01",
+      provider: "solana_devnet"
+    },
+    {
+      paymentIntentId: "pi_public01",
+      bookingId: "bk_public01",
+      status: "CONFIRMED",
+      receiptId: "rcpt_public1"
+    }
+  ];
+  const fetchMock = mock.fn(async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({ success: true, data: responses.shift(), meta: { requestId: "req-1" } })
+  }));
+  const client = createApiClient(BASE_URL, fetchMock);
+
+  await client.createPayment({ bookingId: "bk_public01" }, "create-generic-key");
+  await client.verifyPayment({ paymentIntentId: "pi_public01" }, "verify-generic-key");
+
+  assert.equal(fetchMock.mock.calls[0].arguments[0], `${BASE_URL}/v1/payments/create`);
+  assert.equal(fetchMock.mock.calls[1].arguments[0], `${BASE_URL}/v1/payments/verify`);
+  assert.equal(
+    fetchMock.mock.calls[1].arguments[1].headers["Idempotency-Key"],
+    "verify-generic-key"
+  );
+});
+
 test("ApiClientError carries code and retryable flag", () => {
   const err = new ApiClientError(422, {
     code: "PAYMENT_AMOUNT_MISMATCH",

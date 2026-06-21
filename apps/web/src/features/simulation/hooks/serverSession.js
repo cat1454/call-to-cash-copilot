@@ -28,6 +28,8 @@ export function readServerSession(storage) {
         return null;
     }
 
+    if (ReceiptIdSchema.safeParse(candidate.receiptId).success) return null;
+
     return {
       callId: candidate.callId,
       ...(candidate.bookingId ? { bookingId: candidate.bookingId } : {}),
@@ -37,6 +39,14 @@ export function readServerSession(storage) {
   } catch {
     return null;
   }
+}
+
+export function shouldPersistServerSession(state) {
+  return (
+    CallIdSchema.safeParse(state?.callId).success &&
+    !ReceiptIdSchema.safeParse(state?.receiptId).success &&
+    state?.paymentGate !== "MANUAL_REVIEW_REQUIRED"
+  );
 }
 
 export function writeServerSession(storage, state) {

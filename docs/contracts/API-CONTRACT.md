@@ -1,6 +1,6 @@
 # Call-to-Cash Risk Copilot — API Contract
 
-> **Status:** MVP technical contract v1 — updated for Phase 7  
+> **Status:** MVP technical contract v1 — updated for Phase 8
 > **Owner:** Backend Lead + Frontend Lead  
 > **Base URL:** `/v1`  
 > **Related docs:** [Data Model](../architecture/DATA-MODEL.md), [State Machines](../architecture/STATE-MACHINES.md), [Event Contract](./EVENT-CONTRACT.md), [Error Codes](./ERROR-CODES.md)
@@ -553,13 +553,55 @@ An exact idempotency replay returns the locked agreement. Reusing the key with a
 
 ---
 
-## 7. Phase 5/7 Mock Payment APIs
+## 7. Phase 8 Payment APIs
 
-The Phase 5/7 provider is explicitly deterministic mock payment. Solana endpoints remain deferred to Phase 8 and are not exposed by the Phase 5/7 API.
+The payment module remains the transaction authority. Phase 8 adds provider-neutral aliases selected by server configuration while preserving deterministic mock routes for tests and fallback. `PAYMENT_PROVIDER=mock` remains the default; `PAYMENT_PROVIDER=solana_devnet` is an explicit Devnet-only opt-in.
 
-Phase 7 adds `POST /v1/payments/mock/simulate-failure` for demo failure flows and enforces payment intent expiry in `POST /v1/payments/mock/verify`.
+Provider adapters may create request metadata or observe transactions, but they cannot bypass locked-agreement, open-gate, active-hold, expiry, idempotency, signature-uniqueness, proof, receipt, or committed-event rules.
 
-### 7.1 `POST /v1/payments/mock/create`
+### 7.1 `POST /v1/payments/create`
+
+Provider-neutral alias for payment intent creation. It accepts the same request and idempotency header as the legacy mock create route. When `solana_devnet` is selected, the response keeps the VND booking deposit and adds a Devnet transfer request:
+
+```json
+{
+  "paymentIntentId": "pi_01J...",
+  "bookingId": "bk_01J...",
+  "agreementId": "agr_01J...",
+  "status": "CREATED",
+  "amount": { "currency": "VND", "minor": 300000 },
+  "recipient": "<configured-public-key>",
+  "reference": "<base58-32-byte-reference>",
+  "expiresAt": "2026-06-20T11:00:00.000Z",
+  "idempotencyKey": "payment-bk_01J-...",
+  "provider": "solana_devnet",
+  "providerPayment": {
+    "provider": "solana_devnet",
+    "cluster": "devnet",
+    "amountLamports": 1000000,
+    "amountSol": "0.001",
+    "solanaPayUrl": "solana:<recipient>?amount=0.001&reference=...",
+    "qrPayload": "solana:<recipient>?amount=0.001&reference=...",
+    "memo": "ctc:v1:ref:<shortRef>:proof:<shortHash>:amt:<opaqueAmount>"
+  }
+}
+```
+
+The Devnet amount is a demonstration proof amount, not VND settlement or a claim of real commercial payment.
+
+### 7.2 `POST /v1/payments/verify`
+
+Provider-neutral verification alias. With `solana_devnet`, the browser sends only the payment intent ID:
+
+```json
+{
+  "paymentIntentId": "pi_01J..."
+}
+```
+
+The server loads recipient, amount, reference, memo, expiry, and agreement binding from the stored intent. It discovers candidate signatures by the opaque Solana Pay reference, then verifies signature status/finality, transaction failure, native SOL transfer recipient and lamports, reference-account presence, and prior signature consumption. The browser polls this endpoint while the drawer is open. Not-found, unconfirmed, timeout, and RPC-unavailable outcomes remain retryable and do not create a proof or Trust Receipt. Definitive mismatches fail closed and enter the existing manual-review flow.
+
+### 7.3 `POST /v1/payments/mock/create`
 
 Creates one server-owned mock payment intent bound to the current locked agreement.
 
@@ -610,7 +652,7 @@ An exact idempotency replay returns the original intent with `200 OK`. Reusing t
 
 ---
 
-### 7.2 `POST /v1/payments/mock/verify`
+### 7.4 `POST /v1/payments/mock/verify`
 
 Verifies deterministic mock-observed amount, recipient, and reference. This endpoint never accepts a client-provided authoritative status or `confirmed=true`.
 
@@ -652,7 +694,7 @@ The same key and payload returns the original result without creating another tr
 
 ---
 
-### 7.3 `GET /v1/payments/:bookingId/status`
+### 7.5 `GET /v1/payments/:bookingId/status`
 
 Returns current payment state for the active/latest payment intent of a booking.
 
@@ -675,7 +717,7 @@ Returns current payment state for the active/latest payment intent of a booking.
 
 ---
 
-### 7.4 `POST /v1/payments/mock/simulate-failure` _(DEMO_MODE only — Phase 7)_
+### 7.6 `POST /v1/payments/mock/simulate-failure` _(DEMO_MODE only — Phase 7)_
 
 Forces a payment intent into a deterministic failure outcome for demo presentations. Forbidden outside `DEMO_MODE=true`.
 
@@ -817,14 +859,14 @@ The normal endpoint keeps the connection open, sends committed events after the 
 
 ## 10. Endpoint ownership matrix
 
-| Endpoint group               | Main code owner | Shared dependencies                                                                   |
-| ---------------------------- | --------------- | ------------------------------------------------------------------------------------- |
-| Calls / transcript           | `apps/api`      | `@call-to-cash/db`, `@call-to-cash/shared`, `@call-to-cash/agora`, `@call-to-cash/ai` |
-| Agora token                  | `apps/api`      | `@call-to-cash/agora`, `@call-to-cash/config`                                         |
-| Risk                         | `apps/api`      | `@call-to-cash/ai`, `@call-to-cash/db`, `@call-to-cash/shared`                        |
-| Booking/agreement            | `apps/api`      | `@call-to-cash/db`, `@call-to-cash/shared`                                            |
-| Phase 5/7 mock payment/proof | `apps/api`      | `@call-to-cash/domain`, `@call-to-cash/db`, `@call-to-cash/shared`                    |
-| Receipt                      | `apps/api`      | `@call-to-cash/db`, `@call-to-cash/shared`                                            |
+| Endpoint group          | Main code owner | Shared dependencies                                                                        |
+| ----------------------- | --------------- | ------------------------------------------------------------------------------------------ |
+| Calls / transcript      | `apps/api`      | `@call-to-cash/db`, `@call-to-cash/shared`, `@call-to-cash/agora`, `@call-to-cash/ai`      |
+| Agora token             | `apps/api`      | `@call-to-cash/agora`, `@call-to-cash/config`                                              |
+| Risk                    | `apps/api`      | `@call-to-cash/ai`, `@call-to-cash/db`, `@call-to-cash/shared`                             |
+| Booking/agreement       | `apps/api`      | `@call-to-cash/db`, `@call-to-cash/shared`                                                 |
+| Payment/proof providers | `apps/api`      | `@call-to-cash/solana`, `@call-to-cash/domain`, `@call-to-cash/db`, `@call-to-cash/shared` |
+| Receipt                 | `apps/api`      | `@call-to-cash/db`, `@call-to-cash/shared`                                                 |
 
 ---
 

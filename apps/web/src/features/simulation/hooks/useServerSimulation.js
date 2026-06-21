@@ -1,15 +1,16 @@
 import { EventName } from "@call-to-cash/shared";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
-
 import { createSseClient } from "../../../lib/sseClient";
 import {
   isDefinitivePaymentMismatch,
+  isRetryablePaymentPending,
   recoverServerState as recoverAuthoritativeState,
   recoveryEvents
 } from "./serverRecovery.js";
 import { ACTION, makeInitialState, reducer } from "./serverSimulationState";
+import { buildVerificationPayload } from "./serverPayment.js";
 import { useServerSessionRecovery } from "./useServerSessionRecovery.js";
-
+import { useSolanaPaymentPolling } from "./useSolanaPaymentPolling.js";
 function toError(caught) {
   return caught instanceof Error ? caught : new Error(String(caught));
 }
@@ -18,7 +19,6 @@ function idempotencyKey(prefix) {
   const suffix = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
   return `${prefix}-${suffix}`;
 }
-
 export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, scenarios) {
   const [state, dispatch] = useReducer(reducer, undefined, makeInitialState);
   const [currentTurnIdx, setCurrentTurnIdx] = useState(0);
@@ -99,6 +99,7 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
       if (!apiClient) return;
       const recovered = await recoverServerState(callId);
       const booking = recovered.booking;
+      console.log("[finishReplay] recovered booking:", JSON.stringify(booking));
       if (booking?.status === "AGREEMENT_READY" && booking.agreementVersion) {
         const confirmation = await apiClient.confirmBooking(
           booking.bookingId,
@@ -165,9 +166,9 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
     if (!apiClient || !bookingId || paymentCreatingRef.current) return;
     paymentCreatingRef.current = true;
     try {
-      const intent = await apiClient.createMockPayment(
+      const intent = await apiClient.createPayment(
         { bookingId },
-        idempotencyKey(`mock-payment-${bookingId}`)
+        idempotencyKey(`payment-${bookingId}`)
       );
       dispatch({ type: ACTION.PAYMENT_INTENT_CREATED, intent });
     } catch (caught) {
@@ -182,14 +183,10 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
     if (!apiClient || !intent || stateRef.current.paymentActionPending) return;
     dispatch({ type: ACTION.PAYMENT_ACTION_STARTED });
     try {
-      const result = await apiClient.verifyMockPayment(
-        {
-          paymentIntentId: intent.paymentIntentId,
-          observedAmount: intent.amount,
-          observedRecipient: intent.recipient,
-          observedReference: intent.reference
-        },
-        idempotencyKey(`mock-verify-${intent.paymentIntentId}`)
+      const verificationPayload = buildVerificationPayload(intent);
+      const result = await apiClient.verifyPayment(
+        verificationPayload,
+        idempotencyKey(`${intent.provider}-verify-${intent.paymentIntentId}`)
       );
       dispatch({ type: ACTION.PAYMENT_VERIFIED, result });
       await recoverServerState(callIdRef.current, {
@@ -205,6 +202,8 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
           bookingId: intent.bookingId,
           paymentIntentId: intent.paymentIntentId
         }).catch(() => {});
+      } else if (isRetryablePaymentPending(error)) {
+        dispatch({ type: ACTION.PAYMENT_PENDING, error });
       } else dispatch({ type: ACTION.ERROR, error });
     }
   }, [apiClient, recoverServerState]);
@@ -274,6 +273,8 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
   useEffect(() => {
     if (state.needsRecovery && state.callId) scheduleRecovery(state.callId);
   }, [scheduleRecovery, state.callId, state.needsRecovery]);
+
+  useSolanaPaymentPolling(state, simulateWalletPayment);
 
   useEffect(
     () => () => {

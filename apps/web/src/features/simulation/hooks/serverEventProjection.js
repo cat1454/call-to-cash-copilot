@@ -119,6 +119,24 @@ export function projectReceiptReadModel(receipt) {
 }
 
 export function projectPaymentIntentReadModel(intent) {
+  const providerPayment =
+    intent.providerPayment?.provider === "solana_devnet"
+      ? {
+          provider: "solana_devnet",
+          cluster: "devnet",
+          amountLamports: intent.providerPayment.amountLamports,
+          amountSol: intent.providerPayment.amountSol,
+          solanaPayUrl: intent.providerPayment.solanaPayUrl,
+          qrPayload: intent.providerPayment.qrPayload,
+          memo: intent.providerPayment.memo
+        }
+      : intent.providerPayment?.provider === "mock"
+        ? {
+            provider: "mock",
+            mode: "deterministic_mock",
+            amountMinor: intent.providerPayment.amountMinor
+          }
+        : null;
   return {
     paymentIntentId: intent.paymentIntentId,
     bookingId: intent.bookingId,
@@ -128,7 +146,9 @@ export function projectPaymentIntentReadModel(intent) {
     recipient: intent.recipient,
     reference: intent.reference,
     expiresAt: intent.expiresAt,
-    idempotencyKey: intent.idempotencyKey
+    idempotencyKey: intent.idempotencyKey,
+    provider: intent.provider === "solana_devnet" ? "solana_devnet" : "mock",
+    providerPayment
   };
 }
 
