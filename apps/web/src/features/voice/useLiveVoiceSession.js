@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useRef } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { createAgoraRtcClient } from "./agoraRtcClient.js";
 import { VoiceConnectionState, connectionReducer } from "./connectionState.js";
 
@@ -6,6 +6,7 @@ export function useLiveVoiceSession(apiClient, onCreated) {
   const [connectionState, dispatch] = useReducer(connectionReducer, VoiceConnectionState.IDLE);
   const clientRef = useRef(null);
   const callIdRef = useRef(null);
+  const [callId, setCallId] = useState(null);
   const start = useCallback(async () => {
     if (!apiClient) return;
     dispatch({ type: "REQUEST_PERMISSION" });
@@ -24,6 +25,7 @@ export function useLiveVoiceSession(apiClient, onCreated) {
       dispatch({ type: "CREATE_SESSION" });
       const voice = await apiClient.createVoiceSession();
       callIdRef.current = voice.callId;
+      setCallId(voice.callId);
       onCreated?.(voice);
       const started = await apiClient.startVoiceSession(voice.callId);
       dispatch({ type: "CONNECT" });
@@ -47,5 +49,6 @@ export function useLiveVoiceSession(apiClient, onCreated) {
     },
     [stop]
   );
-  return { connectionState, start, stop, callId: callIdRef.current };
+  return { connectionState, start, stop, callId };
 }
+

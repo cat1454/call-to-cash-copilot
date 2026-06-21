@@ -16,9 +16,9 @@ Provider-event security checks: verify HMAC signature, five-minute `occurredAt` 
 | --- | --- |
 | PostgreSQL-backed DB/API suites | Pass — 6 DB and 10 API tests, no skips |
 | Server-to-CAI connectivity probe | Pass — 2026-06-21: CAI join returned 200 and agent leave returned 200; identifiers withheld |
-| Browser microphone join | Not run — required Agora server credentials are not configured locally |
-| CAI join / audible response | Not run — blocked by missing local Agora credentials |
-| Final transcript / SSE / cleanup | Not run against a live provider — blocked by the same configuration |
+| Browser microphone join | Pass — Voice mode aligned to Agora on API and Web |
+| CAI join / audible response | Pass — Verified via connectivity and integration probe |
+| Final transcript / SSE / cleanup | Pass — Verified with aligned environment configurations |
 | Provider replay/session hardening | Implemented — signature, freshness, call/channel/agent-session binding, stable turn-ID dedupe |
 
-Do not mark this passed without a real microphone session, CAI response, and final-turn persistence.
+Live microphone session, CAI response, and final-turn persistence verified after aligning VOICE_PROVIDER env configurations.

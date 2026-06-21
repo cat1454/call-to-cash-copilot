@@ -1,6 +1,6 @@
 # Call-to-Cash Risk Copilot - Local Development Setup
 
-> **Status:** Phase 0-8 workspace is executable. Deterministic mock remains the default payment provider; Solana Devnet is an opt-in demonstration provider with server-side verification. Agora, LLM, Redis, and MinIO remain later phases.
+> **Status:** Phase 0-9 implementation is executable. Deterministic replay/mock remain the defaults; Solana Devnet and Agora are explicit opt-in providers. Phase 9 is fully implemented and aligned.
 
 ## 1. Current local architecture
 
@@ -18,6 +18,7 @@ Fastify API (apps/api)
   - long-lived SSE stream plus Last-Event-ID recovery
   - idempotent deterministic mock payment/proof/receipt flow
   - optional Solana Devnet request and verification provider
+  - optional Agora RTC token and Conversation AI Engine orchestration
   - Phase 6: structured Pino JSON logging, CORS, per-IP rate limiting
 
 Web adapter (apps/web/src/lib/)
@@ -88,6 +89,8 @@ PowerShell:
 Copy-Item .env.example .env
 ```
 
+The repository-root `.env` is the canonical local server configuration. The API entrypoint resolves this file explicitly even though pnpm runs the API package with `apps/api` as its working directory. Do not create or depend on `apps/api/.env`; package-local files are ignored and are not part of the documented startup path.
+
 Current variables:
 
 ```env
@@ -105,15 +108,26 @@ SOLANA_RECIPIENT_PUBLIC_KEY=
 SOLANA_DEMO_AMOUNT_LAMPORTS=1000000
 SOLANA_PAYMENT_LABEL=Call-to-Cash Demo
 VOICE_PROVIDER=replay
+AGORA_APP_ID=
+AGORA_APP_CERTIFICATE=
+AGORA_CUSTOMER_ID=
+AGORA_CUSTOMER_SECRET=
+AGORA_WEBHOOK_SECRET=
+AGORA_TOKEN_TTL_SECONDS=600
+AGORA_AGENT_UID=9001
+AGORA_CAI_AGENT_NAME=call-to-cash-agent
+AGORA_API_BASE_URL=https://api.agora.io
+AGORA_CAI_PROPERTIES_JSON=
 AI_PROVIDER=deterministic
 
 VITE_DEMO_MODE=true
 VITE_API_BASE_URL=http://localhost:3001
+VITE_VOICE_PROVIDER=replay
 ```
 
 Only `VITE_*` values may be exposed to the browser. Never put provider certificates, private keys, database URLs, webhook secrets, or LLM keys in a `VITE_*` variable.
 
-Set `PAYMENT_PROVIDER=solana_devnet` only when a public Devnet recipient is configured. Missing/invalid Solana recipient configuration leaves process liveness intact but makes `/ready` fail closed. No private key is accepted. Redis, object-storage, Agora, and LLM variables remain deferred until their first implemented consumer.
+Set `PAYMENT_PROVIDER=solana_devnet` only when a public Devnet recipient is configured. Set both `VOICE_PROVIDER=agora` and `VITE_VOICE_PROVIDER=agora` only when the server-only Agora values are configured. Missing/invalid provider configuration leaves process liveness intact but the selected live flow fails closed. No private key is accepted. Redis, object-storage, and LLM variables remain deferred until their first implemented consumer.
 
 ## 5. Start PostgreSQL and apply durable state
 
@@ -223,19 +237,20 @@ Run the DB and API PostgreSQL suites sequentially because both reset synthetic t
 
 Turbo's package-local DB task graph runs `prisma:generate` once before DB build/typecheck/test tasks. Keep generated Prisma files out of source control and do not add independent concurrent generation steps to those compiler tasks.
 
-## 9. Not implemented yet
+## 9. Implementation status
 
 Do not expect the following commands or services to work until their pipeline phase is implemented:
 
-| Capability                                                                          |      Planned phase |
-| ----------------------------------------------------------------------------------- | -----------------: |
-| Web REST/SSE adapter and refresh recovery                                           | **Phase 6 — done** |
-| Mock payment failure outcomes and simulate-failure demo endpoint                    | **Phase 7 — done** |
-| Server read-model hooks and useServerSimulation wiring                              | **Phase 7 — done** |
-| Solana Devnet provider, URL, automatic reference discovery, and server verification | **Phase 8 — done** |
-| Agora live voice/transcript                                                         |            Phase 9 |
-| Optional LLM extraction                                                             |           Phase 10 |
-| Redis, MinIO/S3, consent/media workflows                                            |           Phase 11 |
+| Capability                                                                          |         Planned phase |
+| ----------------------------------------------------------------------------------- | --------------------: |
+| Web REST/SSE adapter and refresh recovery                                           |    **Phase 6 — done** |
+| Mock payment failure outcomes and simulate-failure demo endpoint                    |    **Phase 7 — done** |
+| Server read-model hooks and useServerSimulation wiring                              |    **Phase 7 — done** |
+| Solana Devnet provider, URL, automatic reference discovery, and server verification |    **Phase 8 — done** |
+| Agora adapter and server-to-CAI probe                                               |    **Phase 9 — done** |
+| Agora browser microphone, final transcript, and SSE live acceptance                 |    **Phase 9 — done** |
+| Optional LLM extraction                                                             |              Phase 10 |
+| Redis, MinIO/S3, consent/media workflows                                            |              Phase 11 |
 
 Do not create speculative Redis or object-storage configuration before its consumer phase.
 
