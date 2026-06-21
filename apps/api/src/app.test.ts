@@ -40,6 +40,19 @@ const demoConfig = {
     ready: false
   },
   voiceProvider: "replay",
+  agora: {
+    appId: "",
+    appCertificate: "",
+    customerId: "",
+    customerSecret: "",
+    webhookSecret: "",
+    agentProperties: {},
+    tokenTtlSeconds: 600,
+    agentUid: 9001,
+    agentName: "call-to-cash-agent",
+    baseUrl: "https://api.agora.io/",
+    ready: false
+  },
   aiProvider: "deterministic",
   logLevel: "silent" as const,
   rateLimitMax: 0

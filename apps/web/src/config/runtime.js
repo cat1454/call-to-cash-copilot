@@ -11,5 +11,7 @@ export const DEMO_MODE = parseDemoMode(import.meta.env?.VITE_DEMO_MODE);
  *
  * @type {string | null}
  */
-export const API_BASE_URL =
-  import.meta.env?.VITE_API_BASE_URL?.trim() || null;
+export const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL?.trim() || null;
+
+/** Explicitly opt into the real Agora adapter. Replay remains the default fallback. */
+export const VOICE_PROVIDER = import.meta.env?.VITE_VOICE_PROVIDER?.trim() || "replay";

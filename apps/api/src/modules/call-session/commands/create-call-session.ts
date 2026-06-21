@@ -36,7 +36,7 @@ export async function createCallSession(
         channelName,
         purpose: "BOOKING",
         sourceMode: input.sourceMode,
-        analysisEnabled: true,
+        analysisEnabled: input.analysisEnabled ?? true,
         createdAt: now
       }
     });

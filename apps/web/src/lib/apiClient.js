@@ -80,21 +80,12 @@ export function createApiClient(baseUrl, fetchFn = globalThis.fetch) {
 
   // ─── Health ───────────────────────────────────────────────────────────────
 
-  /**
-   * Lightweight liveness probe.
-   * Used by useApiMode to decide whether API mode is available.
-   * @returns {Promise<{ status: string; service: string }>}
-   */
   async function health() {
     return get("/health");
   }
 
   // ─── Calls ────────────────────────────────────────────────────────────────
 
-  /**
-   * POST /v1/calls
-   * @param {{ sourceMode: string }} params
-   */
   async function createCall({ sourceMode = "TRANSCRIPT_REPLAY" } = {}) {
     return post("/v1/calls", {
       channelPurpose: "BOOKING",
@@ -102,21 +93,24 @@ export function createApiClient(baseUrl, fetchFn = globalThis.fetch) {
     });
   }
 
-  /**
-   * GET /v1/calls/:callId
-   * @param {string} callId
-   */
   async function getCall(callId) {
     return get(`/v1/calls/${callId}`);
   }
 
-  /**
-   * POST /v1/calls/:callId/end
-   * @param {string} callId
-   * @param {"CUSTOMER_ENDED"|"OPERATOR_ENDED"|"SYSTEM_ENDED"} reason
-   */
   async function endCall(callId, reason = "CUSTOMER_ENDED") {
     return post(`/v1/calls/${callId}/end`, { reason });
+  }
+
+  async function createVoiceSession(policyVersion = "privacy-v1") {
+    return post("/v1/voice-sessions", { consent: { policyVersion } });
+  }
+
+  async function startVoiceSession(callId) {
+    return post(`/v1/voice-sessions/${callId}/start`, {});
+  }
+
+  async function stopVoiceSession(callId) {
+    return post(`/v1/voice-sessions/${callId}/stop`, {});
   }
 
   // ─── Transcript ───────────────────────────────────────────────────────────
@@ -282,6 +276,9 @@ export function createApiClient(baseUrl, fetchFn = globalThis.fetch) {
     createCall,
     getCall,
     endCall,
+    createVoiceSession,
+    startVoiceSession,
+    stopVoiceSession,
     submitTranscriptTurn,
     getRisk,
     getBooking,

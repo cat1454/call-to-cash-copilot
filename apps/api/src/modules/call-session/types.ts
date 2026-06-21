@@ -18,6 +18,7 @@ export type CreateCallSessionInput = {
   sourceMode: (typeof CallSourceMode)[keyof typeof CallSourceMode];
   customerId?: string;
   operatorId?: string;
+  analysisEnabled?: boolean;
   requestId: string;
 };
 

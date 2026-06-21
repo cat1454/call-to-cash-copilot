@@ -20,10 +20,31 @@ test("runtime config defaults to explicit deterministic demo providers", () => {
       ready: false
     },
     voiceProvider: "replay",
+    agora: {
+      appId: "",
+      appCertificate: "",
+      customerId: "",
+      customerSecret: "",
+      webhookSecret: "",
+      agentProperties: {},
+      tokenTtlSeconds: 600,
+      agentUid: 9001,
+      agentName: "call-to-cash-agent",
+      baseUrl: "https://api.agora.io/",
+      ready: false
+    },
     aiProvider: "deterministic",
     logLevel: "info",
     rateLimitMax: 100
   });
+});
+
+test("Agora configuration is opt-in and rejects malformed agent properties", () => {
+  assert.equal(readRuntimeConfig({ VOICE_PROVIDER: "agora" }).agora.ready, false);
+  assert.throws(
+    () => readRuntimeConfig({ AGORA_CAI_PROPERTIES_JSON: "[]" }),
+    /AGORA_CAI_PROPERTIES_JSON/
+  );
 });
 
 test("runtime config rejects invalid provider modes", () => {

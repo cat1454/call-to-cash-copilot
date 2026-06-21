@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "description": "Reserved Agora integration boundary.",
+  "description": "Server-only Agora RTC token, Conversation AI, and transcript adapter boundary.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -19,6 +19,10 @@
     "build": "tsc -p tsconfig.json",
     "lint": "eslint src --max-warnings=0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --test"
+    "test": "tsx --test src/**/*.test.ts"
+  },
+  "dependencies": {
+    "agora-token": "2.0.5",
+    "zod": "^4.0.0"
   }
 }

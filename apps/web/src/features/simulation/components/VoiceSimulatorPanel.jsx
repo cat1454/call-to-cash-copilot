@@ -1,4 +1,5 @@
 import { Mic, RotateCcw, MessageSquare } from "lucide-react";
+import { useState } from "react";
 import { cn } from "../../../lib/cn";
 import { Button } from "../../../components/ui/Button";
 import { IconButton } from "../../../components/ui/IconButton";
@@ -31,8 +32,11 @@ export default function VoiceSimulatorPanel({
   startSimulation,
   resetSimulation,
   isSimulating,
-  readinessScore
+  readinessScore,
+  voiceConnectionState,
+  stopLiveVoice
 }) {
+  const [liveConsent, setLiveConsent] = useState(false);
   const statusLabel = STATUS_LABELS[simStatus] ?? simStatus;
   const isCompleted = simStatus === "Đã hoàn thành";
   const isActive = simStatus === "Cuộc gọi đang trực tiếp";
@@ -73,6 +77,21 @@ export default function VoiceSimulatorPanel({
       </CardHeader>
 
       <CardBody className="gap-4 p-5">
+        {voiceConnectionState && (
+          <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-[#374151]">
+            <p className="font-medium" role="status">
+              Agora: {voiceConnectionState.replaceAll("_", " ")}
+            </p>
+            <label className="mt-2 flex items-start gap-2 leading-4">
+              <input
+                type="checkbox"
+                checked={liveConsent}
+                onChange={(event) => setLiveConsent(event.target.checked)}
+              />
+              <span>Tôi đồng ý dùng âm thanh trực tiếp để tạo phụ đề và phân tích đặt vé.</span>
+            </label>
+          </div>
+        )}
         {/* Transcript area */}
         <section
           aria-label="Transcript cuộc gọi"
@@ -132,7 +151,9 @@ export default function VoiceSimulatorPanel({
               isSimulating ? "Đang ghi âm" : isCompleted ? "Cuộc gọi kết thúc" : "Bắt đầu đàm thoại"
             }
             onClick={startSimulation}
-            disabled={isSimulating || isCompleted}
+            disabled={
+              isSimulating || isCompleted || (voiceConnectionState !== null && !liveConsent)
+            }
             className={cn(
               "w-16 h-16 rounded-full border-0 transition-all duration-200 ease-out select-none active:scale-[0.95]",
               isSimulating
@@ -154,6 +175,11 @@ export default function VoiceSimulatorPanel({
                 ? "Cuộc gọi đã kết thúc"
                 : "Bấm để bắt đầu đàm thoại"}
           </span>
+          {voiceConnectionState === "CONNECTED" && (
+            <Button variant="secondary" size="sm" onClick={stopLiveVoice} className="min-h-11">
+              Kết thúc cuộc gọi
+            </Button>
+          )}
         </div>
 
         {/* Call-to-Cash Readiness Progress */}

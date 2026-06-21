@@ -165,6 +165,10 @@ Use MinIO locally and private AWS S3-compatible storage in deployed environments
 ### Decision
 Agora is used for realtime voice transport, optional cloud recording, live transcript integration, turn-taking signals, and call-quality telemetry.
 
+### ADR-006a — Conversation AI Engine is an input adapter only (Phase 9)
+
+The API starts/stops Agora Conversation AI Engine with server-only credentials and the browser joins RTC directly with a short-lived scoped token. Final provider transcript turns are normalized and passed to the existing transcript command; their source cannot set transaction fields or domain states. Interim turns are UI-only. Replay remains the deterministic fallback and there is no parallel booking/risk/payment pipeline.
+
 ### Agora does
 
 - create/join authenticated call channels;

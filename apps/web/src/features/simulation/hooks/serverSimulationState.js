@@ -100,6 +100,7 @@ export function reducer(state, action) {
         ...state,
         callId: action.call.callId,
         callStatus: action.call.status,
+        replayInputEnabled: action.live === true ? false : state.replayInputEnabled,
         simStatus: "Cuộc gọi đang trực tiếp"
       };
     case ACTION.STREAM_STATUS:

@@ -161,6 +161,8 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
     }
   }, [apiClient, connectSse]);
 
+  const connectLiveCall = useCallback((call) => { callIdRef.current = call.callId; dispatch({ type: ACTION.START }); dispatch({ type: ACTION.CALL_CREATED, call, live: true }); connectSse(call.callId); }, [connectSse]);
+
   const triggerPayment = useCallback(async () => {
     const bookingId = stateRef.current.bookingId;
     if (!apiClient || !bookingId || paymentCreatingRef.current) return;
@@ -288,6 +290,7 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
     ...state,
     currentTurnIdx,
     startSimulation,
+    connectLiveCall,
     simulateWalletPayment,
     tamperAgreement,
     resetSimulation

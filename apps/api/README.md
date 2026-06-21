@@ -3,6 +3,7 @@
 This directory contains the Fastify/TypeScript composition root for Call-to-Cash.
 
 **Phase 6** adds to the Phase 5 foundation:
+
 - Structured Pino JSON logging (level configurable via `LOG_LEVEL`)
 - CORS via `@fastify/cors` — allows Vite dev origin in non-production
 - Per-IP rate limiting via `@fastify/rate-limit` (configurable via `RATE_LIMIT_MAX`)
@@ -75,5 +76,4 @@ curl -s "http://127.0.0.1:3001/v1/receipts/RECEIPT_ID/verify?candidateDepositAmo
 - `GET /v1/receipts/:id/verify?candidateDepositAmountMinor=N` — blocked (403) when `DEMO_MODE=false`
 - Rate limiting applies globally; set `RATE_LIMIT_MAX=0` in `.env` to disable during integration tests
 
-The normal call-events endpoint is a long-lived SSE stream. `?snapshot=true` is reserved for finite diagnostic and recovery reads. Phase 6 delivers the web adapter; Agora live voice, Solana devnet, optional LLM extraction, and authentication remain later phases.
-
+The normal call-events endpoint is a long-lived SSE stream. `?snapshot=true` is reserved for finite diagnostic and recovery reads. The web REST/SSE adapter and opt-in Solana Devnet provider are implemented. Agora live voice, optional LLM extraction, and authentication remain later phases.
