@@ -1,5 +1,7 @@
 export * from "./conversation-agent-client.js";
 export * from "./errors.js";
+export * from "./notification-signature.js";
+export * from "./prompt-source.js";
 export * from "./provider-events.js";
 export * from "./token-service.js";
 export * from "./transcript-deduplicator.js";

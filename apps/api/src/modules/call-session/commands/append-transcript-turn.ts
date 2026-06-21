@@ -50,31 +50,42 @@ export async function appendTranscriptTurn(
           "Call is not accepting transcript turns."
         );
       }
-      const replay = await transaction.transcriptTurn.findUnique({
-        where: {
-          callSessionId_providerEventId: {
-            callSessionId: call.id,
-            providerEventId: input.turn.clientTurnId
-          }
-        }
-      });
+      const replay =
+        input.turn.provider !== undefined && input.turn.providerTurnId !== undefined
+          ? await transaction.transcriptTurn.findUnique({
+              where: {
+                provider_providerTurnId: {
+                  provider: input.turn.provider,
+                  providerTurnId: input.turn.providerTurnId
+                }
+              }
+            })
+          : await transaction.transcriptTurn.findUnique({
+              where: {
+                callSessionId_providerEventId: {
+                  callSessionId: call.id,
+                  providerEventId: input.turn.clientTurnId
+                }
+              }
+            });
       if (replay !== null) {
-        const booking = await transaction.booking.findUnique({ where: { callSessionId: call.id } });
-        if (booking === null) {
-          throw new ApiCommandError(
-            409,
-            "BOOKING_NOT_FOUND",
-            "Duplicate transcript turn has no linked booking."
-          );
-        }
-        return { call, booking, turn: replay, duplicate: true };
+        return { call, turn: replay, duplicate: true };
       }
+      await transaction.$executeRaw(Prisma.sql`
+        SELECT pg_advisory_xact_lock(hashtext(${call.publicId}))
+      `);
+      const sequenceNo =
+        (await transaction.transcriptTurn.count({ where: { callSessionId: call.id } })) + 1;
       const turn = await transaction.transcriptTurn.create({
         data: {
           publicId: opaqueId("turn"),
           callSessionId: call.id,
           providerEventId: input.turn.clientTurnId,
-          sequenceNo: input.turn.sequenceNo,
+          ...(input.turn.provider === undefined ? {} : { provider: input.turn.provider }),
+          ...(input.turn.providerTurnId === undefined
+            ? {}
+            : { providerTurnId: input.turn.providerTurnId }),
+          sequenceNo,
           speaker: input.turn.speaker,
           contentRedacted: redactContent(input.turn.content),
           language: input.turn.language,
@@ -111,8 +122,8 @@ export async function appendTranscriptTurn(
         data: {
           publicId: opaqueId("ext"),
           callSessionId: activeCall.id,
-          sourceTurnFrom: input.turn.sequenceNo,
-          sourceTurnTo: input.turn.sequenceNo,
+          sourceTurnFrom: turn.sequenceNo,
+          sourceTurnTo: turn.sequenceNo,
           extractionVersion: "deterministic-replay-v1",
           payload: asJson({
             routeFrom: facts.routeFrom,

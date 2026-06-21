@@ -32,6 +32,8 @@ export type AppendTranscriptTurnInput = {
   callId: string;
   turn: {
     clientTurnId: string;
+    provider?: string | undefined;
+    providerTurnId?: string | undefined;
     sequenceNo: number;
     speaker: (typeof TranscriptSpeaker)[keyof typeof TranscriptSpeaker];
     content: string;

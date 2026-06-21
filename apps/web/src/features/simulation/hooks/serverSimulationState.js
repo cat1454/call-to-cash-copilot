@@ -60,6 +60,7 @@ export const ACTION = {
   STREAM_STATUS: "STREAM_STATUS",
   SERVER_EVENT: "SERVER_EVENT",
   CALL_SYNCED: "CALL_SYNCED",
+  TRANSCRIPT_SYNCED: "TRANSCRIPT_SYNCED",
   RISK_SYNCED: "RISK_SYNCED",
   BOOKING_SYNCED: "BOOKING_SYNCED",
   BOOKING_CONFIRMED: "BOOKING_CONFIRMED",
@@ -122,6 +123,18 @@ export function reducer(state, action) {
         simStatus: ["ENDED", "CANCELLED"].includes(action.call.status)
           ? "Đã hoàn thành"
           : state.simStatus
+      };
+    case ACTION.TRANSCRIPT_SYNCED:
+      return {
+        ...state,
+        transcript: [...action.transcript.turns]
+          .sort((left, right) => left.sequenceNo - right.sequenceNo)
+          .filter((turn, index, turns) => turns.findIndex((item) => item.turnId === turn.turnId) === index)
+          .map((turn) => ({
+            sender: turn.speaker === "CUSTOMER" ? "customer" : "ai",
+            text: turn.content,
+            turnId: turn.turnId
+          }))
       };
     case ACTION.RISK_SYNCED:
       return {

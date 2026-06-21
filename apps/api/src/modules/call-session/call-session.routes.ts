@@ -61,6 +61,11 @@ export function registerCallSessionRoutes(
     return reply.code(202).send(successEnvelope(request.id, data));
   });
 
+  app.get("/v1/calls/:callId/transcript", async (request) => {
+    const params = parseWithSchema(CallParamsSchema, request.params);
+    return successEnvelope(request.id, await handlers.getTranscript(params.callId));
+  });
+
   app.get("/v1/calls/:callId/risk", async (request) => {
     const params = parseWithSchema(CallParamsSchema, request.params);
     return successEnvelope(request.id, await handlers.getRisk(params.callId));

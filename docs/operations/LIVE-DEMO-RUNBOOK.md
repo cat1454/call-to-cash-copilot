@@ -61,7 +61,7 @@ If live voice fails, use the visible `Dùng bản phát lại` action. Confirm t
 
 | Symptom | Safe action |
 |---|---|
-| Preflight reports voice mismatch | Align root `VOICE_PROVIDER` and `apps/web/.env` `VITE_VOICE_PROVIDER`, then restart both processes. |
+| Preflight reports voice mismatch | Align root `VOICE_PROVIDER` and the effective browser value (`apps/web/.env.local` when present, otherwise `apps/web/.env`) for `VITE_VOICE_PROVIDER`, then restart both processes. |
 | Microphone denied/missing | Fix browser permission/device, retry, or choose replay. |
 | Agora cannot connect | Retry once; then use explicit replay fallback. Existing durable state remains. |
 | SSE reconnecting | Keep the page open; the client uses Last-Event-ID and authoritative REST recovery. |

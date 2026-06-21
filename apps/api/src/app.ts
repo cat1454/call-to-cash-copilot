@@ -18,6 +18,20 @@ export function buildApp(
       redact: ["req.headers.authorization", "req.headers.cookie"]
     }
   });
+  // Fastify's JSON parser owns the body. This passive listener copies bytes only
+  // for the fixed provider webhook so its HMAC never verifies a reserialized body.
+  app.addHook("onRequest", (request, _reply, done) => {
+    if (request.raw.url?.split("?")[0] !== "/v1/webhooks/agora/conversation-ai") {
+      done();
+      return;
+    }
+    const chunks: Buffer[] = [];
+    request.raw.on("data", (chunk: Buffer) => chunks.push(Buffer.from(chunk)));
+    request.raw.once("end", () => {
+      (request as typeof request & { rawBody?: Buffer }).rawBody = Buffer.concat(chunks);
+    });
+    done();
+  });
 
   const dependencies = createDependencies(config, options);
   registerPlugins(app, dependencies);

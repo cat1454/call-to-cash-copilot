@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { createAgoraRtcClient } from "./agoraRtcClient.js";
+import { createAgentStartGate } from "./agentStartGuard.js";
 import { VoiceConnectionState, connectionReducer } from "./connectionState.js";
 
 export function useLiveVoiceSession(apiClient, onCreated) {
@@ -7,6 +8,7 @@ export function useLiveVoiceSession(apiClient, onCreated) {
   const clientRef = useRef(null);
   const callIdRef = useRef(null);
   const startingRef = useRef(false);
+  const agentStartGateRef = useRef(createAgentStartGate());
   const [callId, setCallId] = useState(null);
   const start = useCallback(async () => {
     if (!apiClient || startingRef.current) return;
@@ -14,7 +16,6 @@ export function useLiveVoiceSession(apiClient, onCreated) {
     dispatch({ type: "REQUEST_PERMISSION" });
     const client = createAgoraRtcClient((state) => {
       if (state === "RECONNECTING") dispatch({ type: "RECONNECT" });
-      if (state === "CONNECTED") dispatch({ type: "CONNECTED" });
     });
     clientRef.current = client;
     try {
@@ -32,9 +33,11 @@ export function useLiveVoiceSession(apiClient, onCreated) {
       callIdRef.current = voice.callId;
       setCallId(voice.callId);
       onCreated?.(voice);
-      const started = await apiClient.startVoiceSession(voice.callId);
       dispatch({ type: "CONNECT" });
-      await client.connect(started.rtc);
+      const readiness = await client.connect(voice.rtc);
+      await agentStartGateRef.current.start(readiness, () =>
+        apiClient.startVoiceSession(voice.callId, readiness)
+      );
       dispatch({ type: "CONNECTED" });
     } catch (error) {
       dispatch({ type: error?.code === "AGORA_CHANNEL_UNAVAILABLE" ? "UNAVAILABLE" : "FAILED" });
@@ -47,6 +50,7 @@ export function useLiveVoiceSession(apiClient, onCreated) {
     dispatch({ type: "STOP" });
     await clientRef.current?.disconnect().catch(() => {});
     clientRef.current = null;
+    agentStartGateRef.current.reset();
     if (apiClient && callIdRef.current)
       await apiClient.stopVoiceSession(callIdRef.current).catch(() => {});
     dispatch({ type: "ENDED" });

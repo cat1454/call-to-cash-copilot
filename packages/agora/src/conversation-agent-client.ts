@@ -1,4 +1,5 @@
 import { AgoraAdapterError } from "./errors.js";
+import { withCtcAgoraV1Prompt } from "./prompt-source.js";
 import type { AgoraAgentSession, AgoraConversationAgentConfig } from "./types.js";
 
 function agentIdFrom(response: Record<string, unknown>): string | undefined {
@@ -6,6 +7,16 @@ function agentIdFrom(response: Record<string, unknown>): string | undefined {
     if (typeof candidate === "string" && candidate.length > 0) return candidate;
   }
   return undefined;
+}
+
+function safeProviderField(body: unknown, field: "detail" | "reason"): string | undefined {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) return undefined;
+  const value = (body as Record<string, unknown>)[field];
+  return typeof value === "string" && value.length > 0 ? value.slice(0, 500) : undefined;
+}
+
+function isRetryableStatus(status: number): boolean {
+  return status === 408 || status === 429 || status >= 500;
 }
 
 export class AgoraConversationAgentClient {
@@ -21,6 +32,7 @@ export class AgoraConversationAgentClient {
     agentUid: number;
     customerUid: number;
     name: string;
+    callId: string;
   }): Promise<AgoraAgentSession> {
     const { pipeline_id: pipelineId, ...properties } = this.config.properties;
     if (typeof pipelineId !== "string" || pipelineId.length === 0) {
@@ -30,6 +42,7 @@ export class AgoraConversationAgentClient {
         false
       );
     }
+    const promptProperties = withCtcAgoraV1Prompt(properties);
     const response = await this.request(
       `/api/conversational-ai-agent/v2/projects/${this.config.appId}/join`,
       {
@@ -38,12 +51,13 @@ export class AgoraConversationAgentClient {
           name: input.name,
           pipeline_id: pipelineId,
           properties: {
-            ...properties,
+            ...promptProperties,
             channel: input.channelName,
             token: input.agentToken,
             agent_rtc_uid: String(input.agentUid),
             remote_rtc_uids: [String(input.customerUid)]
-          }
+          },
+          labels: { call_id: input.callId, schema_version: "ctc-v1" }
         })
       },
       input.agentToken
@@ -90,14 +104,17 @@ export class AgoraConversationAgentClient {
           "Content-Type": "application/json"
         }
       });
+      const body: unknown = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new AgoraAdapterError(
           "AGORA_CHANNEL_UNAVAILABLE",
           "Agora Conversation AI Engine is unavailable.",
-          response.status >= 500
+          isRetryableStatus(response.status),
+          response.status,
+          safeProviderField(body, "detail"),
+          safeProviderField(body, "reason")
         );
       }
-      const body: unknown = await response.json().catch(() => ({}));
       return typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
     } catch (error) {
       if (error instanceof AgoraAdapterError) throw error;

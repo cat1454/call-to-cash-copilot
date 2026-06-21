@@ -28,6 +28,7 @@ const demoConfig = {
   nodeEnv: "test",
   host: "127.0.0.1",
   port: 3001,
+  webOrigin: "",
   demoMode: true,
   paymentProvider: "mock",
   solanaDevnet: {
@@ -45,7 +46,9 @@ const demoConfig = {
     appCertificate: "",
     customerId: "",
     customerSecret: "",
-    webhookSecret: "",
+    providerEventSecret: "",
+    ncsWebhookSecret: "",
+    ncsProductId: "conversation-ai",
     agentProperties: {},
     tokenTtlSeconds: 600,
     agentUid: 9001,

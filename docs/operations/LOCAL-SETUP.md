@@ -89,7 +89,7 @@ PowerShell:
 Copy-Item .env.example .env
 ```
 
-The repository-root `.env` is the canonical local server configuration. The API entrypoint resolves this file explicitly even though pnpm runs the API package with `apps/api` as its working directory. Do not create or depend on `apps/api/.env`; package-local files are ignored and are not part of the documented startup path. Vite reads browser-safe values from `apps/web/.env`; copy `apps/web/.env.example` and never place server credentials there.
+The repository-root `.env` is the canonical local server configuration. The API entrypoint resolves this file explicitly even though pnpm runs the API package with `apps/api` as its working directory. Do not create or depend on `apps/api/.env`; package-local files are ignored and are not part of the documented startup path. Vite reads browser-safe values from `apps/web/.env.local` when it exists, otherwise `apps/web/.env`; `demo:preflight` uses that same precedence. Copy `apps/web/.env.example` to one of those files and never place server credentials there.
 
 Current variables:
 
@@ -112,7 +112,9 @@ AGORA_APP_ID=
 AGORA_APP_CERTIFICATE=
 AGORA_CUSTOMER_ID=
 AGORA_CUSTOMER_SECRET=
-AGORA_WEBHOOK_SECRET=
+AGORA_PROVIDER_EVENT_SECRET=
+AGORA_NCS_WEBHOOK_SECRET=
+AGORA_NCS_PRODUCT_ID=conversation-ai
 AGORA_TOKEN_TTL_SECONDS=600
 AGORA_AGENT_UID=9001
 AGORA_CAI_AGENT_NAME=call-to-cash-agent
@@ -122,6 +124,11 @@ AI_PROVIDER=deterministic
 
 VITE_DEMO_MODE=true
 VITE_API_BASE_URL=http://127.0.0.1:3001
+
+For the deployed Danang Toi Uu surfaces, configure the backend with
+`WEB_ORIGIN=https://ctc.danangtoiiu.live`, the frontend build with
+`VITE_API_BASE_URL=https://ctc-api.danangtoiiu.live`, and configure Agora Notifications with
+`https://ctc-api.danangtoiiu.live/v1/webhooks/agora/conversation-ai`.
 VITE_VOICE_PROVIDER=replay
 ```
 

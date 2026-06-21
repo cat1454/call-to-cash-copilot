@@ -175,6 +175,8 @@ Consent is granular, recorded, versioned, and revocable where technically/operat
 
 Live Agora metadata, browser RTC join, Conversation AI Engine start, and final transcript ingestion require a current `ANALYSIS = GRANTED` record. Revocation stops future transcription and triggers browser-track/provider-agent shutdown. The browser receives no Agora App Certificate, CAI customer credential, webhook secret, or agent-property configuration. Provider event signatures and tokens are never logged.
 
+Agora Notifications use a distinct server-only `AGORA_NCS_WEBHOOK_SECRET`; trusted live-relay events use `AGORA_PROVIDER_EVENT_SECRET`. Webhook verification uses raw request bytes and `Agora-Signature-V2`. Never log that signature, authorization headers, raw provider payloads, prompts, tokens, or transcript text.
+
 ### 5.1 Before AI analysis/logging
 
 Mask or tokenize where not required for the immediate task:

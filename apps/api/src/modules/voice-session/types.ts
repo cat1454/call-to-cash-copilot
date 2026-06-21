@@ -4,5 +4,6 @@ export type VoiceSessionRuntime = {
   status: "READY" | "STARTING" | "CONNECTED" | "STOPPING" | "ENDED" | "FAILED";
   customerUid?: number;
   agentId?: string;
+  agentRequestName?: string;
   rtc?: AgoraSessionMetadata;
 };

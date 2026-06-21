@@ -193,9 +193,11 @@ Ends an active call or cancels an unstarted call.
 
 ### 3.0 Phase 9 voice-session adapter
 
-`POST /v1/voice-sessions` records explicit `ANALYSIS` consent and creates a `LIVE_AGORA` call. `POST /v1/voice-sessions/:callId/start` is permitted only while that latest consent is `GRANTED`; it returns public RTC metadata (app ID, channel, UID, short-lived token, expiry) and starts the CAI agent server-side. `POST /stop` stops the provider agent and ends local session state. `GET /v1/voice-sessions/:callId` returns a privacy-safe status projection.
+`POST /v1/voice-sessions` records explicit `ANALYSIS` consent, creates a `LIVE_AGORA` call, and returns public RTC metadata (app ID, channel, numeric UID, short-lived token, expiry). The browser must join that exact channel and publish its microphone before calling `POST /v1/voice-sessions/:callId/start` with `rtcConnected: true`, `microphonePublished: true`, and the issued `browserRtcUid`. The API verifies the issued UID before it starts the CAI agent server-side. `POST /stop` stops the provider agent and ends local session state. `GET /v1/voice-sessions/:callId` returns a privacy-safe status projection.
 
-`POST /v1/voice-sessions/:callId/provider-events` is server-to-server only. It requires `X-Agora-Signature: sha256=<HMAC>` over the canonical JSON payload. The payload binds `callId`, `channelName`, active CAI `sessionId`, and `occurredAt`; events outside a five-minute freshness window are rejected. It forwards only normalized final provider turns to the canonical transcript command; interim turns are accepted but non-persisted and cannot alter booking, risk, payment, proof, or receipt state.
+`POST /v1/voice-sessions/:callId/provider-events` is the internal trusted live-relay boundary only. It requires `X-Agora-Signature` using `AGORA_PROVIDER_EVENT_SECRET`; it is never called by the browser. The payload binds `callId`, `channelName`, active CAI `sessionId`, and `occurredAt`; events outside a five-minute freshness window are rejected. It forwards only normalized final provider turns to the canonical transcript command; interim turns are accepted but non-persisted and cannot alter booking, risk, payment, proof, or receipt state.
+
+`POST /v1/webhooks/agora/conversation-ai` is the fixed public Agora Notifications reconciliation endpoint. It verifies `Agora-Signature-V2` against the exact raw request body using the separate `AGORA_NCS_WEBHOOK_SECRET`, requires the configured product id and event type `103`, rejects stale delivery, resolves the call solely from `labels.call_id`, validates channel and active agent session, and durably deduplicates `(provider, noticeId)`. History roles map `user → CUSTOMER` and `assistant → AGENT`; each final turn uses `(provider, providerTurnId)` before entering the same canonical command. Labels are limited to `call_id` and `schema_version` and never contain PII or transcript content.
 
 ### 3.1 `POST /v1/agora/token`
 
@@ -290,6 +292,8 @@ Persists a final transcript turn and triggers extraction/risk recomputation. It 
 ---
 
 ### 4.2 `GET /v1/calls/:callId/transcript`
+
+Returns final redacted authoritative turns in ascending server `sequenceNo` order. The web client uses it on recovery; browser RTC/RTM callbacks never populate the durable transcript projection.
 
 Returns an authorized, redacted transcript projection.
 

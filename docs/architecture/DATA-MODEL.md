@@ -192,16 +192,20 @@ The following tables are the minimum production-shaped schema. A hackathon may i
 | `is_final` | boolean | interim turns should not make durable decision changes |
 | `stt_confidence` | decimal nullable | only a quality signal |
 | `started_at`, `ended_at` | timestamptz nullable | audio timing |
-| `source` | `AGORA`, `REPLAY`, `MANUAL` | provenance |
+  | `source` | `AGORA`, `REPLAY`, `MANUAL` | provenance |
+  | `provider`, `provider_turn_id` | nullable text | trusted-provider identity; final Agora turns are unique as `(provider, provider_turn_id)` |
 | `supersedes_turn_id` | self FK nullable | correction lineage |
 | `created_at` | timestamptz | required |
 
 **Indexes / constraints**
 
-- unique `(call_session_id, sequence_no)`;
+  - unique `(call_session_id, sequence_no)`;
+  - unique `(provider, provider_turn_id)` for provider-originated final turns;
 - `(call_session_id, created_at)`;
 - full-text search only on `content_redacted`, not encrypted original;
-- no payment gate can be opened from `is_final = false` content.
+  - no payment gate can be opened from `is_final = false` content.
+
+`provider_webhook_notices` stores only provider name, opaque notice ID, call foreign key, and received timestamp. Its unique `(provider, notice_id)` constraint makes notification delivery idempotent; it stores no transcript payload or PII.
 
 **Retention:** redacted transcript 90–180 days; encrypted original only as long as necessary for dispute/quality policy.
 

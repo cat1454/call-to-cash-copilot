@@ -147,6 +147,14 @@ export const CreateVoiceSessionRequestSchema = z
   })
   .strict();
 
+export const StartVoiceSessionRequestSchema = z
+  .object({
+    rtcConnected: z.literal(true),
+    microphonePublished: z.literal(true),
+    browserRtcUid: PositiveIntegerSchema
+  })
+  .strict();
+
 export const VoiceSessionResponseSchema = z
   .object({
     callId: CallIdSchema,
@@ -156,6 +164,19 @@ export const VoiceSessionResponseSchema = z
     agentStarted: z.boolean()
   })
   .strict();
+
+export const PreparedVoiceSessionResponseSchema = VoiceSessionResponseSchema.extend({
+  status: z.literal("READY"),
+  rtc: z
+    .object({
+      appId: z.string().min(1),
+      channelName: z.string().min(1),
+      uid: z.number().int().positive(),
+      token: z.string().min(1),
+      expiresAt: IsoTimestampSchema
+    })
+    .strict()
+});
 
 export const StartVoiceSessionResponseSchema = VoiceSessionResponseSchema.extend({
   status: z.literal("CONNECTED"),

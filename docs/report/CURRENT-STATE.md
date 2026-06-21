@@ -6,9 +6,11 @@
 >
 > **Purpose:** record the verified Phase 9 baseline and closure.
 >
-> **Conclusion:** Phase 9 implementation is fully present, functional, and aligned across the API and Web clients, enabling live browser voice, transcript acceptance, and SSE flow.
+> **Conclusion:** Phase 9 browser RTC and transcript UI are aligned. The current Phase 9.2 working tree adds the authoritative provider/webhook transcript boundary and is ready for an integration commit, but not a production-closure claim: DB-backed reconciliation and the actual server-side Agora Signaling/RTM subscriber still need live evidence.
 
 ---
+
+> **Phase 9.2 go decision (2026-06-21):** three independent live-browser smoke runs have passed and are preserved as redacted user-attested evidence in `docs/operations/AGORA-LIVE-SMOKE-TEST.md`. This supersedes the older `BLOCKED` wording below: Phase 9.2 static prompt implementation is now **GO**. `CTC-AGORA-VI-V1` is injected server-side through the Agora join request's `properties.llm.system_messages`, but remains **DRAFT**: its restarted-runtime join attempt was rejected by Agora before controlled live evaluation could begin.
 
 ## 1. Executive summary
 
@@ -30,6 +32,8 @@ Phase 8 replaced mock-only payment confirmation with an opt-in Solana Devnet pro
 
 The Phase 9 Agora adapter is fully implemented: the browser joins RTC directly, the API owns token/CAI orchestration and consent, and final provider turns reuse the existing transcript/domain path. Live microphone, audible CAI response, final-turn persistence, and SSE acceptance have been verified with aligned environment configurations. Optional LLM extraction, Redis, object storage, and production hardening remain later phases.
 
+The Phase 9.2 integration commit additionally separates provider-event and Notifications secrets, accepts a fixed public reconciliation webhook, persists provider-turn and notice idempotency keys, and restores the authoritative transcript after refresh. Before production activation, apply its Prisma migration, run the database-backed webhook suite, and connect the approved server-side Agora Signaling/RTM subscriber; browser RTC remains audio-only.
+
 ---
 
 ## 2. Phase status
@@ -46,6 +50,7 @@ The Phase 9 Agora adapter is fully implemented: the browser joins RTC directly, 
 |                 7 — Mock payment/proof/receipt | **Implemented**    | authoritative happy path, failure/tamper path, receipt recovery                                     |
 |                              8 — Solana Devnet | **Implemented**    | provider, Solana Pay URL/QR, discovery, verification, polling, proof/receipt linkage                |
 |                9 — Agora live voice/transcript | **Implemented**    | Agora adapter aligned across API/Web envs, enabling live browser voice, CAI probe, and SSE flow |
+| 9.2 — Agora conversation quality optimization | **GO; V1 draft, agent start pass** | RTC-first browser sequence reaches agent join; V1 live conversation evaluation is still required |
 |                   10 — Optional LLM extraction | **Not started**    | `packages/ai` remains a boundary/placeholder                                                        |
 | 11 — Redis, object storage, consent/media jobs | **Not started**    | no active provider integration yet                                                                  |
 |                      12 — Production hardening | **Partial**        | health/readiness, CORS, rate limiting and runbooks exist; auth/RBAC and richer observability remain |
@@ -99,6 +104,19 @@ The GitHub workflow has been updated to trigger on pushes to both `main` and `de
 
 ## 5. Known gaps
 
+### Phase 9.2 activation gates (supersedes the earlier blocked gate wording)
+
+1. Record three happy paths plus interruption, silence, and payment-verifying scenarios with audible agent audio, visible user/agent transcripts, and no unsupported authority claim.
+
+`docs/agora/AGORA-VOICE-OPTIMIZATION.md` records Phase 9.2 as **GO** for draft implementation. The repository prompt source and safe pipeline mapping live in `packages/agora/prompts/`; the server maps `CTC-AGORA-VI-V1` to Agora `properties.llm.system_messages` for every new agent join. The legacy join attempt happened before browser readiness and failed without retained provider detail/reason. The corrected flow now issues browser RTC metadata first, verifies browser RTC connection plus microphone publish/UID readiness, and allows one agent start only afterward. No provider prompt-revision or provider rollback API is configured or inferred, and no controlled V1 live evaluation has been recorded.
+
+### Historical Phase 9 and 9.2 blocker record (resolved)
+
+1. Record three independent fresh-browser Agora runs with microphone permission, RTC join, audible agent audio, customer/agent final transcripts, final-turn persistence, SSE updates, refresh recovery, and Retry / Replay Demo / End Session evidence. Historical CAI join/leave probes do not satisfy this gate.
+2. Map the actual provider join path from the versioned repository source before beginning Phase 9.2.
+
+This historical entry is superseded by the GO decision and the versioned V1 prompt artifacts above. It is retained only to explain why the original smoke-evidence and deployment-mapping gates existed.
+
 These do not block beginning Phase 9, but they remain explicit engineering work:
 
 1. Obtain one green GitHub CI run for `cb4fce4` or its descendant.
@@ -149,6 +167,27 @@ The probe received HTTP 200 with an agent ID, then completed a successful leave 
 ---
 
 ## 8. Change summary for this snapshot
+
+### Phase 9.2 draft implementation update
+
+- **Documentation consulted:** Agora optimization, live smoke, runbook/failure, pipeline/decisions, booking/risk, API/event/error, and privacy contracts.
+- **Documentation updated:** Phase 9.1 redacted smoke evidence, Phase 9.2 GO/draft status, actual server-side join-payload mapping, V1 live-evaluation ledger, local setup/runbook, and current-state status.
+- **Files changed:** versioned prompt source, server-side Agora join-payload injection, evaluation matrix, constraint test, Agora package test command, preflight local-env precedence, and the listed operational/status docs.
+- **Contracts changed:** none.
+- **Database migration required:** no.
+- **Environment variables added/changed:** none.
+- **Tests run:** `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, root `pnpm test`, and `pnpm build` passed. The root test run reported DB/API destructive integration cases **SKIPPED — `TEST_DATABASE_URL` not configured**. They were rerun against isolated `call_to_cash_test`: DB 6/6 **PASS** and API 10/10 **PASS**. Prompt constraints plus existing Agora tests passed 9/9, including the server join-payload injection assertion.
+- **Remaining TODOs or mocked integrations:** resolve the non-retryable Agora V1 join rejection, then run the six controlled V1 live evaluations before activation. Phase 9.3 directives and Phase 10 LLM extraction remain out of scope.
+
+### Historical Phase 9.2 gate assessment update
+
+- **Documentation consulted:** `docs/agora/AGORA-VOICE-OPTIMIZATION.md`, `docs/operations/AGORA-LIVE-SMOKE-TEST.md`, `docs/operations/LIVE-DEMO-RUNBOOK.md`, `docs/operations/DEMO-FAILURE-MATRIX.md`, `docs/architecture/PIPELINE.md`, `docs/architecture/DECISIONS.md`, `docs/product/BOOKING-CONTRACT.md`, `docs/product/RISK_SCORING.md`, `docs/contracts/API-CONTRACT.md`, `docs/contracts/EVENT-CONTRACT.md`, `docs/contracts/ERROR-CODES.md`, and `docs/security/DATA-PRIVACY-ONCHAIN-POLICY.md`.
+- **Documentation updated:** `docs/agora/AGORA-VOICE-OPTIMIZATION.md` and this report recorded the original Phase 9.2 prerequisite and prompt-deployment boundary.
+- **Contracts changed:** none.
+- **Database migration required:** no.
+- **Environment variables added/changed:** none.
+- **Tests run:** superseded by the Phase 9.2 draft implementation verification above.
+- **Remaining TODOs or mocked integrations:** superseded by the V1 activation gates above. Phase 9.3 runtime directives and Phase 10 LLM extraction remain out of scope.
 
 - **Documentation consulted:** `AGENTS.md`, `docs/architecture/PIPELINE.md`, `docs/architecture/DECISIONS.md`, `docs/contracts/API-CONTRACT.md`, `docs/contracts/EVENT-CONTRACT.md`, `docs/contracts/ERROR-CODES.md`, `docs/security/DATA-PRIVACY-ONCHAIN-POLICY.md`, `docs/operations/LOCAL-SETUP.md`, `docs/operations/SOLANA-DEVNET-SMOKE-TEST.md`, `docs/operations/ECC-AGENT-WORKFLOW.md`, and the previous current-state report.
 - **Documentation updated:** this current-state snapshot and directly stale API README statements.

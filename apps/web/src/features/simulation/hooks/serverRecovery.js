@@ -39,6 +39,9 @@ export async function recoverServerState(apiClient, dispatch, state, callId, hin
   const call = await apiClient.getCall(callId);
   result.call = call;
   dispatch({ type: ACTION.CALL_SYNCED, call });
+  const transcript = await apiClient.getTranscript(callId);
+  result.transcript = transcript;
+  dispatch({ type: ACTION.TRANSCRIPT_SYNCED, transcript });
 
   if (call.booking !== null) {
     const risk = await apiClient.getRisk(callId);

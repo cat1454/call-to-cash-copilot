@@ -6,7 +6,9 @@ import { pathToFileURL } from "node:url";
 
 const ROOT_ENV = ".env";
 const WEB_ENV = "apps/web/.env";
-const FORBIDDEN_BROWSER_ENV = /(CERTIFICATE|CUSTOMER_SECRET|WEBHOOK_SECRET|PRIVATE_KEY|SEED|DATABASE_URL)/u;
+const WEB_LOCAL_ENV = "apps/web/.env.local";
+const FORBIDDEN_BROWSER_ENV =
+  /(CERTIFICATE|CUSTOMER_SECRET|WEBHOOK_SECRET|PRIVATE_KEY|SEED|DATABASE_URL|PROMPT)/u;
 
 export function parseEnv(text) {
   const result = {};
@@ -78,7 +80,8 @@ export function evaluateProviderConfig(serverEnv, webEnv) {
       ["AGORA_APP_CERTIFICATE", "Agora App Certificate"],
       ["AGORA_CUSTOMER_ID", "Agora customer ID"],
       ["AGORA_CUSTOMER_SECRET", "Agora customer secret"],
-      ["AGORA_WEBHOOK_SECRET", "Agora webhook secret"],
+      ["AGORA_PROVIDER_EVENT_SECRET", "Agora provider-event secret"],
+      ["AGORA_NCS_WEBHOOK_SECRET", "Agora Notifications secret"],
       ["AGORA_CAI_PROPERTIES_JSON", "Agora CAI properties"]
     ]) {
       results.push(
@@ -118,6 +121,12 @@ export function evaluateProviderConfig(serverEnv, webEnv) {
 async function loadEnv(path) {
   if (!existsSync(path)) return {};
   return parseEnv(await readFile(path, "utf8"));
+}
+
+export function selectWebEnv(webLocalEnv, webEnv, serverEnv) {
+  if (Object.keys(webLocalEnv).length > 0) return webLocalEnv;
+  if (Object.keys(webEnv).length > 0) return webEnv;
+  return serverEnv;
 }
 
 async function checkDatabase(databaseUrl) {
@@ -163,8 +172,9 @@ async function checkApi(apiBaseUrl) {
 
 export async function runPreflight() {
   const serverEnv = { ...(await loadEnv(ROOT_ENV)), ...process.env };
+  const webLocalEnv = await loadEnv(WEB_LOCAL_ENV);
   const webFileEnv = await loadEnv(WEB_ENV);
-  const webEnv = Object.keys(webFileEnv).length > 0 ? webFileEnv : serverEnv;
+  const webEnv = selectWebEnv(webLocalEnv, webFileEnv, serverEnv);
   const results = [
     ...evaluateProviderConfig(serverEnv, webEnv),
     await checkDatabase(serverEnv.DATABASE_URL),
@@ -174,7 +184,11 @@ export async function runPreflight() {
   console.log("Call-to-Cash demo preflight (secret-safe)");
   for (const item of results) console.log(`[${item.level}] ${item.label}: ${item.detail}`);
   const failed = results.filter((item) => item.level === "FAIL").length;
-  console.log(failed === 0 ? "[PASS] Demo prerequisites are ready." : `[FAIL] ${failed} check(s) need attention.`);
+  console.log(
+    failed === 0
+      ? "[PASS] Demo prerequisites are ready."
+      : `[FAIL] ${failed} check(s) need attention.`
+  );
   return failed === 0 ? 0 : 1;
 }
 

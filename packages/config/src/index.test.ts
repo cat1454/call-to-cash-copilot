@@ -8,6 +8,7 @@ test("runtime config defaults to explicit deterministic demo providers", () => {
     nodeEnv: "development",
     host: "127.0.0.1",
     port: 3001,
+    webOrigin: "",
     demoMode: true,
     paymentProvider: "mock",
     solanaDevnet: {
@@ -25,7 +26,9 @@ test("runtime config defaults to explicit deterministic demo providers", () => {
       appCertificate: "",
       customerId: "",
       customerSecret: "",
-      webhookSecret: "",
+      providerEventSecret: "",
+      ncsWebhookSecret: "",
+      ncsProductId: "conversation-ai",
       agentProperties: {},
       tokenTtlSeconds: 600,
       agentUid: 9001,
@@ -85,6 +88,13 @@ test("runtime config accepts the minimum complete Solana Devnet configuration", 
 
 test("runtime config parses an explicit false demo mode", () => {
   assert.equal(readRuntimeConfig({ DEMO_MODE: "false" }).demoMode, false);
+});
+
+test("runtime config preserves the exact production web origin", () => {
+  assert.equal(
+    readRuntimeConfig({ WEB_ORIGIN: "https://ctc.danangtoiiu.live" }).webOrigin,
+    "https://ctc.danangtoiiu.live"
+  );
 });
 
 test("runtime config reads LOG_LEVEL and RATE_LIMIT_MAX", () => {

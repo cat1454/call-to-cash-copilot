@@ -12,6 +12,8 @@ export type RuntimeConfig = {
   nodeEnv: string;
   host: string;
   port: number;
+  /** Exact browser origin allowed to call the production API. */
+  webOrigin: string;
   demoMode: boolean;
   paymentProvider: PaymentProvider;
   solanaDevnet: {
@@ -29,7 +31,11 @@ export type RuntimeConfig = {
     appCertificate: string;
     customerId: string;
     customerSecret: string;
-    webhookSecret: string;
+    /** Internal trusted-relay HMAC; never used for public Notifications. */
+    providerEventSecret: string;
+    /** Agora Notifications Center secret for Agora-Signature-V2. */
+    ncsWebhookSecret: string;
+    ncsProductId: string;
     agentProperties: Record<string, unknown>;
     tokenTtlSeconds: number;
     agentUid: number;
@@ -130,6 +136,7 @@ export function readRuntimeConfig(
     nodeEnv: env.NODE_ENV ?? "development",
     host: env.API_HOST ?? "127.0.0.1",
     port: readPort(env.API_PORT),
+    webOrigin: env.WEB_ORIGIN?.trim() ?? "",
     demoMode: readBoolean("DEMO_MODE", env.DEMO_MODE, true),
     paymentProvider: readEnum("PAYMENT_PROVIDER", env.PAYMENT_PROVIDER, PAYMENT_PROVIDERS, "mock"),
     solanaDevnet: {
@@ -151,7 +158,9 @@ export function readRuntimeConfig(
       appCertificate: env.AGORA_APP_CERTIFICATE?.trim() ?? "",
       customerId: env.AGORA_CUSTOMER_ID?.trim() ?? "",
       customerSecret: env.AGORA_CUSTOMER_SECRET?.trim() ?? "",
-      webhookSecret: env.AGORA_WEBHOOK_SECRET?.trim() ?? "",
+      providerEventSecret: env.AGORA_PROVIDER_EVENT_SECRET?.trim() ?? "",
+      ncsWebhookSecret: env.AGORA_NCS_WEBHOOK_SECRET?.trim() ?? "",
+      ncsProductId: env.AGORA_NCS_PRODUCT_ID?.trim() || "conversation-ai",
       agentProperties: readJsonObject("AGORA_CAI_PROPERTIES_JSON", env.AGORA_CAI_PROPERTIES_JSON),
       tokenTtlSeconds: readStrictPositiveInt(
         "AGORA_TOKEN_TTL_SECONDS",
@@ -166,7 +175,7 @@ export function readRuntimeConfig(
         (env.AGORA_APP_CERTIFICATE?.trim().length ?? 0) > 0 &&
         (env.AGORA_CUSTOMER_ID?.trim().length ?? 0) > 0 &&
         (env.AGORA_CUSTOMER_SECRET?.trim().length ?? 0) > 0 &&
-        (env.AGORA_WEBHOOK_SECRET?.trim().length ?? 0) > 0 &&
+        (env.AGORA_PROVIDER_EVENT_SECRET?.trim().length ?? 0) > 0 &&
         Object.keys(readJsonObject("AGORA_CAI_PROPERTIES_JSON", env.AGORA_CAI_PROPERTIES_JSON))
           .length > 0
     },

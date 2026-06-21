@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { TranscriptDeduplicator, normalizeTranscriptEvent } from "./index.js";
+import {
+  AgoraConversationAgentClient,
+  TranscriptDeduplicator,
+  normalizeTranscriptEvent,
+  verifyAgoraNotificationSignature
+} from "./index.js";
+import { createHmac } from "node:crypto";
 
 test("normalizes final provider transcript turns and keeps provider turn identity", () => {
   assert.deepEqual(
@@ -58,4 +65,113 @@ test("normalization preserves interim status so the API can refuse durable admis
     }
   });
   assert.equal(turn.isFinal, false);
+});
+
+test("join request injects the versioned V1 system message server-side", async () => {
+  let joinBody: Record<string, unknown> | undefined;
+  const client = new AgoraConversationAgentClient(
+    {
+      appId: "app-id",
+      customerId: "customer-id",
+      customerSecret: "customer-secret",
+      baseUrl: "https://example.test",
+      properties: {
+        pipeline_id: "pipeline-id",
+        llm: { vendor: "openai", model: "gpt-4.1", endpoint: "https://llm.example.test" },
+        asr: { language: "vi-VN" },
+        tts: { voice: "vi-female" },
+        providerManagedSetting: true
+      }
+    },
+    async (_url, init) => {
+      joinBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return new Response(JSON.stringify({ agent_id: "agent-1" }), { status: 200 });
+    }
+  );
+
+  await client.start({
+    channelName: "ctc_call_012345",
+    agentToken: "server-only-token",
+    agentUid: 10001,
+    customerUid: 10002,
+    name: "call-012345"
+    ,callId: "call_012345"
+  });
+
+  assert.equal(joinBody?.pipeline_id, "pipeline-id");
+  const properties = joinBody?.properties as Record<string, unknown>;
+  const llm = properties.llm as Record<string, unknown>;
+  assert.equal(llm.vendor, "openai");
+  assert.equal(llm.model, "gpt-4.1");
+  assert.equal(llm.endpoint, "https://llm.example.test");
+  assert.deepEqual(properties.asr, { language: "vi-VN" });
+  assert.deepEqual(properties.tts, { voice: "vi-female" });
+  assert.equal(properties.providerManagedSetting, true);
+  assert.deepEqual(properties.remote_rtc_uids, ["10002"]);
+  assert.equal(properties.agent_rtc_uid, "10001");
+  assert.deepEqual(joinBody?.labels, { call_id: "call_012345", schema_version: "ctc-v1" });
+  assert.notEqual(properties.remote_rtc_uids[0], properties.agent_rtc_uid);
+  const systemMessages = llm.system_messages as Array<{ role: string; content: string }>;
+  assert.equal(systemMessages.length, 1);
+  assert.equal(systemMessages[0]?.role, "system");
+  assert.match(systemMessages[0]?.content ?? "", /Prompt ID: CTC-AGORA-VI-V1/u);
+});
+
+test("notification signature verifies exact raw request bytes", () => {
+  const body = Buffer.from('{"noticeId":"notice_1"}', "utf8");
+  const signature = createHmac("sha256", "ncs-secret").update(body).digest("hex");
+  assert.equal(verifyAgoraNotificationSignature("ncs-secret", body, signature), true);
+  assert.equal(verifyAgoraNotificationSignature("ncs-secret", Buffer.from("{}"), signature), false);
+  assert.equal(verifyAgoraNotificationSignature("ncs-secret", body, undefined), false);
+});
+
+test("join failure preserves only safe provider diagnostics", async () => {
+  const client = new AgoraConversationAgentClient(
+    {
+      appId: "app-id",
+      customerId: "customer-id",
+      customerSecret: "customer-secret",
+      baseUrl: "https://example.test",
+      properties: { pipeline_id: "pipeline-id" }
+    },
+    async () =>
+      new Response(
+        JSON.stringify({ detail: "invalid agent configuration", reason: "invalid_pipeline" }),
+        { status: 422 }
+      )
+  );
+
+  await assert.rejects(
+    () =>
+      client.start({
+        channelName: "ctc_call_012345",
+        agentToken: "server-only-token",
+        agentUid: 10001,
+        customerUid: 10002,
+        name: "call-012345",
+        callId: "call_012345"
+      }),
+    (error: unknown) => {
+      assert.equal(error instanceof Error, true);
+      const diagnostic = error as Error & {
+        httpStatus?: number;
+        providerDetail?: string;
+        providerReason?: string;
+        code?: string;
+        retryable?: boolean;
+      };
+      assert.equal(diagnostic.httpStatus, 422);
+      assert.equal(diagnostic.providerDetail, "invalid agent configuration");
+      assert.equal(diagnostic.providerReason, "invalid_pipeline");
+      assert.equal(diagnostic.code, "AGORA_CHANNEL_UNAVAILABLE");
+      assert.equal(diagnostic.retryable, false);
+      return true;
+    }
+  );
+});
+
+test("join client does not log tokens or prompt content", () => {
+  const source = readFileSync(new URL("conversation-agent-client.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /console\.(log|info|warn|error)/u);
+  assert.doesNotMatch(source, /promptContentLength.*console/u);
 });

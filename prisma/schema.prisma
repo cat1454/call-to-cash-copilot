@@ -303,6 +303,8 @@ model TranscriptTurn {
   publicId            String            @unique @map("public_id")
   callSessionId       String            @map("call_session_id") @db.Uuid
   providerEventId     String?           @map("provider_event_id")
+  provider            String?           @map("provider")
+  providerTurnId      String?           @map("provider_turn_id")
   sequenceNo          Int               @map("sequence_no")
   speaker             TranscriptSpeaker
   contentRedacted     String            @map("content_redacted")
@@ -323,8 +325,21 @@ model TranscriptTurn {
 
   @@unique([callSessionId, sequenceNo])
   @@unique([callSessionId, providerEventId])
+  @@unique([provider, providerTurnId])
   @@index([callSessionId, createdAt])
   @@map("transcript_turns")
+}
+
+model ProviderWebhookNotice {
+  id          String   @id @default(uuid()) @db.Uuid
+  provider    String
+  noticeId    String   @map("notice_id")
+  callId      String   @map("call_id") @db.Uuid
+  receivedAt  DateTime @default(now()) @map("received_at") @db.Timestamptz(3)
+
+  @@unique([provider, noticeId])
+  @@index([callId, receivedAt])
+  @@map("provider_webhook_notices")
 }
 
 model BookingExtraction {

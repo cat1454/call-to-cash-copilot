@@ -219,6 +219,14 @@ The Phase 4 initial migration is forward-only and creates the complete durable-s
 
 ## 8. Agora deployment checklist
 
+### Danang Toi Uu public routes
+
+The current deployment uses `https://ctc.danangtoiiu.live` for the web origin and
+`https://ctc-api.danangtoiiu.live` for the API. Set `WEB_ORIGIN` to the former and
+the frontend build-time `VITE_API_BASE_URL` to the latter. Configure Agora Notifications with
+`https://ctc-api.danangtoiiu.live/v1/webhooks/agora/conversation-ai`; the comma form of the
+hostname is invalid and must not be used.
+
 Before enabling live voice:
 
 ```text
@@ -226,7 +234,8 @@ Before enabling live voice:
 [ ] Channel names use opaque callSessionId values
 [ ] App Certificate remains server-only
 [ ] Web origin is permitted by app configuration where applicable
-[ ] Webhook signature/secret validation is implemented
+[ ] `AGORA_PROVIDER_EVENT_SECRET` and `AGORA_NCS_WEBHOOK_SECRET` are distinct server-only secrets
+[ ] Fixed `/v1/webhooks/agora/conversation-ai` verifies raw-body `Agora-Signature-V2`, product id, freshness, and notice deduplication
 [ ] Call lifecycle events are idempotent
 [ ] Recording consent gate exists before recording start
 [ ] Storage location is reachable by Agora if cloud recording is enabled

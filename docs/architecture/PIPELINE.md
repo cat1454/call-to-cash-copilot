@@ -722,7 +722,7 @@ Agora does not decide payment, create receipts, or persist business truth.
 1. API creates call session before user joins.
 2. API issues scoped, short-lived Agora token and channel metadata.
 3. Browser joins Agora channel directly and handles microphone permissions, mute, end call, and reconnect UX.
-4. Transcript provider sends normalized transcript turns to API.
+4. Agora Signaling/RTM reaches a trusted server relay for live final customer and agent turns; the post-session Agora Notifications event `103` reconciles missing history through the fixed signed webhook. Browser RTC remains media-only.
 5. API persists transcript turns and routes them through the same extraction/domain evaluation path as replay.
 6. API broadcasts canonical SSE events to web.
 7. Display accurate connection state; only show “connected” after actual provider connection.

@@ -13,7 +13,7 @@ export function registerPlugins(app: FastifyInstance, dependencies: ApiDependenc
   void app.register(cors, {
     origin:
       config.nodeEnv === "production"
-        ? false // tighten in production via a concrete allowed-origins list
+        ? config.webOrigin || false
         : true,
     methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"]
   });

@@ -105,8 +105,8 @@ export function createApiClient(baseUrl, fetchFn = globalThis.fetch) {
     return post("/v1/voice-sessions", { consent: { policyVersion } });
   }
 
-  async function startVoiceSession(callId) {
-    return post(`/v1/voice-sessions/${callId}/start`, {});
+  async function startVoiceSession(callId, readiness) {
+    return post(`/v1/voice-sessions/${callId}/start`, readiness);
   }
 
   async function stopVoiceSession(callId) {
@@ -132,6 +132,8 @@ export function createApiClient(baseUrl, fetchFn = globalThis.fetch) {
       }
     });
   }
+
+  async function getTranscript(callId) { return get(`/v1/calls/${callId}/transcript`); }
 
   // ─── Risk ─────────────────────────────────────────────────────────────────
 
@@ -280,6 +282,7 @@ export function createApiClient(baseUrl, fetchFn = globalThis.fetch) {
     startVoiceSession,
     stopVoiceSession,
     submitTranscriptTurn,
+    getTranscript,
     getRisk,
     getBooking,
     confirmBooking,

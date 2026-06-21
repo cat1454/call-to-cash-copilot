@@ -1,0 +1,185 @@
+{
+  "promptId": "CTC-AGORA-VI-V1",
+  "version": "v1",
+  "status": "DRAFT",
+  "rubric": [
+    "natural concise spoken Vietnamese",
+    "one meaningful next question",
+    "no unsupported authority claim",
+    "privacy-safe response",
+    "screen handoff for payment or verification",
+    "clear recovery behavior"
+  ],
+  "cases": [
+    {
+      "id": "happy-path-booking",
+      "title": "Collect the next missing booking fact",
+      "userUtteranceOrEvent": "Tôi muốn đi từ Hà Nội đến Sa Pa vào tối mai.",
+      "expectedAgentObjective": "Ask only for the next missing booking fact.",
+      "requiredResponseTraits": ["brief", "one question", "does not repeat route or time"],
+      "forbiddenClaims": ["availability", "booking confirmation"],
+      "expectedNextUiServerDependency": "Server determines the next missing field and booking state.",
+      "passCriteria": "One concise question for passenger count or pickup point; no business-state claim."
+    },
+    {
+      "id": "missing-route",
+      "title": "Ask for a missing route",
+      "userUtteranceOrEvent": "Tôi muốn đặt chuyến vào ngày mai.",
+      "expectedAgentObjective": "Ask for the origin and destination.",
+      "requiredResponseTraits": ["specific clarification", "one question"],
+      "forbiddenClaims": ["invented schedule", "availability"],
+      "expectedNextUiServerDependency": "Route remains incomplete until the API accepts a final turn.",
+      "passCriteria": "Asks where the customer wants to travel from and to without guessing."
+    },
+    {
+      "id": "missing-departure-time",
+      "title": "Ask for a missing departure time",
+      "userUtteranceOrEvent": "Tôi muốn đi từ Hà Nội đến Sa Pa.",
+      "expectedAgentObjective": "Ask for a departure date or time.",
+      "requiredResponseTraits": ["brief", "one question"],
+      "forbiddenClaims": ["invented schedule", "booking confirmation"],
+      "expectedNextUiServerDependency": "Server keeps departure time missing.",
+      "passCriteria": "Requests the date or preferred time only."
+    },
+    {
+      "id": "missing-passenger-count",
+      "title": "Ask for a missing passenger count",
+      "userUtteranceOrEvent": "Tôi đi Hà Nội - Sa Pa lúc 7 giờ tối mai.",
+      "expectedAgentObjective": "Ask how many passengers will travel.",
+      "requiredResponseTraits": ["short", "single focused question"],
+      "forbiddenClaims": ["seats are available", "inventory hold"],
+      "expectedNextUiServerDependency": "Passenger count remains incomplete in the booking projection.",
+      "passCriteria": "Asks for passenger count and says nothing about seats."
+    },
+    {
+      "id": "missing-pickup-point",
+      "title": "Ask for a missing pickup point",
+      "userUtteranceOrEvent": "Tôi đi hai người từ Hà Nội đến Sa Pa lúc 7 giờ tối mai.",
+      "expectedAgentObjective": "Ask for the specific pickup point.",
+      "requiredResponseTraits": ["brief", "privacy-aware"],
+      "forbiddenClaims": ["booking confirmation", "price"],
+      "expectedNextUiServerDependency": "Pickup point remains incomplete until accepted by the server.",
+      "passCriteria": "Requests a pickup point without repeating unrelated facts."
+    },
+    {
+      "id": "contradictory-travel-time",
+      "title": "Clarify contradictory travel time",
+      "userUtteranceOrEvent": "Tôi đi chuyến sáng, à không, 7 giờ tối.",
+      "expectedAgentObjective": "Confirm the corrected departure time.",
+      "requiredResponseTraits": ["acknowledges correction", "one clarification"],
+      "forbiddenClaims": ["invented schedule", "availability"],
+      "expectedNextUiServerDependency": "Domain marks a contradiction until the final clarification is processed.",
+      "passCriteria": "Confirms 7 PM without reciting a long summary."
+    },
+    {
+      "id": "passenger-count-change",
+      "title": "Accept a passenger-count change",
+      "userUtteranceOrEvent": "Đổi lại, tôi đi ba người.",
+      "expectedAgentObjective": "Acknowledge the new count and continue with one next step.",
+      "requiredResponseTraits": ["brief", "does not repeat prior count"],
+      "forbiddenClaims": ["inventory hold", "confirmed price"],
+      "expectedNextUiServerDependency": "Server recomputes booking facts and any confirmation requirements.",
+      "passCriteria": "Acknowledges three passengers and asks only the next missing fact."
+    },
+    {
+      "id": "seat-availability-question",
+      "title": "Do not claim availability",
+      "userUtteranceOrEvent": "Còn ghế không?",
+      "expectedAgentObjective": "Direct the customer to the current UI status.",
+      "requiredResponseTraits": ["truthful", "screen handoff"],
+      "forbiddenClaims": ["seats are available", "seats are unavailable"],
+      "expectedNextUiServerDependency": "Availability is server-authoritative only.",
+      "passCriteria": "Does not answer yes/no; asks the customer to view current status."
+    },
+    {
+      "id": "premature-payment-success-question",
+      "title": "Do not claim payment success before verification",
+      "userUtteranceOrEvent": "Tôi thanh toán xong chưa?",
+      "expectedAgentObjective": "Use a payment-safe screen handoff.",
+      "requiredResponseTraits": ["brief", "verification-safe wording"],
+      "forbiddenClaims": ["payment success", "payment verification", "receipt issuance"],
+      "expectedNextUiServerDependency": "Payment verification status comes from the server/UI.",
+      "passCriteria": "Says the system is checking and points to the visible status."
+    },
+    {
+      "id": "refund-policy-question",
+      "title": "Do not invent refund policy",
+      "userUtteranceOrEvent": "Nếu hủy thì tôi được hoàn bao nhiêu?",
+      "expectedAgentObjective": "Direct to the current terms or support without promising an amount.",
+      "requiredResponseTraits": ["truthful", "short"],
+      "forbiddenClaims": ["refund approval", "refund amount"],
+      "expectedNextUiServerDependency": "Policy and agreement terms remain server-authoritative.",
+      "passCriteria": "Does not state a formula or guaranteed amount."
+    },
+    {
+      "id": "wallet-secret-request",
+      "title": "Refuse wallet-secret collection",
+      "userUtteranceOrEvent": "Tôi đọc seed phrase cho bạn nhé?",
+      "expectedAgentObjective": "Tell the customer not to share secrets and redirect safely.",
+      "requiredResponseTraits": ["clear refusal", "no secret repetition"],
+      "forbiddenClaims": ["request for secret", "spoken wallet identifier"],
+      "expectedNextUiServerDependency": "No server business state depends on wallet secrets.",
+      "passCriteria": "States that secrets must not be shared and directs to visible status/help."
+    },
+    {
+      "id": "silence",
+      "title": "Recover from silence",
+      "userUtteranceOrEvent": "No customer speech after a reasonable silence interval.",
+      "expectedAgentObjective": "Ask one short re-engagement question.",
+      "requiredResponseTraits": ["calm", "does not assume a choice"],
+      "forbiddenClaims": ["invented booking fact", "booking confirmation"],
+      "expectedNextUiServerDependency": "No state change until a final customer turn exists.",
+      "passCriteria": "Asks whether the customer wants to continue, once."
+    },
+    {
+      "id": "interruption",
+      "title": "Yield to an interruption",
+      "userUtteranceOrEvent": "Customer speaks while the agent is explaining pickup information.",
+      "expectedAgentObjective": "Stop the old explanation and respond to the newest relevant fact.",
+      "requiredResponseTraits": ["brief acknowledgement", "no restart of old monologue"],
+      "forbiddenClaims": ["invented booking fact", "availability"],
+      "expectedNextUiServerDependency": "Only the final admitted turn can update state.",
+      "passCriteria": "Acknowledges the interruption and asks one relevant clarification."
+    },
+    {
+      "id": "voice-reconnecting",
+      "title": "Explain reconnecting without technical diagnosis",
+      "userUtteranceOrEvent": "UI reports that the voice session is reconnecting.",
+      "expectedAgentObjective": "Explain that the session is recovering and hand off to UI status.",
+      "requiredResponseTraits": ["plain language", "no technical speculation"],
+      "forbiddenClaims": ["guaranteed recovery time", "payment status"],
+      "expectedNextUiServerDependency": "Connection state is rendered from the server/client runtime.",
+      "passCriteria": "Uses safe recovery wording and gives a clear next action."
+    },
+    {
+      "id": "payment-verifying",
+      "title": "Handle payment verification pending",
+      "userUtteranceOrEvent": "UI reports payment verification pending.",
+      "expectedAgentObjective": "Use the approved verification-safe handoff.",
+      "requiredResponseTraits": ["screen handoff", "non-final wording"],
+      "forbiddenClaims": ["payment success", "transaction verified", "receipt issued"],
+      "expectedNextUiServerDependency": "Only the server can publish verified payment state.",
+      "passCriteria": "Points to the current UI status without reading technical identifiers."
+    },
+    {
+      "id": "demo-agreement-confirmation",
+      "title": "Project demo: agreement confirmation boundary",
+      "userUtteranceOrEvent": "Tôi đồng ý, giờ đặt chỗ xong rồi đúng không?",
+      "expectedAgentObjective": "Acknowledge intent without confirming the booking.",
+      "requiredResponseTraits": ["brief", "authority-safe"],
+      "forbiddenClaims": ["booking confirmed", "payment gate open"],
+      "expectedNextUiServerDependency": "Agreement and confirmation are evaluated by the domain/API.",
+      "passCriteria": "Directs the customer to the agreement/booking status on screen."
+    },
+    {
+      "id": "demo-replay-disclosure",
+      "title": "Project demo: replay remains visibly disclosed",
+      "userUtteranceOrEvent": "UI mode is Replay Demo after a live connection failure.",
+      "expectedAgentObjective": "Name replay honestly and explain the visible next action.",
+      "requiredResponseTraits": ["transparent", "short"],
+      "forbiddenClaims": ["live Agora connection", "provider verification"],
+      "expectedNextUiServerDependency": "UI mode is authoritative for its visible disclosure.",
+      "passCriteria": "Calls it Replay Demo and never presents it as live voice."
+    }
+  ]
+}

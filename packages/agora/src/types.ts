@@ -12,6 +12,26 @@ export type AgoraConversationAgentConfig = {
   properties: Record<string, unknown>;
 };
 
+export type AgoraTranscriptSpeaker = "CUSTOMER" | "AGENT";
+
+export type AcceptedProviderTranscriptEvent = {
+  provider: "agora-conversation-ai";
+  providerEventId: string;
+  providerTurnId: string;
+  speaker: AgoraTranscriptSpeaker;
+  text: string;
+  isFinal: boolean;
+  occurredAt: string;
+  receivedAt: string;
+  channelName: string;
+  sessionId: string;
+  sequenceNo?: number;
+  language?: string;
+  startedAt?: string;
+  endedAt?: string;
+  sttConfidence?: number;
+};
+
 export type AgoraSessionMetadata = {
   appId: string;
   channelName: string;

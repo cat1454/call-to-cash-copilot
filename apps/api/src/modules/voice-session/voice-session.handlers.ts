@@ -1,19 +1,20 @@
-import { randomInt, timingSafeEqual, createHmac } from "node:crypto";
+import { randomInt, randomUUID, timingSafeEqual, createHmac } from "node:crypto";
 
 import {
   AgoraAdapterError,
   AgoraConversationAgentClient,
   AgoraTranscriptProviderEventSchema,
-  TranscriptDeduplicator,
+  AgoraConversationHistoryNotificationSchema,
   issueRtcAndRtmToken,
   issueRtcToken,
-  normalizeTranscriptEvent
+  normalizeTranscriptEvent,
+  verifyAgoraNotificationSignature
 } from "@call-to-cash/agora";
 import type { RuntimeConfig } from "@call-to-cash/config";
 import type { DatabaseClient } from "@call-to-cash/db";
 
 import { ApiCommandError } from "../../platform/http/api-command-error.js";
-import { appendTranscriptTurn } from "../call-session/commands/append-transcript-turn.js";
+import { acceptProviderTranscriptEvent } from "../call-session/commands/accept-provider-transcript-event.js";
 import { createCallSession } from "../call-session/commands/create-call-session.js";
 import { endCallSession } from "../call-session/commands/end-call-session.js";
 import { getCallSession } from "../call-session/queries/get-call-session.js";
@@ -58,7 +59,6 @@ function isFresh(timestamp: string, now = Date.now()): boolean {
 export function createVoiceSessionHandlers(config: RuntimeConfig, databaseClient?: DatabaseClient) {
   const database = () => requireDatabase(databaseClient);
   const runtime = new Map<string, VoiceSessionRuntime>();
-  const deduplicator = new TranscriptDeduplicator();
   const agentClient = new AgoraConversationAgentClient({
     appId: config.agora.appId,
     customerId: config.agora.customerId,
@@ -83,13 +83,40 @@ export function createVoiceSessionHandlers(config: RuntimeConfig, databaseClient
     return call;
   }
 
+  async function validateProviderBinding(input: {
+    callId: string;
+    channelName: string;
+    sessionId: string;
+  }) {
+    const call = await lookup(input.callId);
+    const active = runtime.get(input.callId);
+    if (input.channelName !== call.channelName || input.sessionId !== active?.agentId) {
+      throw new ApiCommandError(401, "WEBHOOK_SIGNATURE_INVALID", "Provider event was rejected.");
+    }
+    return call;
+  }
+
   function mapAgoraError(error: unknown): never {
     if (error instanceof AgoraAdapterError) {
+      const details =
+        error.httpStatus === undefined
+          ? undefined
+          : {
+              httpStatus: error.httpStatus,
+              ...(error.providerDetail === undefined
+                ? {}
+                : { providerDetail: error.providerDetail }),
+              ...(error.providerReason === undefined
+                ? {}
+                : { providerReason: error.providerReason }),
+              normalizedCode: error.code,
+              retryable: error.retryable
+            };
       throw new ApiCommandError(
         error.code === "AGORA_TOKEN_ISSUE_FAILED" ? 502 : 503,
         error.code,
         error.message,
-        undefined,
+        details,
         error.retryable
       );
     }
@@ -110,12 +137,25 @@ export function createVoiceSessionHandlers(config: RuntimeConfig, databaseClient
         requestId: input.requestId
       });
       const saved = await lookup(call.callId as string);
-      runtime.set(saved.publicId, { status: "READY" });
+      const customerUid = randomInt(1, 4_000_000_000);
+      if (customerUid === config.agora.agentUid) {
+        throw new ApiCommandError(
+          503,
+          "AGORA_CHANNEL_UNAVAILABLE",
+          "Live voice is unavailable.",
+          undefined,
+          true
+        );
+      }
+      const rtc = issueRtcToken(config.agora, { channelName: saved.channelName, uid: customerUid });
+      const prepared = { status: "READY" as const, customerUid, rtc };
+      runtime.set(saved.publicId, prepared);
       return presentVoiceSession({
         callId: saved.publicId,
         channelName: saved.channelName,
         analysisConsent: consentStatus(saved),
-        runtime: runtime.get(saved.publicId)
+        runtime: prepared,
+        rtc
       });
     },
 
@@ -137,7 +177,13 @@ export function createVoiceSessionHandlers(config: RuntimeConfig, databaseClient
       });
     },
 
-    async start(input: { callId: string; requestId: string }) {
+    async start(input: {
+      callId: string;
+      requestId: string;
+      rtcConnected: true;
+      microphonePublished: true;
+      browserRtcUid: number;
+    }) {
       if (config.voiceProvider !== "agora" || !config.agora.ready) {
         throw new ApiCommandError(
           503,
@@ -155,30 +201,67 @@ export function createVoiceSessionHandlers(config: RuntimeConfig, databaseClient
           "Live audio consent is required before connecting."
         );
       }
-      const customerUid = randomInt(1, 4_000_000_000);
+      const prepared = runtime.get(call.publicId);
+      if (!prepared?.rtc || prepared.customerUid === undefined) {
+        throw new ApiCommandError(
+          409,
+          "AGORA_CHANNEL_UNAVAILABLE",
+          "Browser RTC is not prepared.",
+          undefined,
+          true
+        );
+      }
+      if (
+        prepared.customerUid !== input.browserRtcUid ||
+        prepared.customerUid === config.agora.agentUid
+      ) {
+        throw new ApiCommandError(
+          422,
+          "AGORA_CHANNEL_UNAVAILABLE",
+          "Browser RTC identity is invalid."
+        );
+      }
+      if (prepared.status === "CONNECTED" && prepared.agentId) {
+        return presentVoiceSession({
+          callId: call.publicId,
+          channelName: call.channelName,
+          analysisConsent: "GRANTED",
+          runtime: prepared,
+          rtc: prepared.rtc
+        });
+      }
+      if (prepared.status === "STARTING") {
+        throw new ApiCommandError(
+          409,
+          "AGORA_CHANNEL_UNAVAILABLE",
+          "Agora agent start is already in progress.",
+          undefined,
+          true
+        );
+      }
+      const customerUid = prepared.customerUid;
       const session: VoiceSessionRuntime = { status: "STARTING", customerUid };
       runtime.set(call.publicId, session);
       try {
-        const rtc = issueRtcToken(config.agora, {
-          channelName: call.channelName,
-          uid: customerUid
-        });
         const agentToken = issueRtcAndRtmToken(config.agora, {
           channelName: call.channelName,
           uid: config.agora.agentUid
         });
+        const agentRequestName = `${config.agora.agentName}-${call.publicId}-${randomUUID().slice(0, 8)}`;
         const agent = await agentClient.start({
           channelName: call.channelName,
           agentToken,
           agentUid: config.agora.agentUid,
           customerUid,
-          name: `${config.agora.agentName}-${call.publicId}`
+          name: agentRequestName,
+          callId: call.publicId
         });
         const connected = {
           status: "CONNECTED" as const,
           customerUid,
           agentId: agent.agentId,
-          rtc
+          agentRequestName,
+          rtc: prepared.rtc
         };
         runtime.set(call.publicId, connected);
         return presentVoiceSession({
@@ -186,7 +269,7 @@ export function createVoiceSessionHandlers(config: RuntimeConfig, databaseClient
           channelName: call.channelName,
           analysisConsent: "GRANTED",
           runtime: connected,
-          rtc
+          rtc: prepared.rtc
         });
       } catch (error) {
         runtime.set(call.publicId, { status: "FAILED", customerUid });
@@ -238,8 +321,8 @@ export function createVoiceSessionHandlers(config: RuntimeConfig, databaseClient
       requestId: string;
     }) {
       if (
-        !config.agora.webhookSecret ||
-        !verifySignature(config.agora.webhookSecret, input.payload, input.signature)
+        !config.agora.providerEventSecret ||
+        !verifySignature(config.agora.providerEventSecret, input.payload, input.signature)
       ) {
         throw new ApiCommandError(401, "WEBHOOK_SIGNATURE_INVALID", "Provider event was rejected.");
       }
@@ -247,39 +330,92 @@ export function createVoiceSessionHandlers(config: RuntimeConfig, databaseClient
       if (!isFresh(providerEvent.occurredAt)) {
         throw new ApiCommandError(401, "WEBHOOK_EVENT_EXPIRED", "Provider event was rejected.");
       }
-      const call = await lookup(input.callId);
-      const active = runtime.get(input.callId);
+      if (providerEvent.callId !== input.callId) {
+        throw new ApiCommandError(401, "WEBHOOK_SIGNATURE_INVALID", "Provider event was rejected.");
+      }
+      await validateProviderBinding({
+        callId: input.callId,
+        channelName: providerEvent.channelName,
+        sessionId: providerEvent.sessionId
+      });
+      const normalized = normalizeTranscriptEvent(providerEvent);
+      return acceptProviderTranscriptEvent(database(), {
+        callId: input.callId,
+        provider: "agora-conversation-ai",
+        providerEventId: providerEvent.eventId,
+        providerTurnId: normalized.providerTurnId,
+        speaker: normalized.speaker === "CUSTOMER" ? "CUSTOMER" : "AGENT",
+        text: normalized.content,
+        isFinal: normalized.isFinal,
+        occurredAt: providerEvent.occurredAt,
+        receivedAt: new Date().toISOString(),
+        channelName: providerEvent.channelName,
+        sessionId: providerEvent.sessionId,
+        requestId: input.requestId,
+        sequenceNo: normalized.sequenceNo,
+        language: normalized.language
+      });
+    },
+
+    async reconcileAgoraNotification(input: {
+      rawBody: Buffer;
+      signature?: string;
+      payload: unknown;
+      requestId: string;
+    }) {
       if (
-        providerEvent.callId !== input.callId ||
-        providerEvent.channelName !== call.channelName ||
-        providerEvent.sessionId !== active?.agentId
+        !config.agora.ncsWebhookSecret ||
+        !verifyAgoraNotificationSignature(config.agora.ncsWebhookSecret, input.rawBody, input.signature)
       ) {
         throw new ApiCommandError(401, "WEBHOOK_SIGNATURE_INVALID", "Provider event was rejected.");
       }
-      const normalized = normalizeTranscriptEvent(providerEvent);
-      if (!normalized.isFinal) return { accepted: false, persisted: false, duplicate: false };
-      if (!deduplicator.accept(`${input.callId}:${normalized.providerTurnId}`)) {
-        return { accepted: true, persisted: false, duplicate: true };
+      const notification = AgoraConversationHistoryNotificationSchema.parse(input.payload);
+      const notificationMilliseconds = Number(notification.notifyMs);
+      const noticeTime =
+        notification.occurredAt ??
+        (Number.isFinite(notificationMilliseconds)
+          ? new Date(notificationMilliseconds).toISOString()
+          : "invalid");
+      if (!isFresh(noticeTime) || String(notification.productId) !== config.agora.ncsProductId) {
+        throw new ApiCommandError(401, "WEBHOOK_EVENT_EXPIRED", "Provider event was rejected.");
       }
-      const result = await appendTranscriptTurn(database(), {
-        callId: input.callId,
-        requestId: input.requestId,
-        turn: {
-          clientTurnId: normalized.providerTurnId,
-          sequenceNo: normalized.sequenceNo,
-          speaker: normalized.speaker,
-          content: normalized.content,
-          language: normalized.language,
-          isFinal: true,
-          source: "AGORA",
-          ...(normalized.startedAt === undefined ? {} : { startedAt: normalized.startedAt }),
-          ...(normalized.endedAt === undefined ? {} : { endedAt: normalized.endedAt }),
-          ...(normalized.sttConfidence === undefined
-            ? {}
-            : { sttConfidence: normalized.sttConfidence })
-        }
+      const callId = notification.payload.labels.call_id;
+      const call = await validateProviderBinding({
+        callId,
+        channelName: notification.payload.channelName,
+        sessionId: notification.payload.sessionId
       });
-      return { ...result, persisted: true, duplicate: false };
+      try {
+        await database().providerWebhookNotice.create({
+          data: { provider: "agora-conversation-ai", noticeId: notification.noticeId, callId: call.id }
+        });
+      } catch (error: unknown) {
+        if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {
+          return { accepted: true, persisted: 0, duplicate: true };
+        }
+        throw error;
+      }
+      let persisted = 0;
+      for (const turn of notification.payload.history) {
+        const result = await acceptProviderTranscriptEvent(database(), {
+          callId,
+          provider: "agora-conversation-ai",
+          providerEventId: notification.noticeId,
+          providerTurnId: turn.id,
+          speaker: turn.role === "user" ? "CUSTOMER" : "AGENT",
+          text: turn.text,
+          isFinal: turn.isFinal,
+          occurredAt: turn.occurredAt ?? noticeTime,
+          receivedAt: new Date().toISOString(),
+          channelName: notification.payload.channelName,
+          sessionId: notification.payload.sessionId,
+          requestId: input.requestId,
+          ...(turn.sequenceNo === undefined ? {} : { sequenceNo: turn.sequenceNo }),
+          ...(turn.language === undefined ? {} : { language: turn.language })
+        });
+        if (result.persisted) persisted += 1;
+      }
+      return { accepted: true, persisted, duplicate: false };
     },
 
     async getCanonicalCall(callId: string) {

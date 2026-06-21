@@ -16,10 +16,28 @@ Evidence level for branch `develop`, commit `60d8fd6` plus the current uncommitt
 | API `/health` | Passed locally (`ok`) |
 | API `/ready` | Passed locally: database ready, voice `agora`, payment `solana_devnet` |
 | Browser/API provider alignment | Passed safe preflight: `agora / agora` |
-| Live microphone + agent audio + novel transcript | **NOT TESTED for this current change** |
-| Three-run manual smoke | **NOT TESTED** |
+| Live microphone + agent audio + novel transcript | **PASS — three independent redacted browser runs, user-attested 2026-06-21** |
+| Three-run manual smoke | **PASS — evidence ledger in `docs/operations/AGORA-LIVE-SMOKE-TEST.md`** |
 
-Current recommendation: **Ready for live Agora smoke validation**, not yet “Live Agora verified.” Prompt/persona optimization and server-to-agent directives remain deferred until the three-run browser checklist passes.
+Current recommendation: **GO for Phase 9.2 static prompt implementation.** V1 is injected only by the server-side join request and remains draft-only until its controlled live evaluation is recorded.
+
+### Phase 9.2 gate - Conversation Quality Optimization
+
+**Status: GO - static prompt artifacts are in draft; RTC-first agent startup now passes, while controlled conversation evaluation remains pending.**
+
+The P0 safe preflight passes with the effective Vite browser configuration (`apps/web/.env.local` before `apps/web/.env`) and the server configuration both set to Agora. The three-run browser evidence gate is passed and preserved in `docs/operations/AGORA-LIVE-SMOKE-TEST.md` with redacted, user-attested evidence.
+
+Phase 9.2 may now create a versioned static prompt, evaluation matrix, and artifact tests. Replay remains visibly labelled and cannot masquerade as Agora Live. The V1 prompt stays `DRAFT` until its own three happy-path runs plus interruption, silence, and payment-verifying evaluation are recorded.
+
+#### Prompt deployment discovery
+
+The server reads the server-only `AGORA_CAI_PROPERTIES_JSON` environment value into `config.agora.agentProperties`. `AgoraConversationAgentClient` takes its required `pipeline_id`, preserves compatible non-prompt properties, and loads `packages/agora/prompts/call-to-cash-vi-v1.md` into the supported Agora join field `properties.llm.system_messages`. Prompt content stays server-side and does not enter browser configuration. The repository source, safe pipeline fingerprint, deployment procedure, and recovery boundary are documented in `packages/agora/prompts/README.md`.
+
+No provider prompt-revision or provider rollback API is configured or verified by this repository. Do not invent revision labels or a dashboard workflow. Do not promote V1 until its three happy-path, interruption, silence, and payment-verifying evaluations are recorded with visible transcripts and no unsupported authority claim.
+
+On 2026-06-21, the API was restarted from the built code and its `/health`, `/ready`, and secret-safe preflight checks passed with aligned Agora providers. A legacy server-side V1 join attempt happened before browser RTC readiness and Agora returned `AGORA_CHANNEL_UNAVAILABLE`; that adapter did not retain provider detail/reason. The current implementation reverses that order and preserves future safe provider diagnostics: browser RTC join and microphone publication complete first, then one UID-verified agent start is allowed. On 2026-06-22 a Playwright fake-microphone browser run reached a `200` agent start with `CONNECTED`/`agentStarted`; real audible speech and transcript evidence remain required before V1 evaluation or activation.
+
+The eventual Phase 9.2 static-prompt baseline must remain conversational only. It must not replace deterministic extraction or decide booking, inventory, risk, payment, proof, or receipt state. Phase 9.3 runtime directives remain a separate, unimplemented follow-up.
 
 ### Reproducible package integrity path
 
@@ -133,7 +151,7 @@ VOICE_PROVIDER=agora
 VITE_VOICE_PROVIDER=agora
 ```
 
-4. Restart processes after any `.env` change. Vite reads `VITE_*` variables at startup, not dynamically after the server is already running.
+4. Restart processes after any `.env` change. Vite reads `VITE_*` variables at startup, preferring `apps/web/.env.local` over `apps/web/.env`, and does not reload them dynamically after the server is already running. `demo:preflight` follows the same precedence.
 
 5. Add/keep a safe preflight check that reports only presence/status, never secret values.
 
