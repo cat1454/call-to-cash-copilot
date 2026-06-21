@@ -1,10 +1,6 @@
 import { AgoraAdapterError } from "./errors.js";
 import type { AgoraAgentSession, AgoraConversationAgentConfig } from "./types.js";
 
-function basicAuthorization(customerId: string, customerSecret: string): string {
-  return `Basic ${Buffer.from(`${customerId}:${customerSecret}`).toString("base64")}`;
-}
-
 function agentIdFrom(response: Record<string, unknown>): string | undefined {
   for (const candidate of [response.agent_id, response.agentId, response.id]) {
     if (typeof candidate === "string" && candidate.length > 0) return candidate;
@@ -13,6 +9,7 @@ function agentIdFrom(response: Record<string, unknown>): string | undefined {
 }
 
 export class AgoraConversationAgentClient {
+  private readonly agentTokens = new Map<string, string>();
   constructor(
     private readonly config: AgoraConversationAgentConfig,
     private readonly fetchImpl: typeof fetch = fetch
@@ -25,21 +22,31 @@ export class AgoraConversationAgentClient {
     customerUid: number;
     name: string;
   }): Promise<AgoraAgentSession> {
+    const { pipeline_id: pipelineId, ...properties } = this.config.properties;
+    if (typeof pipelineId !== "string" || pipelineId.length === 0) {
+      throw new AgoraAdapterError(
+        "AGORA_CHANNEL_UNAVAILABLE",
+        "Agora CAI pipeline is not configured.",
+        false
+      );
+    }
     const response = await this.request(
       `/api/conversational-ai-agent/v2/projects/${this.config.appId}/join`,
       {
         method: "POST",
         body: JSON.stringify({
           name: input.name,
+          pipeline_id: pipelineId,
           properties: {
-            ...this.config.properties,
+            ...properties,
             channel: input.channelName,
             token: input.agentToken,
             agent_rtc_uid: String(input.agentUid),
             remote_rtc_uids: [String(input.customerUid)]
           }
         })
-      }
+      },
+      input.agentToken
     );
     const agentId = agentIdFrom(response);
     if (agentId === undefined) {
@@ -49,22 +56,37 @@ export class AgoraConversationAgentClient {
         true
       );
     }
+    this.agentTokens.set(agentId, input.agentToken);
     return { agentId, name: input.name };
   }
 
   async stop(agentId: string): Promise<void> {
+    const token = this.agentTokens.get(agentId);
+    if (token === undefined) {
+      throw new AgoraAdapterError(
+        "AGORA_CHANNEL_UNAVAILABLE",
+        "Agora agent session is no longer available.",
+        true
+      );
+    }
     await this.request(
       `/api/conversational-ai-agent/v2/projects/${this.config.appId}/agents/${encodeURIComponent(agentId)}/leave`,
-      { method: "POST" }
+      { method: "POST" },
+      token
     );
+    this.agentTokens.delete(agentId);
   }
 
-  private async request(path: string, init: RequestInit): Promise<Record<string, unknown>> {
+  private async request(
+    path: string,
+    init: RequestInit,
+    token: string
+  ): Promise<Record<string, unknown>> {
     try {
       const response = await this.fetchImpl(new URL(path, this.config.baseUrl), {
         ...init,
         headers: {
-          Authorization: basicAuthorization(this.config.customerId, this.config.customerSecret),
+          Authorization: `agora token=${token}`,
           "Content-Type": "application/json"
         }
       });

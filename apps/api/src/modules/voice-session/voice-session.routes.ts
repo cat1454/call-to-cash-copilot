@@ -21,17 +21,15 @@ export function registerVoiceSessionRoutes(
   const handlers = createVoiceSessionHandlers(dependencies.config, dependencies.databaseClient);
   app.post("/v1/voice-sessions", async (request, reply) => {
     const body = parseWithSchema(CreateVoiceSessionRequestSchema, request.body);
-    return reply
-      .code(201)
-      .send(
-        successEnvelope(
-          request.id,
-          await handlers.create({
-            policyVersion: body.consent.policyVersion,
-            requestId: request.id
-          })
-        )
-      );
+    return reply.code(201).send(
+      successEnvelope(
+        request.id,
+        await handlers.create({
+          policyVersion: body.consent.policyVersion,
+          requestId: request.id
+        })
+      )
+    );
   });
   app.get("/v1/voice-sessions/:callId", async (request) => {
     const params = parseWithSchema(CallParamsSchema, request.params);

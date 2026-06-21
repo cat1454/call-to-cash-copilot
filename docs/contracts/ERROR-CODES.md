@@ -77,6 +77,7 @@ Error codes are a product and integration contract. They let the web app display
 | `RESOURCE_NOT_FOUND` | 404 | No | The requested item was not found. |
 | `RECEIPT_ACCESS_DENIED` | 403 | No | You cannot view this receipt. |
 | `WEBHOOK_SIGNATURE_INVALID` | 401 | No | Provider event was rejected. |
+| `WEBHOOK_EVENT_EXPIRED` | 401 | No | Provider event is outside the accepted freshness window. |
 
 ---
 

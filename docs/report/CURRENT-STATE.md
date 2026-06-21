@@ -134,6 +134,20 @@ Phase 9 must not move media through the Node API or give Agora authority over bo
 
 ---
 
+## 7.1 Phase 9.1 Agora live acceptance — 2026-06-21
+
+**Status: FAIL (live acceptance evidence unavailable).** The local environment does not contain the required server-only Agora App Certificate, customer credential, webhook secret, or CAI property configuration, so no real microphone join, CAI audible response, signed provider event, or live transcript persistence was performed or claimed.
+
+PostgreSQL-backed verification did run successfully: 6 database tests and 10 API tests passed with no skips using `call_to_cash_test`. No migration was required. The provider-event adapter was hardened to require an HMAC, five-minute freshness window, matching call ID/channel/active agent session, and stable provider-turn deduplication before invoking the existing transcript command.
+
+Remaining acceptance work: configure Agora values only in server environment, set `VITE_VOICE_PROVIDER=agora`, execute the smoke runbook with a real browser microphone and CAI response, then record redacted channel/session identifiers and results here. Replay remains the fallback while live Agora is unavailable.
+
+### Phase 9.1 update — server-to-CAI connectivity
+
+The server-to-CAI probe passed on 2026-06-21 after aligning the adapter with Agora's pipeline API: a combined RTC/RTM token is used for `Authorization: agora token=...`, `pipeline_id` is top-level, and channel/token fields remain under `properties`. The probe received HTTP 200 with an agent ID, then completed a successful leave request. No identifier or credential is recorded here. Browser microphone, live final-turn ingestion, and SSE acceptance remain outstanding.
+
+---
+
 ## 8. Change summary for this snapshot
 
 - **Documentation consulted:** `AGENTS.md`, `docs/architecture/PIPELINE.md`, `docs/architecture/DECISIONS.md`, `docs/contracts/API-CONTRACT.md`, `docs/contracts/EVENT-CONTRACT.md`, `docs/contracts/ERROR-CODES.md`, `docs/security/DATA-PRIVACY-ONCHAIN-POLICY.md`, `docs/operations/LOCAL-SETUP.md`, `docs/operations/SOLANA-DEVNET-SMOKE-TEST.md`, `docs/operations/ECC-AGENT-WORKFLOW.md`, and the previous current-state report.

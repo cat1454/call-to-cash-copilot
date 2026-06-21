@@ -8,6 +8,10 @@ test("normalizes final provider transcript turns and keeps provider turn identit
     normalizeTranscriptEvent({
       type: "transcript.turn",
       eventId: "evt_1",
+      callId: "call_012345",
+      channelName: "ctc_call_012345",
+      sessionId: "agent_1",
+      occurredAt: "2026-06-21T10:00:00.000Z",
       turn: {
         id: "provider-turn-1",
         sequenceNo: 2,

@@ -46,3 +46,36 @@ export function issueRtcToken(
     );
   }
 }
+
+/** CAI pipeline authentication requires a combined RTC + RTM token for the agent. */
+export function issueRtcAndRtmToken(
+  config: AgoraTokenConfig,
+  input: { channelName: string; uid: number; now?: Date }
+): string {
+  if (!config.appId || !config.appCertificate || !input.channelName) {
+    throw new AgoraAdapterError(
+      "AGORA_TOKEN_ISSUE_FAILED",
+      "Agora voice service is not configured.",
+      false
+    );
+  }
+  const now = input.now ?? new Date();
+  const expiresAtEpoch = Math.floor(now.getTime() / 1_000) + config.tokenTtlSeconds;
+  try {
+    return RtcTokenBuilder.buildTokenWithRtm(
+      config.appId,
+      config.appCertificate,
+      input.channelName,
+      String(input.uid),
+      RtcRole.PUBLISHER,
+      expiresAtEpoch,
+      expiresAtEpoch
+    );
+  } catch {
+    throw new AgoraAdapterError(
+      "AGORA_TOKEN_ISSUE_FAILED",
+      "Agora session credentials could not be issued.",
+      true
+    );
+  }
+}

@@ -4,6 +4,10 @@ export const AgoraTranscriptProviderEventSchema = z
   .object({
     type: z.literal("transcript.turn"),
     eventId: z.string().min(1),
+    callId: z.string().regex(/^call_[A-Za-z0-9][A-Za-z0-9_-]{5,127}$/u),
+    channelName: z.string().min(1).max(64),
+    sessionId: z.string().min(1),
+    occurredAt: z.string().datetime({ offset: true }),
     turn: z
       .object({
         id: z.string().min(1),

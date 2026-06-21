@@ -195,7 +195,7 @@ Ends an active call or cancels an unstarted call.
 
 `POST /v1/voice-sessions` records explicit `ANALYSIS` consent and creates a `LIVE_AGORA` call. `POST /v1/voice-sessions/:callId/start` is permitted only while that latest consent is `GRANTED`; it returns public RTC metadata (app ID, channel, UID, short-lived token, expiry) and starts the CAI agent server-side. `POST /stop` stops the provider agent and ends local session state. `GET /v1/voice-sessions/:callId` returns a privacy-safe status projection.
 
-`POST /v1/voice-sessions/:callId/provider-events` is server-to-server only. It requires `X-Agora-Signature: sha256=<HMAC>` over the canonical JSON payload. It forwards only normalized final provider turns to the canonical transcript command; interim turns are accepted but non-persisted and cannot alter booking, risk, payment, proof, or receipt state.
+`POST /v1/voice-sessions/:callId/provider-events` is server-to-server only. It requires `X-Agora-Signature: sha256=<HMAC>` over the canonical JSON payload. The payload binds `callId`, `channelName`, active CAI `sessionId`, and `occurredAt`; events outside a five-minute freshness window are rejected. It forwards only normalized final provider turns to the canonical transcript command; interim turns are accepted but non-persisted and cannot alter booking, risk, payment, proof, or receipt state.
 
 ### 3.1 `POST /v1/agora/token`
 

@@ -3,7 +3,9 @@ import { randomInt, timingSafeEqual, createHmac } from "node:crypto";
 import {
   AgoraAdapterError,
   AgoraConversationAgentClient,
+  AgoraTranscriptProviderEventSchema,
   TranscriptDeduplicator,
+  issueRtcAndRtmToken,
   issueRtcToken,
   normalizeTranscriptEvent
 } from "@call-to-cash/agora";
@@ -46,6 +48,11 @@ function verifySignature(secret: string, payload: unknown, signature: string | u
   return (
     expectedBytes.length === receivedBytes.length && timingSafeEqual(expectedBytes, receivedBytes)
   );
+}
+
+function isFresh(timestamp: string, now = Date.now()): boolean {
+  const eventTime = Date.parse(timestamp);
+  return Number.isFinite(eventTime) && Math.abs(now - eventTime) <= 5 * 60 * 1_000;
 }
 
 export function createVoiceSessionHandlers(config: RuntimeConfig, databaseClient?: DatabaseClient) {
@@ -156,10 +163,10 @@ export function createVoiceSessionHandlers(config: RuntimeConfig, databaseClient
           channelName: call.channelName,
           uid: customerUid
         });
-        const agentToken = issueRtcToken(config.agora, {
+        const agentToken = issueRtcAndRtmToken(config.agora, {
           channelName: call.channelName,
           uid: config.agora.agentUid
-        }).token;
+        });
         const agent = await agentClient.start({
           channelName: call.channelName,
           agentToken,
@@ -236,7 +243,20 @@ export function createVoiceSessionHandlers(config: RuntimeConfig, databaseClient
       ) {
         throw new ApiCommandError(401, "WEBHOOK_SIGNATURE_INVALID", "Provider event was rejected.");
       }
-      const normalized = normalizeTranscriptEvent(input.payload);
+      const providerEvent = AgoraTranscriptProviderEventSchema.parse(input.payload);
+      if (!isFresh(providerEvent.occurredAt)) {
+        throw new ApiCommandError(401, "WEBHOOK_EVENT_EXPIRED", "Provider event was rejected.");
+      }
+      const call = await lookup(input.callId);
+      const active = runtime.get(input.callId);
+      if (
+        providerEvent.callId !== input.callId ||
+        providerEvent.channelName !== call.channelName ||
+        providerEvent.sessionId !== active?.agentId
+      ) {
+        throw new ApiCommandError(401, "WEBHOOK_SIGNATURE_INVALID", "Provider event was rejected.");
+      }
+      const normalized = normalizeTranscriptEvent(providerEvent);
       if (!normalized.isFinal) return { accepted: false, persisted: false, duplicate: false };
       if (!deduplicator.accept(`${input.callId}:${normalized.providerTurnId}`)) {
         return { accepted: true, persisted: false, duplicate: true };
