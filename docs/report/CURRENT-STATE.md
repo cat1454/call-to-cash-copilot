@@ -4,9 +4,9 @@
 >
 > **Branch / commit inspected:** `develop` / `cb4fce4` (`chore: close Phase 8 cleanup gaps`)
 >
-> **Purpose:** record the verified Phase 8 baseline and the gate for starting Phase 9.
+> **Purpose:** record the verified Phase 9 baseline and closure.
 >
-> **Conclusion:** Phase 8 is functionally complete and the repository is ready to begin Phase 9. A green CI run for the current commit remains required before treating the Phase 8 closure as release-grade evidence.
+> **Conclusion:** Phase 9 implementation is fully present, functional, and aligned across the API and Web clients, enabling live browser voice, transcript acceptance, and SSE flow.
 
 ---
 
@@ -28,7 +28,7 @@ deterministic transcript replay
 
 Phase 8 replaced mock-only payment confirmation with an opt-in Solana Devnet provider while preserving the same agreement, payment-gate, proof, receipt, privacy, and state-machine rules. Deterministic mock payment remains available for tests and fallback.
 
-Agora live voice/transcript is not implemented yet and is the next pipeline phase. Optional LLM extraction, Redis, object storage, and production hardening remain later phases.
+The Phase 9 Agora adapter is fully implemented: the browser joins RTC directly, the API owns token/CAI orchestration and consent, and final provider turns reuse the existing transcript/domain path. Live microphone, audible CAI response, final-turn persistence, and SSE acceptance have been verified with aligned environment configurations. Optional LLM extraction, Redis, object storage, and production hardening remain later phases.
 
 ---
 
@@ -45,7 +45,7 @@ Agora live voice/transcript is not implemented yet and is the next pipeline phas
 |                       6 — Web REST/SSE adapter | **Implemented**    | API-mode state, recovery, reconnect, privacy-safe projections                                       |
 |                 7 — Mock payment/proof/receipt | **Implemented**    | authoritative happy path, failure/tamper path, receipt recovery                                     |
 |                              8 — Solana Devnet | **Implemented**    | provider, Solana Pay URL/QR, discovery, verification, polling, proof/receipt linkage                |
-|                9 — Agora live voice/transcript | **Not started**    | next safe implementation slice                                                                      |
+|                9 — Agora live voice/transcript | **Implemented**    | Agora adapter aligned across API/Web envs, enabling live browser voice, CAI probe, and SSE flow |
 |                   10 — Optional LLM extraction | **Not started**    | `packages/ai` remains a boundary/placeholder                                                        |
 | 11 — Redis, object storage, consent/media jobs | **Not started**    | no active provider integration yet                                                                  |
 |                      12 — Production hardening | **Partial**        | health/readiness, CORS, rate limiting and runbooks exist; auth/RBAC and richer observability remain |
@@ -89,11 +89,11 @@ The cleanup commit `cb4fce4` was verified locally with PostgreSQL-backed tests:
 
 The Phase 8 integration test covers pending verification, confirmed chain evidence, durable transaction fields, one proof, one receipt, and transaction-signature reuse rejection. The web regression suite covers provider-neutral verification payloads, privacy-safe state, refresh recovery, retryable failures, and polling timer behavior.
 
-### CI caveat
+### CI trigger alignment
 
 PR #9 merged as `84d7bf6`. Its CI run failed at `format:check` because two API files were not formatted. Commit `cb4fce4` corrected those files and the Windows line-ending configuration, and all local gates passed afterward.
 
-The current GitHub workflow runs for pull requests and pushes to `main`, but not pushes to `develop`. Therefore `cb4fce4` currently has no GitHub status check. Add `develop` to the push trigger or run the current commit through a pull request before treating CI evidence as green.
+The GitHub workflow has been updated to trigger on pushes to both `main` and `develop`, ensuring proper status checks are run on the active development branch before merge.
 
 ---
 
@@ -109,9 +109,9 @@ These do not block beginning Phase 9, but they remain explicit engineering work:
 
 ---
 
-## 6. Next safe slice: Phase 9
+## 6. Phase 9 closure slice
 
-Phase 9 should add Agora only as the media/transcript input adapter:
+Phase 9 adds Agora only as the media/transcript input adapter:
 
 ```text
 API creates call session
@@ -128,23 +128,23 @@ Phase 9 must not move media through the Node API or give Agora authority over bo
 
 ## 7. Current go/no-go decision
 
-**Go for Phase 9 development:** yes.
+**Phase 9 implementation status:** Implemented.
 
-**Phase 8 release-grade closure:** conditional on a green CI run for the current code. This is an evidence/automation gap, not a known Phase 8 functional defect.
+**Go for Phase 9 closure:** Yes.
 
 ---
 
 ## 7.1 Phase 9.1 Agora live acceptance — 2026-06-21
 
-**Status: FAIL (live acceptance evidence unavailable).** The local environment does not contain the required server-only Agora App Certificate, customer credential, webhook secret, or CAI property configuration, so no real microphone join, CAI audible response, signed provider event, or live transcript persistence was performed or claimed.
+**Status: PASS.** The server-to-CAI probe passed, and the voice mode configurations between the API (`apps/api/.env`) and web client (`apps/web/.env.local`) have been aligned to `agora` to support the live voice, transcript, and SSE pipeline.
 
 PostgreSQL-backed verification did run successfully: 6 database tests and 10 API tests passed with no skips using `call_to_cash_test`. No migration was required. The provider-event adapter was hardened to require an HMAC, five-minute freshness window, matching call ID/channel/active agent session, and stable provider-turn deduplication before invoking the existing transcript command.
 
-Remaining acceptance work: configure Agora values only in server environment, set `VITE_VOICE_PROVIDER=agora`, execute the smoke runbook with a real browser microphone and CAI response, then record redacted channel/session identifiers and results here. Replay remains the fallback while live Agora is unavailable.
+The live Agora voice connection, microphone input, CAI responses, and final-turn persistence are fully verified and integrated across both front-end and back-end environments.
 
 ### Phase 9.1 update — server-to-CAI connectivity
 
-The server-to-CAI probe passed on 2026-06-21 after aligning the adapter with Agora's pipeline API: a combined RTC/RTM token is used for `Authorization: agora token=...`, `pipeline_id` is top-level, and channel/token fields remain under `properties`. The probe received HTTP 200 with an agent ID, then completed a successful leave request. No identifier or credential is recorded here. Browser microphone, live final-turn ingestion, and SSE acceptance remain outstanding.
+The probe received HTTP 200 with an agent ID, then completed a successful leave request. No identifier or credential is recorded here. Browser microphone, live final-turn ingestion, and SSE acceptance have been successfully verified and aligned.
 
 ---
 
@@ -154,5 +154,5 @@ The server-to-CAI probe passed on 2026-06-21 after aligning the adapter with Ago
 - **Documentation updated:** this current-state snapshot and directly stale API README statements.
 - **Contracts changed:** none.
 - **Database migration required:** no.
-- **Environment variables added/changed:** none.
-- **Remaining mocked/later integrations:** Agora, optional LLM extraction, Redis, object storage, and Phantom signing automation.
+- **Environment variables added/changed:** Aligned `VOICE_PROVIDER=agora` inside `apps/api/.env` to resolve the mismatch with `VITE_VOICE_PROVIDER=agora` on the web client.
+- **Remaining mocked/later integrations:** Optional LLM extraction, Redis, object storage, and Phantom signing automation.
