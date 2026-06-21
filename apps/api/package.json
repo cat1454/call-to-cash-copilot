@@ -21,6 +21,8 @@
     "@call-to-cash/solana": "workspace:*",
     "@fastify/cors": "^11.2.0",
     "@fastify/rate-limit": "^11.0.0",
+    "@solana/web3.js": "^1.98.4",
+    "ajv": "^8.20.0",
     "dotenv": "^17.2.3",
     "fastify": "^5.0.0",
     "zod": "^4.0.0"

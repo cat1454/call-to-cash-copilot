@@ -6,9 +6,11 @@ export function useLiveVoiceSession(apiClient, onCreated) {
   const [connectionState, dispatch] = useReducer(connectionReducer, VoiceConnectionState.IDLE);
   const clientRef = useRef(null);
   const callIdRef = useRef(null);
+  const startingRef = useRef(false);
   const [callId, setCallId] = useState(null);
   const start = useCallback(async () => {
-    if (!apiClient) return;
+    if (!apiClient || startingRef.current) return;
+    startingRef.current = true;
     dispatch({ type: "REQUEST_PERMISSION" });
     const client = createAgoraRtcClient((state) => {
       if (state === "RECONNECTING") dispatch({ type: "RECONNECT" });
@@ -17,8 +19,11 @@ export function useLiveVoiceSession(apiClient, onCreated) {
     clientRef.current = client;
     try {
       await client.requestPermission();
-    } catch {
-      dispatch({ type: "PERMISSION_DENIED" });
+    } catch (error) {
+      dispatch({
+        type: error?.name === "NotFoundError" ? "MICROPHONE_UNAVAILABLE" : "PERMISSION_DENIED"
+      });
+      startingRef.current = false;
       return;
     }
     try {
@@ -34,15 +39,25 @@ export function useLiveVoiceSession(apiClient, onCreated) {
     } catch (error) {
       dispatch({ type: error?.code === "AGORA_CHANNEL_UNAVAILABLE" ? "UNAVAILABLE" : "FAILED" });
       await client.disconnect().catch(() => {});
+    } finally {
+      startingRef.current = false;
     }
   }, [apiClient, onCreated]);
   const stop = useCallback(async () => {
     dispatch({ type: "STOP" });
     await clientRef.current?.disconnect().catch(() => {});
+    clientRef.current = null;
     if (apiClient && callIdRef.current)
       await apiClient.stopVoiceSession(callIdRef.current).catch(() => {});
     dispatch({ type: "ENDED" });
   }, [apiClient]);
+  useEffect(() => {
+    const handlePageHide = () => {
+      void clientRef.current?.disconnect().catch(() => {});
+    };
+    window.addEventListener("pagehide", handlePageHide);
+    return () => window.removeEventListener("pagehide", handlePageHide);
+  }, []);
   useEffect(
     () => () => {
       void stop();
@@ -51,4 +66,3 @@ export function useLiveVoiceSession(apiClient, onCreated) {
   );
   return { connectionState, start, stop, callId };
 }
-
