@@ -69,6 +69,12 @@ Internet
 | Agora | server-held App Certificate; webhook endpoint verification |
 | Solana | RPC endpoint and server-held signing/verification configuration |
 
+### Node.js build runtime
+
+- The deploy baseline is Node.js `20.20.2`; the supported engine range also permits compatible Node.js 22 and 24+ releases.
+- Corepack must resolve the root `packageManager` pin, currently pnpm `10.34.4`.
+- Do not upgrade the deployment to pnpm 11 while the build image remains on Node.js 20 because pnpm 11 requires Node.js 22+ and imports `node:sqlite`.
+
 ---
 
 ## 4. Environment configuration

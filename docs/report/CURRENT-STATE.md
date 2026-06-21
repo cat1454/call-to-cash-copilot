@@ -41,7 +41,7 @@ The Phase 9.2 integration commit additionally separates provider-event and Notif
 |                                 Pipeline phase | Current assessment | Evidence                                                                                            |
 | ---------------------------------------------: | ------------------ | --------------------------------------------------------------------------------------------------- |
 |                        0 — Normalize contracts | **Implemented**    | canonical product, architecture, API/event/error, and privacy contracts                             |
-|                       1 — Executable workspace | **Implemented**    | pnpm/Turbo scripts, Node 22, CI, Compose, validated env surface                                     |
+|                       1 — Executable workspace | **Implemented**    | pnpm/Turbo scripts, Node 20.20 deploy baseline, CI, Compose, validated env surface                   |
 |                           2 — Shared contracts | **Implemented**    | shared Zod DTOs, events, errors, enums, contract tests                                              |
 |                              3 — Domain kernel | **Implemented**    | deterministic scoring, payment gate, agreement and transition guards                                |
 |                    4 — PostgreSQL/Prisma state | **Implemented**    | schema, migration, seed, repositories, DB-backed tests                                              |

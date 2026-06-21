@@ -50,8 +50,8 @@ The API is the future authority boundary. The current browser simulation remains
 ## 2. Prerequisites
 
 - Git
-- Node.js from `.nvmrc` (currently 22.14.0)
-- pnpm from the root `packageManager` field (currently 11.1.1)
+- Node.js from `.nvmrc` (currently 20.20.2)
+- pnpm from the root `packageManager` field (currently 10.34.4)
 - Docker Desktop with Compose
 
 PostgreSQL is the only Phase 4 container. Do not start Redis or MinIO yet.

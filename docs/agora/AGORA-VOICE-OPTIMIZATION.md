@@ -10,7 +10,7 @@ Evidence level for branch `develop`, commit `60d8fd6` plus the current uncommitt
 
 | Check | Status |
 |---|---|
-| pnpm version | Built and verified with `11.1.1` |
+| pnpm version | Built and verified with `10.34.4` for Node.js 20 compatibility |
 | Internal package source/dist exports | Built and runtime-resolved; regression test imports all API-required symbols from `dist` |
 | Standard root gates | `db:validate`, lint, typecheck, test, and build passed locally |
 | API `/health` | Passed locally (`ok`) |

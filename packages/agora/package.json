@@ -20,7 +20,7 @@
     "build": "tsc -p tsconfig.json",
     "lint": "eslint src prompts --max-warnings=0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx --test src/**/*.test.ts prompts/**/*.test.ts"
+    "test": "tsx --test src/agora.test.ts prompts/prompt-constraints.test.ts"
   },
   "dependencies": {
     "agora-token": "2.0.5",

@@ -6,7 +6,7 @@
 
 ## Phase 9 evidence update
 
-- Package manager: pnpm `11.1.1`.
+- Current deployment baseline: Node.js `20.20.2` with pnpm `10.34.4`. The compatibility rerun passed frozen install, Prisma generation, lint, typecheck, non-database tests, and build; DB/API integration cases were skipped because `TEST_DATABASE_URL` was not configured.
 - All internal TypeScript packages were rebuilt; `tests/packageRuntimeExports.test.js` passed 7/7 runtime package checks after rebuild.
 - `pnpm db:validate`, lint, typecheck, test, and build passed locally. The final root test run loaded the dedicated database environment and completed DB/API coverage with no skips; the focused DB and API suites also passed 6/6 plus 10/10.
 - Safe preflight passed with aligned `agora / agora`, Devnet configuration, browser-secret scan, PostgreSQL reachability, and API readiness.

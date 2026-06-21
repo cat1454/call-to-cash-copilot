@@ -55,7 +55,7 @@ The API currently exposes only Phase 1 health/readiness scaffolding. Business co
 
 ## Local development
 
-Requirements: Node.js 22+ and Corepack.
+Requirements: Node.js 20.19+ (the repository pins 20.20.2) and Corepack.
 
 ```bash
 corepack pnpm install
