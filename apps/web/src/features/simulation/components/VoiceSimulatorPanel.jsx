@@ -152,6 +152,7 @@ export default function VoiceSimulatorPanel({
                   <div
                     className={cn(
                       "min-w-0 rounded-2xl px-4 py-3 text-sm leading-5 font-normal shadow-[0_1px_2px_rgba(0,0,0,0.02)]",
+                      "whitespace-pre-wrap break-words [word-break:normal] tracking-normal",
                       bubble.sender === "ai"
                         ? "bg-slate-100 text-[#374151] rounded-tl-none border border-slate-200/50"
                         : "bg-[#059669] text-white rounded-tr-none shadow-[0_2px_8px_rgba(5,150,105,0.15)]",

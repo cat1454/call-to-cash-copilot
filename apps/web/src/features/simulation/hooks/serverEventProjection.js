@@ -1,5 +1,11 @@
 import { EventEnvelopeSchema, EventName } from "@call-to-cash/shared";
 import { hasCustomerAndAgentTurns } from "./transcriptCompleteness.js";
+import {
+  projectTranscriptTurnForDisplay,
+  sanitizePublicText
+} from "./transcriptDisplayProjection.js";
+
+export { projectTranscriptTurnForDisplay } from "./transcriptDisplayProjection.js";
 
 export const emptyBooking = {
   bookingId: "",
@@ -10,13 +16,6 @@ export const emptyBooking = {
   price: "",
   deposit: ""
 };
-
-function sanitizePublicText(value) {
-  if (typeof value !== "string") return "";
-  return value
-    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/giu, "[EMAIL]")
-    .replace(/(?<!\d)(?:\+?84|0)\d{8,10}(?!\d)/gu, "[PHONE]");
-}
 
 function formatMoney(value) {
   if (!Number.isInteger(value)) return "";
@@ -221,17 +220,17 @@ export function applyServerEvent(state, input) {
       };
     case EventName.TranscriptTurnCreated: {
       if (next.transcript.some((turn) => turn.turnId === data.turnId)) return next;
-      const sender = data.speaker === "CUSTOMER" ? "customer" : "ai";
-      const text = sanitizePublicText(data.content);
-      const transcript = [
-        ...next.transcript,
-        { sender, text, turnId: data.turnId, timestamp: data.timestamp }
-      ];
+      const displayTurn = projectTranscriptTurnForDisplay(data);
+      const text = displayTurn.text;
+      const transcript = [...next.transcript, displayTurn];
       const transcriptComplete = hasCustomerAndAgentTurns(transcript);
       return {
         ...next,
         transcript,
-        subtitles: { speaker: sender === "customer" ? "Khách hàng" : "Tổng đài AI", text },
+        subtitles: {
+          speaker: displayTurn.sender === "customer" ? "Khách hàng" : "Tổng đài AI",
+          text
+        },
         postCallTranscriptSync:
           next.postCallTranscriptSync === "PENDING" && transcriptComplete
             ? "COMPLETE"

@@ -70,9 +70,16 @@ test("does not invent a route that is absent from the scheduled catalogue", () =
   assert.equal(facts.routeTo, undefined);
 });
 
-test("formats display text without semantically rewriting it", () => {
+test("normalizes transcript display text without inventing capitalization or terminal punctuation", () => {
   assert.equal(
     formatTranscriptForDisplay("  tôi   muốn đi đà nẵng hà nội  "),
-    "Tôi muốn đi đà nẵng hà nội."
+    "tôi muốn đi đà nẵng hà nội"
+  );
+});
+
+test("normalizes transcript whitespace and punctuation boundaries for display", () => {
+  assert.equal(
+    formatTranscriptForDisplay("  dạ ,   em muốn đặt   3 chỗ .  "),
+    "dạ, em muốn đặt 3 chỗ."
   );
 });

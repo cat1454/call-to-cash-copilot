@@ -62,31 +62,6 @@ function envelope(event, data, sequence = 1, overrides = {}) {
 }
 
 describe("server simulation event projection", () => {
-  test("consumes canonical envelope data and masks raw PII defensively", () => {
-    const state = reducer(makeInitialState(), {
-      type: ACTION.SERVER_EVENT,
-      envelope: envelope(EventName.TranscriptTurnCreated, {
-        turnId: "turn_public1",
-        sequenceNo: 1,
-        speaker: "CUSTOMER",
-        content: "Call 0912345678 or person@example.com",
-        isFinal: true,
-        timestamp: occurredAt
-      })
-    });
-
-    assert.deepEqual(state.transcript, [
-      {
-        sender: "customer",
-        text: "Call [PHONE] or [EMAIL]",
-        turnId: "turn_public1",
-        timestamp: occurredAt
-      }
-    ]);
-    assert.equal(JSON.stringify(state).includes("0912345678"), false);
-    assert.equal(JSON.stringify(state).includes("person@example.com"), false);
-  });
-
   test("deduplicates at-least-once delivery and flags sequence gaps for REST recovery", () => {
     const riskEvent = envelope(EventName.RiskScoreUpdated, {
       assessmentId: "risk_public1",

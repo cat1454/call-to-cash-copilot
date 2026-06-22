@@ -11,10 +11,7 @@ export function registerPlugins(app: FastifyInstance, dependencies: ApiDependenc
   // CORS: allow the Vite dev server and any configured API consumer.
   // In production, restrict origin to the deployed web URL via environment config.
   void app.register(cors, {
-    origin:
-      config.nodeEnv === "production"
-        ? config.webOrigin || false
-        : true,
+    origin: config.nodeEnv === "production" ? config.webOrigin || false : true,
     methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"]
   });
 

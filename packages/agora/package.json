@@ -23,6 +23,7 @@
     "test": "tsx --test src/agora.test.ts prompts/prompt-constraints.test.ts"
   },
   "dependencies": {
+    "@call-to-cash/shared": "workspace:*",
     "agora-token": "2.0.5",
     "zod": "^4.0.0"
   }

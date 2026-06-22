@@ -112,6 +112,52 @@ test("accepts a documented final customer transcription from Agora", () => {
   }
 });
 
+test("normalizes documented Agora transcript text before forwarding", () => {
+  const result = parseRtmTranscriptFrame(
+    JSON.stringify({
+      object: "user.transcription",
+      text: "Dạ,   em muốn , đặt ba chỗ .",
+      start_ms: 1000,
+      duration_ms: 1200,
+      language: "vi-VN",
+      turn_id: 1,
+      stream_id: 42,
+      user_id: "customer-1",
+      words: null,
+      final: true
+    }),
+    "9001",
+    binding,
+    new Date("2026-06-22T10:00:00.000Z")
+  );
+
+  assert.equal(result.accepted, true);
+  if (result.accepted) assert.equal(result.event.turn.text, "Dạ, em muốn, đặt ba chỗ.");
+});
+
+test("preserves readable time money and phone-like values in forwarded transcript text", () => {
+  const result = parseRtmTranscriptFrame(
+    JSON.stringify({
+      object: "user.transcription",
+      text: "Lúc 19 : 00, cọc 300 . 000 đ, số 0912 345 678.",
+      language: "vi-VN",
+      turn_id: 4,
+      stream_id: 42,
+      user_id: "customer-1",
+      words: null,
+      final: true
+    }),
+    "9001",
+    binding,
+    new Date("2026-06-22T10:00:04.000Z")
+  );
+
+  assert.equal(result.accepted, true);
+  if (result.accepted) {
+    assert.equal(result.event.turn.text, "Lúc 19:00, cọc 300.000 đ, số 0912 345 678.");
+  }
+});
+
 test("accepts a documented completed assistant transcription from Agora", () => {
   const result = parseRtmTranscriptFrame(
     JSON.stringify({

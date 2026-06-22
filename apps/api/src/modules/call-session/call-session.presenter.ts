@@ -1,4 +1,8 @@
-import { PaymentGateStatus, type RiskReasonCode } from "@call-to-cash/shared";
+import {
+  PaymentGateStatus,
+  normalizeTranscriptDisplayText,
+  type RiskReasonCode
+} from "@call-to-cash/shared";
 
 export function iso(date: Date): string {
   return date.toISOString();
@@ -18,14 +22,7 @@ export function redactContent(content: string): string {
 }
 
 export function formatTranscriptForDisplay(content: string): string {
-  const normalized = content
-    .normalize("NFC")
-    .replace(/\s+/gu, " ")
-    .replace(/\s+([,.!?;:])/gu, "$1")
-    .trim();
-  if (normalized.length === 0) return normalized;
-  const capitalized = `${normalized[0]?.toLocaleUpperCase("vi-VN")}${normalized.slice(1)}`;
-  return /[.!?]$/u.test(capitalized) ? capitalized : `${capitalized}.`;
+  return normalizeTranscriptDisplayText(content);
 }
 
 export function presentCreatedCall(call: {

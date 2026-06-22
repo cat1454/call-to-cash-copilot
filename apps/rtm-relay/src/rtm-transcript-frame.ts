@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 
+import { normalizeTranscriptDisplayText } from "@call-to-cash/shared";
 import { z } from "zod";
 
 const InternalTranscriptFrameSchema = z
@@ -167,7 +168,16 @@ export function parseRtmTranscriptFrame(
     if (internal.data.sessionId !== binding.sessionId && binding.sessionId !== "PENDING_AGENT") {
       return { accepted: false, reason: "SESSION_MISMATCH" };
     }
-    return { accepted: true, event: internal.data };
+    return {
+      accepted: true,
+      event: {
+        ...internal.data,
+        turn: {
+          ...internal.data.turn,
+          text: normalizeTranscriptDisplayText(internal.data.turn.text)
+        }
+      }
+    };
   }
 
   const transcription = AgoraTranscriptionSchema.safeParse(normalizeAssistantPayload(payload));
@@ -182,7 +192,7 @@ export function parseRtmTranscriptFrame(
     : transcription.data.turn_status === undefined
       ? transcription.data.words === null || transcription.data.words.length === 0
       : transcription.data.turn_status !== 0;
-  const text = transcription.data.text.trim();
+  const text = normalizeTranscriptDisplayText(transcription.data.text);
   if (!isFinal || text.length === 0) return { accepted: false, reason: "PARTIAL" };
 
   const id = stableId(binding, transcription.data);

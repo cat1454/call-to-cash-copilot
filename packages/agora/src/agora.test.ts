@@ -68,6 +68,49 @@ test("normalization preserves interim status so the API can refuse durable admis
   assert.equal(turn.isFinal, false);
 });
 
+test("normalization cleans display-safe whitespace and punctuation without changing final authority", () => {
+  const turn = normalizeTranscriptEvent({
+    type: "transcript.turn",
+    eventId: "evt_spacing",
+    callId: "call_012345",
+    channelName: "ctc_call_012345",
+    sessionId: "agent_1",
+    occurredAt: "2026-06-21T10:00:00.000Z",
+    turn: {
+      id: "provider-turn-spacing",
+      sequenceNo: 4,
+      speaker: "CUSTOMER",
+      text: "Dạ,   em muốn , đặt ba chỗ .",
+      language: "vi-VN",
+      final: true
+    }
+  });
+
+  assert.equal(turn.content, "Dạ, em muốn, đặt ba chỗ.");
+  assert.equal(turn.isFinal, true);
+});
+
+test("normalization preserves time money and phone-like spacing", () => {
+  const turn = normalizeTranscriptEvent({
+    type: "transcript.turn",
+    eventId: "evt_formats",
+    callId: "call_012345",
+    channelName: "ctc_call_012345",
+    sessionId: "agent_1",
+    occurredAt: "2026-06-21T10:00:00.000Z",
+    turn: {
+      id: "provider-turn-formats",
+      sequenceNo: 5,
+      speaker: "CUSTOMER",
+      text: "Lúc 19 : 00, cọc 300 . 000 đ, số 0912 345 678.",
+      language: "vi-VN",
+      final: true
+    }
+  });
+
+  assert.equal(turn.content, "Lúc 19:00, cọc 300.000 đ, số 0912 345 678.");
+});
+
 test("join request injects the versioned V1 system message server-side", async () => {
   let joinBody: Record<string, unknown> | undefined;
   const client = new AgoraConversationAgentClient(

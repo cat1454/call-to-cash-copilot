@@ -6,7 +6,8 @@ import {
   projectPaymentIntentReadModel,
   projectPaymentStatusReadModel,
   projectVerificationReadModel,
-  projectReceiptReadModel
+  projectReceiptReadModel,
+  projectTranscriptTurnForDisplay
 } from "./serverEventProjection.js";
 import { hasCustomerAndAgentTurns } from "./transcriptCompleteness.js";
 
@@ -134,12 +135,7 @@ export function reducer(state, action) {
         .filter(
           (turn, index, turns) => turns.findIndex((item) => item.turnId === turn.turnId) === index
         )
-        .map((turn) => ({
-          sender: turn.speaker === "CUSTOMER" ? "customer" : "ai",
-          text: turn.content,
-          turnId: turn.turnId,
-          ...((turn.createdAt ?? turn.endedAt) ? { timestamp: turn.createdAt ?? turn.endedAt } : {})
-        }));
+        .map(projectTranscriptTurnForDisplay);
       const transcriptComplete = hasCustomerAndAgentTurns(transcript);
       return {
         ...state,

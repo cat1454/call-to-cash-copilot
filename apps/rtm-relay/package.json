@@ -12,9 +12,10 @@
     "start": "node dist/server.js"
   },
   "dependencies": {
+    "@call-to-cash/shared": "workspace:*",
     "agora-rtm": "2.2.4",
     "dotenv": "^17.2.3",
-    "fastify": "^5.0.0",
+    "fastify": "5.8.5",
     "playwright-core": "^1.56.0",
     "zod": "^4.0.0"
   }
