@@ -39,6 +39,32 @@ test("extracts Vietnamese word-based date and time without treating the date as 
   assert.equal(facts.passengerCount, undefined);
 });
 
+test("extracts the Da Nang to Ha Noi happy-path facts and its supported pickup point", () => {
+  const facts = extractReplayFacts(
+    "Tôi muốn đi Đà Nẵng Hà Nội ngày 28 tháng 6 lúc 19 giờ, 3 người, đón ở bến xe trung tâm Đà Nẵng.",
+    {
+      departures: [
+        {
+          routeFrom: "Da Nang",
+          routeTo: "Ha Noi",
+          departureAtUtc: new Date("2026-06-28T12:00:00.000Z")
+        }
+      ],
+      now: new Date("2026-06-22T00:00:00.000Z")
+    }
+  );
+
+  assert.deepEqual(facts, {
+    routeFrom: "Da Nang",
+    routeTo: "Ha Noi",
+    departureLocalTime: "19:00",
+    departureDay: 28,
+    departureMonth: 6,
+    passengerCount: 3,
+    pickupPoint: "Ben xe Trung tam Da Nang"
+  });
+});
+
 test("keeps numeric 22:30 replay input compatible with the departure catalogue", () => {
   const facts = extractReplayFacts("chuyến 22:30", { departures });
   assert.equal(facts.departureLocalTime, "22:30");
