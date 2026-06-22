@@ -20,7 +20,7 @@ function isRetryableStatus(status: number): boolean {
 }
 
 export class AgoraConversationAgentClient {
-  private readonly agentTokens = new Map<string, string>();
+  private readonly activeAgents = new Set<string>();
   constructor(
     private readonly config: AgoraConversationAgentConfig,
     private readonly fetchImpl: typeof fetch = fetch
@@ -55,12 +55,14 @@ export class AgoraConversationAgentClient {
             channel: input.channelName,
             token: input.agentToken,
             agent_rtc_uid: String(input.agentUid),
-            remote_rtc_uids: [String(input.customerUid)]
+            agent_rtm_uid: String(input.agentUid),
+            remote_rtc_uids: [String(input.customerUid)],
+            advanced_features: { enable_rtm: true },
+            parameters: { data_channel: "rtm" }
           },
           labels: { call_id: input.callId, schema_version: "ctc-v1" }
         })
-      },
-      input.agentToken
+      }
     );
     const agentId = agentIdFrom(response);
     if (agentId === undefined) {
@@ -70,13 +72,12 @@ export class AgoraConversationAgentClient {
         true
       );
     }
-    this.agentTokens.set(agentId, input.agentToken);
+    this.activeAgents.add(agentId);
     return { agentId, name: input.name };
   }
 
   async stop(agentId: string): Promise<void> {
-    const token = this.agentTokens.get(agentId);
-    if (token === undefined) {
+    if (!this.activeAgents.has(agentId)) {
       throw new AgoraAdapterError(
         "AGORA_CHANNEL_UNAVAILABLE",
         "Agora agent session is no longer available.",
@@ -85,22 +86,17 @@ export class AgoraConversationAgentClient {
     }
     await this.request(
       `/api/conversational-ai-agent/v2/projects/${this.config.appId}/agents/${encodeURIComponent(agentId)}/leave`,
-      { method: "POST" },
-      token
+      { method: "POST" }
     );
-    this.agentTokens.delete(agentId);
+    this.activeAgents.delete(agentId);
   }
 
-  private async request(
-    path: string,
-    init: RequestInit,
-    token: string
-  ): Promise<Record<string, unknown>> {
+  private async request(path: string, init: RequestInit): Promise<Record<string, unknown>> {
     try {
       const response = await this.fetchImpl(new URL(path, this.config.baseUrl), {
         ...init,
         headers: {
-          Authorization: `agora token=${token}`,
+          Authorization: `Basic ${Buffer.from(`${this.config.customerId}:${this.config.customerSecret}`).toString("base64")}`,
           "Content-Type": "application/json"
         }
       });

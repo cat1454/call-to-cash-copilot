@@ -28,12 +28,17 @@ test("runtime config defaults to explicit deterministic demo providers", () => {
       customerSecret: "",
       providerEventSecret: "",
       ncsWebhookSecret: "",
-      ncsProductId: "conversation-ai",
       agentProperties: {},
       tokenTtlSeconds: 600,
       agentUid: 9001,
       agentName: "call-to-cash-agent",
       baseUrl: "https://api.agora.io/",
+      liveRelay: {
+        url: "http://127.0.0.1:3011/",
+        controlSecret: "",
+        uid: 9002,
+        ready: false
+      },
       ready: false
     },
     aiProvider: "deterministic",
@@ -88,6 +93,21 @@ test("runtime config accepts the minimum complete Solana Devnet configuration", 
 
 test("runtime config parses an explicit false demo mode", () => {
   assert.equal(readRuntimeConfig({ DEMO_MODE: "false" }).demoMode, false);
+});
+
+test("Agora live readiness requires the separate RTM relay control secret", () => {
+  const config = readRuntimeConfig({
+    VOICE_PROVIDER: "agora",
+    AGORA_APP_ID: "app",
+    AGORA_APP_CERTIFICATE: "certificate",
+    AGORA_CUSTOMER_ID: "customer",
+    AGORA_CUSTOMER_SECRET: "secret",
+    AGORA_PROVIDER_EVENT_SECRET: "provider-secret",
+    AGORA_CAI_PROPERTIES_JSON: '{"pipeline_id":"pipeline"}',
+    AGORA_RTM_RELAY_CONTROL_SECRET: "relay-control"
+  });
+  assert.equal(config.agora.liveRelay.ready, true);
+  assert.equal(config.agora.ready, true);
 });
 
 test("runtime config preserves the exact production web origin", () => {

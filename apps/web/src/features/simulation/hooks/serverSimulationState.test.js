@@ -37,12 +37,9 @@ test("Solana polling schedules one verification after three seconds and can be c
     }
   };
 
-  const cancel = scheduleSolanaPaymentPoll(
-    () => {
-      verificationCount += 1;
-    },
-    timers
-  );
+  const cancel = scheduleSolanaPaymentPoll(() => {
+    verificationCount += 1;
+  }, timers);
   cancel();
 
   assert.deepEqual(scheduledDelays, [3_000]);
@@ -79,7 +76,12 @@ describe("server simulation event projection", () => {
     });
 
     assert.deepEqual(state.transcript, [
-      { sender: "customer", text: "Call [PHONE] or [EMAIL]", turnId: "turn_public1" }
+      {
+        sender: "customer",
+        text: "Call [PHONE] or [EMAIL]",
+        turnId: "turn_public1",
+        timestamp: occurredAt
+      }
     ]);
     assert.equal(JSON.stringify(state).includes("0912345678"), false);
     assert.equal(JSON.stringify(state).includes("person@example.com"), false);

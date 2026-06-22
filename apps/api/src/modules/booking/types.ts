@@ -12,7 +12,9 @@ export type ExtractedFacts = {
   passengerCount?: number;
   pickupPoint?: string;
   contactPhoneMasked?: string;
-  departureHint?: "22:30";
+  departureLocalTime?: string;
+  departureDay?: number;
+  departureMonth?: number;
 };
 
 export type BookingForRisk = {
@@ -57,5 +59,11 @@ export type BookingDraftWriter = {
   upsertFromFacts(
     transaction: Transaction,
     input: UpsertBookingFromFactsInput
-  ): Promise<{ id: string; publicId: string; status: string }>;
+  ): Promise<{
+    id: string;
+    publicId: string;
+    status: string;
+    created: boolean;
+    changedFields: string[];
+  }>;
 };

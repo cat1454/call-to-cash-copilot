@@ -4,6 +4,7 @@ import { IconButton } from "../../../components/ui/IconButton";
 
 export default function PhoneCallView({
   isWaveAnimating,
+  agentReplyStatus,
   phoneCallColor,
   phoneCallStatusText,
   subtitles,
@@ -11,9 +12,10 @@ export default function PhoneCallView({
   startSimulation,
   isSimulating,
   simStatus,
-  bookingData,
+  bookingData
 }) {
-  const isCompleted = simStatus === "Đã hoàn thành";
+  const isCompleted =
+    simStatus === "Đã hoàn thành" || simStatus === "Đang đồng bộ hội thoại sau cuộc gọi...";
 
   return (
     <div className="flex min-h-full flex-col overflow-y-auto">
@@ -75,9 +77,7 @@ export default function PhoneCallView({
                   : "h-1 opacity-30"
               )}
               style={{
-                animationDelay: isWaveAnimating
-                  ? `${(delay - 0.4) * 0.3}s`
-                  : undefined,
+                animationDelay: isWaveAnimating ? `${(delay - 0.4) * 0.3}s` : undefined
               }}
             />
           ))}
@@ -89,8 +89,7 @@ export default function PhoneCallView({
         <p
           className="mb-2 text-xs leading-4 font-medium"
           style={{
-            color:
-              subtitles.speaker === "Khách hàng" ? "#059669" : "#6b7280",
+            color: subtitles.speaker === "Khách hàng" ? "#059669" : "#6b7280"
           }}
         >
           {subtitles.speaker}
@@ -102,6 +101,22 @@ export default function PhoneCallView({
         >
           {subtitles.text}
         </p>
+
+        {agentReplyStatus !== "idle" && (
+          <p
+            className="mt-3 flex items-center gap-2 text-xs leading-4 text-[#6b7280]"
+            role="status"
+            aria-live="polite"
+          >
+            <span
+              aria-hidden="true"
+              className="h-1.5 w-1.5 rounded-full bg-[#059669] [animation:pulse-primary_2s_ease-in-out_infinite] motion-reduce:animate-none"
+            />
+            {agentReplyStatus === "slow"
+              ? "Phụ đề AI đang chậm; cuộc gọi vẫn tiếp tục."
+              : "Tổng đài AI đang xử lý..."}
+          </p>
+        )}
       </div>
 
       {/* Mic control only appears in real mobile layout */}
@@ -109,11 +124,7 @@ export default function PhoneCallView({
         <div className="flex flex-col items-center gap-2 py-4">
           <IconButton
             aria-label={
-              isSimulating
-                ? "Đang ghi âm"
-                : isCompleted
-                  ? "Cuộc gọi kết thúc"
-                  : "Bắt đầu đàm thoại"
+              isSimulating ? "Đang ghi âm" : isCompleted ? "Cuộc gọi kết thúc" : "Bắt đầu đàm thoại"
             }
             variant="primary"
             size="lg"
@@ -122,7 +133,7 @@ export default function PhoneCallView({
             className={cn(
               "h-16 w-16 rounded-full",
               isSimulating &&
-              "[animation:pulse-primary_2s_ease-in-out_infinite] motion-reduce:animate-none"
+                "[animation:pulse-primary_2s_ease-in-out_infinite] motion-reduce:animate-none"
             )}
           >
             <Mic size={24} />
@@ -156,26 +167,17 @@ export default function PhoneCallView({
             {
               label: "Số tiền cọc:",
               val: bookingData.deposit,
-              accent: true,
-            },
+              accent: true
+            }
           ].map(({ label, val, accent }) => (
-            <div
-              key={label}
-              className="flex items-center justify-between gap-3 px-4 py-2.5"
-            >
-              <span className="text-xs leading-4 font-normal text-[#6b7280]">
-                {label}
-              </span>
+            <div key={label} className="flex items-center justify-between gap-3 px-4 py-2.5">
+              <span className="text-xs leading-4 font-normal text-[#6b7280]">{label}</span>
 
               <span
                 className={cn(
                   "text-right font-semibold tabular-nums",
                   accent ? "text-lg leading-6" : "text-sm leading-5",
-                  val
-                    ? accent
-                      ? "text-[#059669]"
-                      : "text-[#111827]"
-                    : "text-[#9ca3af]"
+                  val ? (accent ? "text-[#059669]" : "text-[#111827]") : "text-[#9ca3af]"
                 )}
               >
                 {val || "—"}

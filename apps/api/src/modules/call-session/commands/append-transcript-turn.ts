@@ -1,13 +1,14 @@
 import { randomUUID } from "node:crypto";
 
 import { Prisma } from "@call-to-cash/db";
-import { CallStatus } from "@call-to-cash/shared";
+import { CallStatus, EventName } from "@call-to-cash/shared";
 import { transitionCall, type StateTransitionResult } from "@call-to-cash/domain";
 
 import { bookingDraftWriter, recomputeBookingRiskAndEvents } from "../../booking/index.js";
 import type { BookingDraftWriter } from "../../booking/index.js";
 import { ApiCommandError } from "../../../platform/http/api-command-error.js";
-import { redactContent } from "../call-session.presenter.js";
+import { appendEvent } from "../../../platform/events/event-log.js";
+import { formatTranscriptForDisplay, redactContent } from "../call-session.presenter.js";
 import { extractReplayFacts } from "../replay/replay-extractor.js";
 import type { AppendTranscriptTurnInput, CallStatusValue, ServiceData } from "../types.js";
 
@@ -26,6 +27,22 @@ function requireTransition<S extends string>(result: StateTransitionResult<S>, m
   return result.status;
 }
 
+/**
+ * Normal browser/replay admission ends with the call. A signed provider history can arrive after
+ * a normal end, so it is the one exception; it never reopens a terminal call.
+ */
+export function canPersistFinalTranscriptForCall(
+  callStatus: string,
+  trustedPostSessionIngress: boolean
+): boolean {
+  if (!["ENDED", "FAILED", "CANCELLED"].includes(callStatus)) return true;
+  return callStatus === "ENDED" && trustedPostSessionIngress;
+}
+
+export function shouldExtractBookingFacts(speaker: string): boolean {
+  return speaker === "CUSTOMER";
+}
+
 export async function appendTranscriptTurn(
   client: import("@call-to-cash/db").DatabaseClient,
   input: AppendTranscriptTurnInput,
@@ -36,19 +53,11 @@ export async function appendTranscriptTurn(
   }
 
   const now = new Date();
-  const facts = extractReplayFacts(input.turn.content);
   const persisted = await client.$transaction(
     async (transaction) => {
       const call = await transaction.callSession.findUnique({ where: { publicId: input.callId } });
       if (call === null) {
         throw new ApiCommandError(404, "CALL_NOT_FOUND", "Call session was not found.");
-      }
-      if (["ENDED", "FAILED", "CANCELLED"].includes(call.status)) {
-        throw new ApiCommandError(
-          409,
-          "CALL_NOT_ACTIVE",
-          "Call is not accepting transcript turns."
-        );
       }
       const replay =
         input.turn.provider !== undefined && input.turn.providerTurnId !== undefined
@@ -71,9 +80,28 @@ export async function appendTranscriptTurn(
       if (replay !== null) {
         return { call, turn: replay, duplicate: true };
       }
+      if (
+        !canPersistFinalTranscriptForCall(call.status, input.trustedPostSessionIngress === true)
+      ) {
+        throw new ApiCommandError(
+          409,
+          "CALL_NOT_ACTIVE",
+          "Call is not accepting transcript turns."
+        );
+      }
       await transaction.$executeRaw(Prisma.sql`
         SELECT pg_advisory_xact_lock(hashtext(${call.publicId}))
       `);
+      const extractsBookingFacts = shouldExtractBookingFacts(input.turn.speaker);
+      const departures = extractsBookingFacts
+        ? await transaction.tripDeparture.findMany({
+            where: { operationalStatus: "SCHEDULED", departureAtUtc: { gt: now } },
+            select: { routeFrom: true, routeTo: true, departureAtUtc: true }
+          })
+        : [];
+      const facts = extractsBookingFacts
+        ? extractReplayFacts(input.turn.content, { departures, now })
+        : {};
       const sequenceNo =
         (await transaction.transcriptTurn.count({ where: { callSessionId: call.id } })) + 1;
       const turn = await transaction.transcriptTurn.create({
@@ -112,6 +140,28 @@ export async function appendTranscriptTurn(
               }
             })
           : call;
+      if (!extractsBookingFacts) {
+        const currentBooking = await transaction.booking.findUnique({
+          where: { callSessionId: activeCall.id },
+          select: { publicId: true }
+        });
+        await appendEvent(transaction, {
+          callId: activeCall.publicId,
+          bookingId: currentBooking?.publicId ?? null,
+          event: EventName.TranscriptTurnCreated,
+          data: {
+            turnId: turn.publicId,
+            sequenceNo: turn.sequenceNo,
+            speaker: turn.speaker,
+            content: formatTranscriptForDisplay(turn.contentRedacted),
+            isFinal: true,
+            timestamp: turn.createdAt.toISOString()
+          },
+          requestId: input.requestId,
+          occurredAt: now
+        });
+        return { call: activeCall, turn, duplicate: false };
+      }
       const booking = await draftWriter.upsertFromFacts(transaction, {
         callSessionId: activeCall.id,
         facts,
@@ -124,13 +174,16 @@ export async function appendTranscriptTurn(
           callSessionId: activeCall.id,
           sourceTurnFrom: turn.sequenceNo,
           sourceTurnTo: turn.sequenceNo,
-          extractionVersion: "deterministic-replay-v1",
+          extractionVersion: "deterministic-catalog-v2",
           payload: asJson({
             routeFrom: facts.routeFrom,
             routeTo: facts.routeTo,
             passengerCount: facts.passengerCount,
             pickupPoint: facts.pickupPoint,
-            contactMasked: facts.contactPhoneMasked
+            contactMasked: facts.contactPhoneMasked,
+            departureLocalTime: facts.departureLocalTime,
+            departureDay: facts.departureDay,
+            departureMonth: facts.departureMonth
           }),
           fieldConfidence: asJson({ deterministic: 1 }),
           missingFields: asJson([]),
@@ -138,11 +191,26 @@ export async function appendTranscriptTurn(
           status: "ACCEPTED"
         }
       });
+      await appendEvent(transaction, {
+        callId: activeCall.publicId,
+        bookingId: booking.publicId,
+        event: EventName.TranscriptTurnCreated,
+        data: {
+          turnId: turn.publicId,
+          sequenceNo: turn.sequenceNo,
+          speaker: turn.speaker,
+          content: formatTranscriptForDisplay(turn.contentRedacted),
+          isFinal: true,
+          timestamp: turn.createdAt.toISOString()
+        },
+        requestId: input.requestId,
+        occurredAt: now
+      });
       await recomputeBookingRiskAndEvents(transaction, activeCall.publicId, booking.publicId, {
         requestId: input.requestId,
         occurredAt: now,
-        transcriptTurn: turn,
-        emitTranscript: true
+        bookingCreated: booking.created,
+        changedFields: booking.changedFields
       });
       return { call: activeCall, booking, turn, duplicate: false };
     },

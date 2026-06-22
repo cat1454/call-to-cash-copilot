@@ -8,6 +8,7 @@ import {
   projectVerificationReadModel,
   projectReceiptReadModel
 } from "./serverEventProjection.js";
+import { hasCustomerAndAgentTurns } from "./transcriptCompleteness.js";
 
 export { projectBookingForDisplay } from "./serverEventProjection.js";
 
@@ -25,6 +26,7 @@ export function makeInitialState() {
     verification: null,
     isSimulating: false,
     replayInputEnabled: false,
+    postCallTranscriptSync: "IDLE",
     simStatus: "Sẵn sàng",
     streamStatus: "idle",
     streamError: null,
@@ -61,6 +63,8 @@ export const ACTION = {
   SERVER_EVENT: "SERVER_EVENT",
   CALL_SYNCED: "CALL_SYNCED",
   TRANSCRIPT_SYNCED: "TRANSCRIPT_SYNCED",
+  POST_CALL_TRANSCRIPT_SYNC_STARTED: "POST_CALL_TRANSCRIPT_SYNC_STARTED",
+  POST_CALL_TRANSCRIPT_SYNC_TIMED_OUT: "POST_CALL_TRANSCRIPT_SYNC_TIMED_OUT",
   RISK_SYNCED: "RISK_SYNCED",
   BOOKING_SYNCED: "BOOKING_SYNCED",
   BOOKING_CONFIRMED: "BOOKING_CONFIRMED",
@@ -124,17 +128,45 @@ export function reducer(state, action) {
           ? "Đã hoàn thành"
           : state.simStatus
       };
-    case ACTION.TRANSCRIPT_SYNCED:
+    case ACTION.TRANSCRIPT_SYNCED: {
+      const transcript = [...action.transcript.turns]
+        .sort((left, right) => left.sequenceNo - right.sequenceNo)
+        .filter(
+          (turn, index, turns) => turns.findIndex((item) => item.turnId === turn.turnId) === index
+        )
+        .map((turn) => ({
+          sender: turn.speaker === "CUSTOMER" ? "customer" : "ai",
+          text: turn.content,
+          turnId: turn.turnId,
+          ...((turn.createdAt ?? turn.endedAt) ? { timestamp: turn.createdAt ?? turn.endedAt } : {})
+        }));
+      const transcriptComplete = hasCustomerAndAgentTurns(transcript);
       return {
         ...state,
-        transcript: [...action.transcript.turns]
-          .sort((left, right) => left.sequenceNo - right.sequenceNo)
-          .filter((turn, index, turns) => turns.findIndex((item) => item.turnId === turn.turnId) === index)
-          .map((turn) => ({
-            sender: turn.speaker === "CUSTOMER" ? "customer" : "ai",
-            text: turn.content,
-            turnId: turn.turnId
-          }))
+        transcript,
+        postCallTranscriptSync:
+          state.postCallTranscriptSync === "PENDING" && transcriptComplete
+            ? "COMPLETE"
+            : state.postCallTranscriptSync,
+        simStatus:
+          state.postCallTranscriptSync === "PENDING" && transcriptComplete
+            ? "Đã hoàn thành"
+            : state.simStatus
+      };
+    }
+    case ACTION.POST_CALL_TRANSCRIPT_SYNC_STARTED:
+      return {
+        ...state,
+        isSimulating: false,
+        postCallTranscriptSync: "PENDING",
+        simStatus: "Đang đồng bộ hội thoại sau cuộc gọi..."
+      };
+    case ACTION.POST_CALL_TRANSCRIPT_SYNC_TIMED_OUT:
+      return {
+        ...state,
+        isSimulating: false,
+        postCallTranscriptSync: "TIMED_OUT",
+        simStatus: "Đã hoàn thành"
       };
     case ACTION.RISK_SYNCED:
       return {

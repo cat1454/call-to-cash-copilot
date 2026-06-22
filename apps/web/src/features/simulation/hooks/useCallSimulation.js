@@ -174,6 +174,10 @@ export default function useCallSimulation() {
       await liveVoice.stop();
       server.resetSimulation();
     };
+    const stopLiveVoice = async () => {
+      await liveVoice.stop();
+      server.startPostCallTranscriptSync();
+    };
     return {
       apiMode,
       isProbing,
@@ -223,7 +227,8 @@ export default function useCallSimulation() {
       serverError: server.error,
       voiceMode,
       voiceConnectionState: voiceMode === "agora" ? liveVoice.connectionState : null,
-      stopLiveVoice: liveVoice.stop,
+      stopLiveVoice,
+      postCallTranscriptSync: server.postCallTranscriptSync,
       retryLiveVoice,
       continueInReplayMode,
       endVoiceSession
@@ -272,6 +277,7 @@ export default function useCallSimulation() {
     voiceConnectionState: null,
     voiceMode: "replay",
     stopLiveVoice: () => {},
+    postCallTranscriptSync: "IDLE",
     retryLiveVoice: () => {},
     continueInReplayMode: () => {},
     endVoiceSession: () => {}

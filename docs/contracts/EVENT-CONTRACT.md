@@ -142,7 +142,7 @@ data: {"eventId":"evt_01J...","event":"risk.score.updated",...}
 
 #### `transcript.turn.created`
 
-**When:** a final/redacted transcript turn is persisted.
+**When:** a final/redacted transcript turn is persisted. `content` is a privacy-safe display projection: it preserves meaning while normalizing Unicode, spacing, capitalization, and terminal punctuation. The retained redacted source remains the audit/analysis value.
 
 ```json
 {
@@ -159,7 +159,7 @@ data: {"eventId":"evt_01J...","event":"risk.score.updated",...}
 }
 ```
 
-**Rule:** event carries redacted content only. Interim transcript text may be shown locally in the UI but must not mutate durable booking/payment state.
+**Rule:** event carries redacted content only. Interim transcript text may be shown locally in the UI but must not mutate durable booking/payment state. A signed post-session provider history may emit this event after `call.ended` for the same normally ended call. The client keeps that call's SSE/recovery surface available for a bounded sync window; it must not reopen the call or infer a new lifecycle state.
 
 #### `transcript.analysis.updated`
 

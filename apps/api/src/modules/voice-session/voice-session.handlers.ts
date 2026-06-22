@@ -15,10 +15,12 @@ import type { DatabaseClient } from "@call-to-cash/db";
 
 import { ApiCommandError } from "../../platform/http/api-command-error.js";
 import { acceptProviderTranscriptEvent } from "../call-session/commands/accept-provider-transcript-event.js";
+import { redactContent } from "../call-session/call-session.presenter.js";
 import { createCallSession } from "../call-session/commands/create-call-session.js";
 import { endCallSession } from "../call-session/commands/end-call-session.js";
 import { getCallSession } from "../call-session/queries/get-call-session.js";
 import { recordLiveAudioConsent } from "./commands/record-live-audio-consent.js";
+import { AgoraLiveTranscriptRelayClient } from "./live-transcript-relay-client.js";
 import { presentVoiceSession } from "./voice-session.presenter.js";
 import type { VoiceSessionRuntime } from "./types.js";
 
@@ -65,6 +67,10 @@ export function createVoiceSessionHandlers(config: RuntimeConfig, databaseClient
     customerSecret: config.agora.customerSecret,
     baseUrl: config.agora.baseUrl,
     properties: config.agora.agentProperties
+  });
+  const liveRelayClient = new AgoraLiveTranscriptRelayClient({
+    url: config.agora.liveRelay.url,
+    controlSecret: config.agora.liveRelay.controlSecret
   });
 
   async function lookup(callId: string) {
@@ -139,6 +145,18 @@ export function createVoiceSessionHandlers(config: RuntimeConfig, databaseClient
       const saved = await lookup(call.callId as string);
       const customerUid = randomInt(1, 4_000_000_000);
       if (customerUid === config.agora.agentUid) {
+        throw new ApiCommandError(
+          503,
+          "AGORA_CHANNEL_UNAVAILABLE",
+          "Live voice is unavailable.",
+          undefined,
+          true
+        );
+      }
+      if (
+        customerUid === config.agora.liveRelay.uid ||
+        config.agora.agentUid === config.agora.liveRelay.uid
+      ) {
         throw new ApiCommandError(
           503,
           "AGORA_CHANNEL_UNAVAILABLE",
@@ -248,19 +266,59 @@ export function createVoiceSessionHandlers(config: RuntimeConfig, databaseClient
           uid: config.agora.agentUid
         });
         const agentRequestName = `${config.agora.agentName}-${call.publicId}-${randomUUID().slice(0, 8)}`;
-        const agent = await agentClient.start({
+        const relayToken = issueRtcAndRtmToken(config.agora, {
           channelName: call.channelName,
-          agentToken,
-          agentUid: config.agora.agentUid,
-          customerUid,
-          name: agentRequestName,
-          callId: call.publicId
+          uid: config.agora.liveRelay.uid
         });
+
+        // 1. Start relay FIRST with a placeholder sessionId so it's ready to catch the first greeting
+        await liveRelayClient.start({
+          callId: call.publicId,
+          channelName: call.channelName,
+          sessionId: "PENDING_AGENT", // We don't have agentId yet
+          agentUid: config.agora.agentUid,
+          token: relayToken
+        });
+
+        // 2. Start the Agora AI Agent
+        let agent: { agentId: string; name: string } | undefined;
+        try {
+          agent = await agentClient.start({
+            channelName: call.channelName,
+            agentToken,
+            agentUid: config.agora.agentUid,
+            customerUid,
+            name: agentRequestName,
+            callId: call.publicId
+          });
+          // Bind any safely buffered early RTM transcript to the provider-issued session id.
+          await liveRelayClient.start({
+            callId: call.publicId,
+            channelName: call.channelName,
+            sessionId: agent.agentId,
+            agentUid: config.agora.agentUid,
+            token: relayToken
+          });
+        } catch (error) {
+          if (agent?.agentId) await agentClient.stop(agent.agentId).catch(() => undefined);
+          await liveRelayClient.stop(call.publicId).catch(() => undefined);
+          throw error;
+        }
+        if (agent === undefined) {
+          throw new ApiCommandError(
+            503,
+            "AGORA_CHANNEL_UNAVAILABLE",
+            "Agora agent session is unavailable.",
+            undefined,
+            true
+          );
+        }
         const connected = {
           status: "CONNECTED" as const,
           customerUid,
           agentId: agent.agentId,
           agentRequestName,
+          relayActive: true as const,
           rtc: prepared.rtc
         };
         runtime.set(call.publicId, connected);
@@ -280,6 +338,9 @@ export function createVoiceSessionHandlers(config: RuntimeConfig, databaseClient
     async stop(input: { callId: string; requestId: string }) {
       const active = runtime.get(input.callId);
       runtime.set(input.callId, { ...active, status: "STOPPING" });
+      if (active?.relayActive) {
+        await liveRelayClient.stop(input.callId).catch(() => undefined);
+      }
       if (active?.agentId) {
         try {
           await agentClient.stop(active.agentId);
@@ -295,7 +356,9 @@ export function createVoiceSessionHandlers(config: RuntimeConfig, databaseClient
           requestId: input.requestId
         });
       }
-      runtime.set(input.callId, { status: "ENDED" });
+      const endedRuntime: VoiceSessionRuntime = active ? { ...active } : { status: "ENDED" };
+      delete endedRuntime.relayActive;
+      runtime.set(input.callId, { ...endedRuntime, status: "ENDED" });
       return presentVoiceSession({
         callId: call.publicId,
         channelName: call.channelName,
@@ -365,53 +428,81 @@ export function createVoiceSessionHandlers(config: RuntimeConfig, databaseClient
     }) {
       if (
         !config.agora.ncsWebhookSecret ||
-        !verifyAgoraNotificationSignature(config.agora.ncsWebhookSecret, input.rawBody, input.signature)
+        !verifyAgoraNotificationSignature(
+          config.agora.ncsWebhookSecret,
+          input.rawBody,
+          input.signature
+        )
       ) {
         throw new ApiCommandError(401, "WEBHOOK_SIGNATURE_INVALID", "Provider event was rejected.");
       }
       const notification = AgoraConversationHistoryNotificationSchema.parse(input.payload);
-      const notificationMilliseconds = Number(notification.notifyMs);
-      const noticeTime =
-        notification.occurredAt ??
-        (Number.isFinite(notificationMilliseconds)
-          ? new Date(notificationMilliseconds).toISOString()
-          : "invalid");
-      if (!isFresh(noticeTime) || String(notification.productId) !== config.agora.ncsProductId) {
+      const noticeTime = new Date(notification.notifyMs).toISOString();
+      if (!isFresh(noticeTime)) {
         throw new ApiCommandError(401, "WEBHOOK_EVENT_EXPIRED", "Provider event was rejected.");
       }
       const callId = notification.payload.labels.call_id;
       const call = await validateProviderBinding({
         callId,
-        channelName: notification.payload.channelName,
-        sessionId: notification.payload.sessionId
+        channelName: notification.payload.channel,
+        sessionId: notification.payload.agent_id
       });
       try {
         await database().providerWebhookNotice.create({
-          data: { provider: "agora-conversation-ai", noticeId: notification.noticeId, callId: call.id }
+          data: {
+            provider: "agora-conversation-ai",
+            noticeId: notification.noticeId,
+            callId: call.id
+          }
         });
       } catch (error: unknown) {
-        if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {
+        if (
+          typeof error === "object" &&
+          error !== null &&
+          "code" in error &&
+          error.code === "P2002"
+        ) {
           return { accepted: true, persisted: 0, duplicate: true };
         }
         throw error;
       }
+      const existingTurns = await database().transcriptTurn.findMany({
+        where: { callSessionId: call.id },
+        select: { speaker: true, contentRedacted: true }
+      });
+      const unreconciledExisting = [...existingTurns];
       let persisted = 0;
-      for (const turn of notification.payload.history) {
+      for (const [index, turn] of notification.payload.contents.entries()) {
+        const text = turn.content.trim();
+        if (text.length === 0) continue;
+        const speaker = turn.role === "user" ? "CUSTOMER" : "AGENT";
+        const matchingExistingIndex = unreconciledExisting.findIndex(
+          (existing) =>
+            existing.speaker === speaker && existing.contentRedacted === redactContent(text)
+        );
+        if (matchingExistingIndex >= 0) {
+          unreconciledExisting.splice(matchingExistingIndex, 1);
+          continue;
+        }
+        const occurredAt =
+          turn.speech_end_ms === undefined
+            ? noticeTime
+            : new Date(turn.speech_end_ms).toISOString();
         const result = await acceptProviderTranscriptEvent(database(), {
           callId,
           provider: "agora-conversation-ai",
           providerEventId: notification.noticeId,
-          providerTurnId: turn.id,
-          speaker: turn.role === "user" ? "CUSTOMER" : "AGENT",
-          text: turn.text,
-          isFinal: turn.isFinal,
-          occurredAt: turn.occurredAt ?? noticeTime,
+          providerTurnId: `${notification.noticeId}:${index}:${turn.role}`,
+          speaker,
+          text,
+          isFinal: true,
+          occurredAt,
           receivedAt: new Date().toISOString(),
-          channelName: notification.payload.channelName,
-          sessionId: notification.payload.sessionId,
+          channelName: notification.payload.channel,
+          sessionId: notification.payload.agent_id,
           requestId: input.requestId,
-          ...(turn.sequenceNo === undefined ? {} : { sequenceNo: turn.sequenceNo }),
-          ...(turn.language === undefined ? {} : { language: turn.language })
+          sequenceNo: index + 1,
+          language: "vi-VN"
         });
         if (result.persisted) persisted += 1;
       }

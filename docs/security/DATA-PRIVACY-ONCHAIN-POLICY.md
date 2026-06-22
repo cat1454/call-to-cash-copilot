@@ -23,13 +23,13 @@ The product must not claim that a blockchain proof resolves a legal dispute by i
 
 ## 2. Data classification
 
-| Classification | Examples | Storage/access rule |
-|---|---|---|
-| Public receipt-safe | booking public id, masked route/time, deposit status, agreement version, proof result | may appear in authorized receipt |
-| Internal operational | risk score totals, reason codes, state transitions, latency metrics | API/operator access only |
-| Confidential PII | customer name, phone, precise pickup point, linked account identity | encrypted/masked; strict RBAC; never on-chain |
-| Restricted media | raw audio, recording, original transcript, support attachments | private object storage; explicit consent; short retention |
-| Secret / credential | AWS keys, Agora app certificate, Solana signer/private key, DB password | secret manager/env only; never logs/client/repo |
+| Classification       | Examples                                                                              | Storage/access rule                                       |
+| -------------------- | ------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| Public receipt-safe  | booking public id, masked route/time, deposit status, agreement version, proof result | may appear in authorized receipt                          |
+| Internal operational | risk score totals, reason codes, state transitions, latency metrics                   | API/operator access only                                  |
+| Confidential PII     | customer name, phone, precise pickup point, linked account identity                   | encrypted/masked; strict RBAC; never on-chain             |
+| Restricted media     | raw audio, recording, original transcript, support attachments                        | private object storage; explicit consent; short retention |
+| Secret / credential  | AWS keys, Agora app certificate, Solana signer/private key, DB password               | secret manager/env only; never logs/client/repo           |
 
 ---
 
@@ -153,11 +153,11 @@ Wallet private key / seed phrase
 
 Consent is granular, recorded, versioned, and revocable where technically/operationally possible.
 
-| Consent type | Required for | Default |
-|---|---|---|
-| `ANALYSIS` | transcription/AI extraction used to operate call flow | explicit before analysis where required by policy/jurisdiction |
-| `RECORDING` | saving raw audio or recording artifact | opt-in; not required for basic booking if transcript-only path works |
-| `TRAINING` | use of eligible redacted data for future model evaluation/training | opt-in, separate from analysis |
+| Consent type | Required for                                                       | Default                                                              |
+| ------------ | ------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| `ANALYSIS`   | transcription/AI extraction used to operate call flow              | explicit before analysis where required by policy/jurisdiction       |
+| `RECORDING`  | saving raw audio or recording artifact                             | opt-in; not required for basic booking if transcript-only path works |
+| `TRAINING`   | use of eligible redacted data for future model evaluation/training | opt-in, separate from analysis                                       |
 
 ### 4.1 Consent rules
 
@@ -176,6 +176,8 @@ Consent is granular, recorded, versioned, and revocable where technically/operat
 Live Agora metadata, browser RTC join, Conversation AI Engine start, and final transcript ingestion require a current `ANALYSIS = GRANTED` record. Revocation stops future transcription and triggers browser-track/provider-agent shutdown. The browser receives no Agora App Certificate, CAI customer credential, webhook secret, or agent-property configuration. Provider event signatures and tokens are never logged.
 
 Agora Notifications use a distinct server-only `AGORA_NCS_WEBHOOK_SECRET`; trusted live-relay events use `AGORA_PROVIDER_EVENT_SECRET`. Webhook verification uses raw request bytes and `Agora-Signature-V2`. Never log that signature, authorization headers, raw provider payloads, prompts, tokens, or transcript text.
+
+The Phase 9 relay may expose aggregate received, accepted, rejection-reason, and coarse assistant-text-category counters (`direct`, `alternate`, `missing`, `nonString`) for operational diagnosis. Those counters contain no transcript text, payload keys, provider IDs, call IDs, tokens, signatures, or customer data.
 
 ### 5.1 Before AI analysis/logging
 
@@ -217,13 +219,13 @@ Risk decisions must be based on booking completeness, term contradictions, payme
 
 ## 6. Access control
 
-| Role | May access | Must not access by default |
-|---|---|---|
-| Customer | own booking, masked receipt, own consent controls | other customers, raw internal score reasoning, provider secrets |
-| Operator | assigned booking/call summary, masked contact, support evidence where needed | unrelated recordings, credentials, raw DB dumps |
-| Provider admin | operational booking data needed to fulfill service | raw transcript/training data unless explicitly authorized |
-| System worker | scoped data needed for job | interactive user account privileges |
-| Developer | local seeded data; production only by approved break-glass process | production raw media/PII by default |
+| Role           | May access                                                                   | Must not access by default                                      |
+| -------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| Customer       | own booking, masked receipt, own consent controls                            | other customers, raw internal score reasoning, provider secrets |
+| Operator       | assigned booking/call summary, masked contact, support evidence where needed | unrelated recordings, credentials, raw DB dumps                 |
+| Provider admin | operational booking data needed to fulfill service                           | raw transcript/training data unless explicitly authorized       |
+| System worker  | scoped data needed for job                                                   | interactive user account privileges                             |
+| Developer      | local seeded data; production only by approved break-glass process           | production raw media/PII by default                             |
 
 Controls:
 
@@ -239,16 +241,16 @@ Controls:
 
 The following is an MVP default. Legal, contract, and provider obligations may require adjustment before production launch.
 
-| Data | Default retention | Deletion / action |
-|---|---|---|
-| raw audio/recording | 7–30 days with recording consent | S3 lifecycle deletion + metadata tombstone |
-| redacted transcript | 90–180 days | delete/pseudonymize per policy |
-| original encrypted transcript | shortest period required for dispute/QA | restricted delete workflow |
-| risk assessment/reason codes | 180–365 days | retain for audit/evaluation, then minimize |
-| payment / receipt / proof record | per accounting/dispute policy | retain minimal immutable transaction reference |
-| Redis realtime state | minutes to hours | TTL required |
-| audit logs | 365 days or per security policy | append-only, minimized |
-| training candidate | only while consent valid and approved | remove from future datasets upon revocation where feasible |
+| Data                             | Default retention                       | Deletion / action                                          |
+| -------------------------------- | --------------------------------------- | ---------------------------------------------------------- |
+| raw audio/recording              | 7–30 days with recording consent        | S3 lifecycle deletion + metadata tombstone                 |
+| redacted transcript              | 90–180 days                             | delete/pseudonymize per policy                             |
+| original encrypted transcript    | shortest period required for dispute/QA | restricted delete workflow                                 |
+| risk assessment/reason codes     | 180–365 days                            | retain for audit/evaluation, then minimize                 |
+| payment / receipt / proof record | per accounting/dispute policy           | retain minimal immutable transaction reference             |
+| Redis realtime state             | minutes to hours                        | TTL required                                               |
+| audit logs                       | 365 days or per security policy         | append-only, minimized                                     |
+| training candidate               | only while consent valid and approved   | remove from future datasets upon revocation where feasible |
 
 ### 7.1 Deletion request behavior
 
@@ -278,14 +280,14 @@ The following is an MVP default. Legal, contract, and provider obligations may r
 
 ## 9. Security controls by environment
 
-| Control | Local | Staging/demo | Production target |
-|---|---|---|---|
-| PostgreSQL | Docker volume + dev password | managed/private or hardened container | managed private DB + backups |
-| Redis | password + local network | private service | private service + ACL/TLS where available |
-| Object storage | MinIO private bucket | private S3 bucket | private S3 + lifecycle + access logs |
-| Secrets | `.env` never committed | deployment secret store | managed secret store + rotation |
-| Solana | devnet/mock signer only | devnet scoped key | production signer/custody design |
-| Logs | local redaction | centralized redacted logs | centralized redacted + alerting |
+| Control        | Local                        | Staging/demo                          | Production target                         |
+| -------------- | ---------------------------- | ------------------------------------- | ----------------------------------------- |
+| PostgreSQL     | Docker volume + dev password | managed/private or hardened container | managed private DB + backups              |
+| Redis          | password + local network     | private service                       | private service + ACL/TLS where available |
+| Object storage | MinIO private bucket         | private S3 bucket                     | private S3 + lifecycle + access logs      |
+| Secrets        | `.env` never committed       | deployment secret store               | managed secret store + rotation           |
+| Solana         | devnet/mock signer only      | devnet scoped key                     | production signer/custody design          |
+| Logs           | local redaction              | centralized redacted logs             | centralized redacted + alerting           |
 
 ---
 

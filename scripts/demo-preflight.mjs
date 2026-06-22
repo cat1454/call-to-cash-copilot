@@ -81,6 +81,7 @@ export function evaluateProviderConfig(serverEnv, webEnv) {
       ["AGORA_CUSTOMER_ID", "Agora customer ID"],
       ["AGORA_CUSTOMER_SECRET", "Agora customer secret"],
       ["AGORA_PROVIDER_EVENT_SECRET", "Agora provider-event secret"],
+      ["AGORA_RTM_RELAY_CONTROL_SECRET", "Agora RTM relay control secret"],
       ["AGORA_NCS_WEBHOOK_SECRET", "Agora Notifications secret"],
       ["AGORA_CAI_PROPERTIES_JSON", "Agora CAI properties"]
     ]) {
@@ -170,6 +171,24 @@ async function checkApi(apiBaseUrl) {
   }
 }
 
+async function checkLiveRelay(relayUrl) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 3_000);
+  try {
+    const response = await fetch(`${relayUrl.replace(/\/$/u, "")}/health`, {
+      headers: { Accept: "application/json" },
+      signal: controller.signal
+    });
+    return response.ok
+      ? result("PASS", "Agora RTM relay", "reachable")
+      : result("FAIL", "Agora RTM relay", `not ready (HTTP ${response.status})`);
+  } catch {
+    return result("FAIL", "Agora RTM relay", "unreachable");
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function runPreflight() {
   const serverEnv = { ...(await loadEnv(ROOT_ENV)), ...process.env };
   const webLocalEnv = await loadEnv(WEB_LOCAL_ENV);
@@ -177,6 +196,9 @@ export async function runPreflight() {
   const webEnv = selectWebEnv(webLocalEnv, webFileEnv, serverEnv);
   const results = [
     ...evaluateProviderConfig(serverEnv, webEnv),
+    ...(serverEnv.VOICE_PROVIDER === "agora"
+      ? [await checkLiveRelay(serverEnv.AGORA_RTM_RELAY_URL || "http://127.0.0.1:3011")]
+      : []),
     await checkDatabase(serverEnv.DATABASE_URL),
     await checkApi(webEnv.VITE_API_BASE_URL || serverEnv.VITE_API_BASE_URL)
   ];

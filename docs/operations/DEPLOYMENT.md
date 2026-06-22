@@ -46,8 +46,10 @@ The MVP is a modular monolith. Do not split the system into microservices merely
 Internet
   ├── apps/web
   │     └── CDN / web host
-  └── apps/api
+  └── private application network
+        ├── apps/api
         ├── REST API + SSE endpoint
+        ├── apps/rtm-relay (headless-browser RTM subscriber)
         ├── background worker / queue consumer
         ├── managed PostgreSQL
         ├── managed Redis
@@ -62,6 +64,7 @@ Internet
 |---|---|
 | `apps/web` | static/SSR compatible host; `NEXT_PUBLIC_*` only for non-secret config |
 | `apps/api` | container/node host with environment secrets; supports long-lived SSE connections |
+| `apps/rtm-relay` | private-only headless-browser container; starts/stops per-call RTM subscriptions only from signed API control commands; no public ingress |
 | worker | same codebase, separate process/command recommended for queues and retries |
 | PostgreSQL | managed or persistent database with backups and migration access |
 | Redis | managed Redis with authentication, TLS where supported, persistence appropriate to queue needs |
@@ -74,6 +77,7 @@ Internet
 - The deploy baseline is Node.js `20.20.2`; the supported engine range also permits compatible Node.js 22 and 24+ releases.
 - Corepack must resolve the root `packageManager` pin, currently pnpm `10.34.4`.
 - Do not upgrade the deployment to pnpm 11 while the build image remains on Node.js 20 because pnpm 11 requires Node.js 22+ and imports `node:sqlite`.
+- Deployment providers should install with `pnpm install --frozen-lockfile`. If a provider is fixed to `npm install` followed by `npm run build`, the root `prebuild` lifecycle bootstraps the pinned pnpm workspace before Turbo runs; removing that lifecycle would leave package-local dependencies such as `zod` unavailable.
 
 ---
 
@@ -90,6 +94,10 @@ S3_ACCESS_KEY=
 S3_SECRET_KEY=
 AGORA_APP_ID=
 AGORA_APP_CERTIFICATE=
+AGORA_PROVIDER_EVENT_SECRET=
+AGORA_RTM_RELAY_CONTROL_SECRET=
+AGORA_RTM_RELAY_URL=
+AGORA_RTM_RELAY_UID=
 SOLANA_RPC_URL=
 SOLANA_RECIPIENT_WALLET=
 SOLANA_PROOF_SIGNER_KEY=
@@ -241,7 +249,10 @@ Before enabling live voice:
 [ ] App Certificate remains server-only
 [ ] Web origin is permitted by app configuration where applicable
 [ ] `AGORA_PROVIDER_EVENT_SECRET` and `AGORA_NCS_WEBHOOK_SECRET` are distinct server-only secrets
-[ ] Fixed `/v1/webhooks/agora/conversation-ai` verifies raw-body `Agora-Signature-V2`, product id, freshness, and notice deduplication
+[ ] `AGORA_RTM_RELAY_CONTROL_SECRET` is a third, distinct server-only secret shared only by API and RTM relay
+[ ] RTM relay is deployed on the private application network; its control port is not internet-routable
+[ ] Relay UID differs from CAI agent and browser UIDs; the CAI pipeline emits bound `ctc.transcript.final/v1` final frames
+[ ] Fixed `/v1/webhooks/agora/conversation-ai` verifies raw-body `Agora-Signature-V2`, fixed product id `17`, freshness, and notice deduplication
 [ ] Call lifecycle events are idempotent
 [ ] Recording consent gate exists before recording start
 [ ] Storage location is reachable by Agora if cloud recording is enabled

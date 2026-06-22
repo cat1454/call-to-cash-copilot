@@ -11,6 +11,7 @@
     "dev": "turbo run dev",
     "dev:api": "pnpm --filter @call-to-cash/api dev",
     "dev:web": "pnpm --filter @call-to-cash/web dev",
+    "dev:rtm-relay": "pnpm --filter @call-to-cash/rtm-relay exec tsx src/server.ts",
     "demo:preflight": "node scripts/demo-preflight.mjs",
     "test:preflight": "node --test scripts/demo-preflight.test.mjs",
     "db:generate": "pnpm --filter @call-to-cash/db prisma:generate",
@@ -20,12 +21,13 @@
     "db:migrate:status": "pnpm --filter @call-to-cash/db migrate:status",
     "db:seed": "pnpm --filter @call-to-cash/db seed",
     "db:studio": "pnpm --filter @call-to-cash/db studio",
+    "prebuild": "pnpm install --frozen-lockfile",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "node --test tests/workspaceStructure.test.js tests/packageRuntimeExports.test.js && turbo run test",
-    "format": "prettier --write \"apps/api/**/*.{ts,json}\" \"packages/**/*.{ts,json}\" \"tests/**/*.js\" \"prisma.config.ts\" \"prisma/seed.ts\" \"compose.yaml\" \"package.json\" \"turbo.json\" \"pnpm-workspace.yaml\" \"eslint.config.js\" \"prettier.config.mjs\" \".github/**/*.{yml,yaml}\"",
-    "format:check": "prettier --check \"apps/api/**/*.{ts,json}\" \"packages/**/*.{ts,json}\" \"tests/**/*.js\" \"prisma.config.ts\" \"prisma/seed.ts\" \"compose.yaml\" \"package.json\" \"turbo.json\" \"pnpm-workspace.yaml\" \"eslint.config.js\" \"prettier.config.mjs\" \".github/**/*.{yml,yaml}\"",
+    "format": "prettier --write \"apps/api/**/*.{ts,json}\" \"apps/rtm-relay/**/*.{ts,json}\" \"packages/**/*.{ts,json}\" \"tests/**/*.js\" \"prisma.config.ts\" \"prisma/seed.ts\" \"compose.yaml\" \"package.json\" \"turbo.json\" \"pnpm-workspace.yaml\" \"eslint.config.js\" \"prettier.config.mjs\" \".github/**/*.{yml,yaml}\"",
+    "format:check": "prettier --check \"apps/api/**/*.{ts,json}\" \"apps/rtm-relay/**/*.{ts,json}\" \"packages/**/*.{ts,json}\" \"tests/**/*.js\" \"prisma.config.ts\" \"prisma/seed.ts\" \"compose.yaml\" \"package.json\" \"turbo.json\" \"pnpm-workspace.yaml\" \"eslint.config.js\" \"prettier.config.mjs\" \".github/**/*.{yml,yaml}\"",
     "preview": "pnpm --filter @call-to-cash/web preview"
   },
   "devDependencies": {

@@ -26,33 +26,34 @@ export const AgoraTranscriptProviderEventSchema = z
 
 export type AgoraTranscriptProviderEvent = z.infer<typeof AgoraTranscriptProviderEventSchema>;
 
-/**
- * The public Agora Notifications endpoint accepts only post-session history
- * notifications. The permissive field aliases accommodate Agora's documented
- * envelope variants while the application still validates the resolved facts.
- */
+/** The documented Agora Notifications event 103 post-session history envelope. */
 export const AgoraConversationHistoryNotificationSchema = z
   .object({
     noticeId: z.string().min(1),
-    productId: z.union([z.string().min(1), z.number().int()]),
-    eventType: z.union([z.literal(103), z.literal("103")]),
-    notifyMs: z.union([z.number().int().positive(), z.string().min(1)]).optional(),
-    occurredAt: z.string().datetime({ offset: true }).optional(),
+    productId: z.literal(17),
+    eventType: z.literal(103),
+    notifyMs: z.number().int().positive(),
+    sid: z.string().min(1),
     payload: z
       .object({
-        labels: z.object({ call_id: z.string().min(1), schema_version: z.literal("ctc-v1") }).strict(),
-        channelName: z.string().min(1).max(64),
-        sessionId: z.string().min(1),
-        history: z.array(
-          z.object({
-            id: z.string().min(1),
-            role: z.enum(["user", "assistant"]),
-            text: z.string().min(1),
-            isFinal: z.boolean().optional().default(true),
-            occurredAt: z.string().datetime({ offset: true }).optional(),
-            sequenceNo: z.number().int().positive().optional(),
-            language: z.string().min(1).optional()
-          }).strict()
+        labels: z
+          .object({ call_id: z.string().min(1), schema_version: z.literal("ctc-v1") })
+          .strict(),
+        agent_id: z.string().min(1),
+        name: z.string().min(1),
+        channel: z.string().min(1).max(64),
+        start_ts: z.number().nonnegative(),
+        stop_ts: z.number().nonnegative(),
+        contents: z.array(
+          z
+            .object({
+              role: z.enum(["user", "assistant"]),
+              content: z.string().max(10_000),
+              speech_start_ms: z.number().int().nonnegative().optional(),
+              speech_end_ms: z.number().int().nonnegative().optional(),
+              speech_algorithmic_delay: z.number().int().nonnegative().optional()
+            })
+            .strict()
         )
       })
       .strict()

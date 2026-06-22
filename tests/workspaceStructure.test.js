@@ -88,6 +88,7 @@ test("root manifest exposes the monorepo command surface", async () => {
   assert.equal(manifest.engines.node, "^20.19.0 || ^22.12.0 || >=24.0.0");
   assert.equal(manifest.devDependencies.pnpm, "10.34.4");
   assert.equal(manifest.devDependencies.turbo, "2.9.18");
+  assert.equal(manifest.scripts.prebuild, "pnpm install --frozen-lockfile");
 
   for (const script of [
     "dev",

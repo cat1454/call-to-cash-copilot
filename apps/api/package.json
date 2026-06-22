@@ -9,7 +9,7 @@
     "build": "tsc -p tsconfig.json",
     "lint": "eslint src --max-warnings=0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx --test src/app.test.ts",
+    "test": "tsx --test src/app.test.ts src/modules/call-session/commands/append-transcript-turn.test.ts src/modules/call-session/replay/replay-extractor.test.ts src/modules/voice-session/live-transcript-relay-client.test.ts",
     "start": "node dist/server.js"
   },
   "dependencies": {

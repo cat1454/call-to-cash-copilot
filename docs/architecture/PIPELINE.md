@@ -713,6 +713,8 @@ Add live voice as an input adapter after the transaction core is proven.
 Browser ↔ Agora: real-time media/audio
 Browser ↔ API: REST commands + SSE state
 API ↔ Agora: token issuance, webhook/recording configuration, metadata
+API ↔ RTM relay: signed per-call start/stop control
+RTM relay ↔ Agora: Signaling subscription for final transcript frames
 ```
 
 Agora does not decide payment, create receipts, or persist business truth.
@@ -722,8 +724,8 @@ Agora does not decide payment, create receipts, or persist business truth.
 1. API creates call session before user joins.
 2. API issues scoped, short-lived Agora token and channel metadata.
 3. Browser joins Agora channel directly and handles microphone permissions, mute, end call, and reconnect UX.
-4. Agora Signaling/RTM reaches a trusted server relay for live final customer and agent turns; the post-session Agora Notifications event `103` reconciles missing history through the fixed signed webhook. Browser RTC remains media-only.
-5. API persists transcript turns and routes them through the same extraction/domain evaluation path as replay.
+4. Agora Signaling/RTM reaches the isolated `apps/rtm-relay` headless-browser relay for live final customer and agent turns. The API issues the relay's short-lived RTM token, binds the CAI `agent_rtm_uid`, and sends an HMAC-protected per-call start/stop command. The relay accepts only Agora's documented final `user.transcription` / terminal `assistant.transcription` messages from that UID and exact call/channel/agent-session binding, then maps them into the signed internal provider ingress. The documented post-session Agora Notifications product `17`, event `103`, and `payload.contents` reconcile missing history through the fixed signed webhook. Browser RTC remains media-only.
+5. API persists transcript turns and routes them through the same deterministic catalogue-backed extraction/domain evaluation path as replay. Only final customer turns may propose booking fields; agent turns remain transcript-only.
 6. API broadcasts canonical SSE events to web.
 7. Display accurate connection state; only show “connected” after actual provider connection.
 8. Add consent flow before optional recording/transcription where required by product policy.
@@ -735,6 +737,7 @@ Agora does not decide payment, create receipts, or persist business truth.
 - Never auto-fill critical booking fields from ambiguous voice input.
 - Provide human handoff/end-call path.
 - Keep raw transcript concise in customer UI; detailed logs belong in controlled mentor/operator view.
+- Customer-visible final transcript may receive non-semantic presentation cleanup (Unicode, spacing, capitalization, punctuation). Semantic paraphrase and LLM extraction remain outside Phase 9.
 
 ## Exit criteria
 

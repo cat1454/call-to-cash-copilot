@@ -1,6 +1,7 @@
 import type { DatabaseClient } from "@call-to-cash/db";
 
 import { ApiCommandError } from "../../../platform/http/api-command-error.js";
+import { formatTranscriptForDisplay } from "../call-session.presenter.js";
 import type { ServiceData } from "../types.js";
 
 export async function getCallTranscript(
@@ -8,7 +9,8 @@ export async function getCallTranscript(
   callId: string
 ): Promise<ServiceData> {
   const call = await client.callSession.findUnique({ where: { publicId: callId } });
-  if (call === null) throw new ApiCommandError(404, "CALL_NOT_FOUND", "Call session was not found.");
+  if (call === null)
+    throw new ApiCommandError(404, "CALL_NOT_FOUND", "Call session was not found.");
   const turns = await client.transcriptTurn.findMany({
     where: { callSessionId: call.id, isFinal: true },
     orderBy: { sequenceNo: "asc" }
@@ -20,7 +22,7 @@ export async function getCallTranscript(
       callId,
       sequenceNo: turn.sequenceNo,
       speaker: turn.speaker,
-      content: turn.contentRedacted,
+      content: formatTranscriptForDisplay(turn.contentRedacted),
       language: turn.language,
       isFinal: turn.isFinal,
       startedAt: turn.startedAt?.toISOString() ?? null,

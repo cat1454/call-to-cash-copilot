@@ -10,9 +10,14 @@ import { WorkspaceLayout } from "./components/layout/WorkspaceLayout";
 import Hook from "./components/Hook";
 import { DEMO_MODE, getVoiceModeLabel } from "./config/runtime";
 import { getAIDecision, getReadinessScore } from "./features/simulation/helpers/appHelpers";
+import { useAgentReplyStatus } from "./features/simulation/hooks/useAgentReplyStatus.js";
 
 export default function App() {
   const sim = useCallSimulation();
+  const agentReplyStatus = useAgentReplyStatus(
+    sim.transcript,
+    sim.simStatus === "Cuộc gọi đang trực tiếp"
+  );
 
   const scrollToSection = (id) => {
     document.getElementById(id)?.scrollIntoView({
@@ -111,6 +116,7 @@ export default function App() {
         simStatus={sim.simStatus}
         streamStatus={sim.streamStatus}
         transcript={sim.transcript}
+        agentReplyStatus={agentReplyStatus}
         startSimulation={sim.startSimulation}
         resetSimulation={sim.resetSimulation}
         isSimulating={sim.isSimulating}
@@ -121,6 +127,7 @@ export default function App() {
         retryLiveVoice={sim.retryLiveVoice}
         continueInReplayMode={sim.continueInReplayMode}
         endVoiceSession={sim.endVoiceSession}
+        postCallTranscriptSync={sim.postCallTranscriptSync}
       />
 
       <AIDecisionPanel decision={decision} scores={sim.scores} />
@@ -138,6 +145,7 @@ export default function App() {
       phoneCallStatusText={sim.phoneCallStatusText}
       phoneCallColor={sim.phoneCallColor}
       isWaveAnimating={sim.isWaveAnimating}
+      agentReplyStatus={agentReplyStatus}
       subtitles={sim.subtitles}
       bookingData={sim.bookingData}
       showBoardingPass={sim.showBoardingPass}

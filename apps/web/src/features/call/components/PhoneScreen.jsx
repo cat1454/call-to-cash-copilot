@@ -29,6 +29,7 @@ export default function PhoneScreen({
   phoneCallStatusText,
   phoneCallColor,
   isWaveAnimating,
+  agentReplyStatus,
   subtitles,
   bookingData,
   showBoardingPass,
@@ -56,6 +57,7 @@ export default function PhoneScreen({
   const renderCallView = () => (
     <PhoneCallView
       isWaveAnimating={isWaveAnimating}
+      agentReplyStatus={agentReplyStatus}
       phoneCallColor={phoneCallColor}
       phoneCallStatusText={phoneCallStatusText}
       subtitles={subtitles}

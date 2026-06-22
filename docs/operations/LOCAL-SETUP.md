@@ -113,8 +113,10 @@ AGORA_APP_CERTIFICATE=
 AGORA_CUSTOMER_ID=
 AGORA_CUSTOMER_SECRET=
 AGORA_PROVIDER_EVENT_SECRET=
+AGORA_RTM_RELAY_CONTROL_SECRET=
+AGORA_RTM_RELAY_URL=http://127.0.0.1:3011
+AGORA_RTM_RELAY_UID=9002
 AGORA_NCS_WEBHOOK_SECRET=
-AGORA_NCS_PRODUCT_ID=conversation-ai
 AGORA_TOKEN_TTL_SECONDS=600
 AGORA_AGENT_UID=9001
 AGORA_CAI_AGENT_NAME=call-to-cash-agent
@@ -135,6 +137,23 @@ VITE_VOICE_PROVIDER=replay
 Only `VITE_*` values may be exposed to the browser. Never put provider certificates, private keys, database URLs, webhook secrets, or LLM keys in a `VITE_*` variable.
 
 Set `PAYMENT_PROVIDER=solana_devnet` only when a public Devnet recipient is configured. Set both `VOICE_PROVIDER=agora` and `VITE_VOICE_PROVIDER=agora` only when the server-only Agora values are configured. Missing/invalid provider configuration leaves process liveness intact but the selected live flow fails closed. No private key is accepted. Redis, object-storage, and LLM variables remain deferred until their first implemented consumer.
+
+When `VOICE_PROVIDER=agora`, the isolated RTM relay is also required. Give `AGORA_RTM_RELAY_CONTROL_SECRET` a new random server-only value (distinct from `AGORA_PROVIDER_EVENT_SECRET` and `AGORA_NCS_WEBHOOK_SECRET`), keep its URL private to the API deployment network, and choose a relay UID different from the agent and browser UIDs. The relay process needs the same `AGORA_APP_ID`, `AGORA_PROVIDER_EVENT_SECRET`, `AGORA_RTM_RELAY_CONTROL_SECRET`, `AGORA_RTM_RELAY_UID`, plus these local-only settings:
+
+```env
+RTM_RELAY_HOST=127.0.0.1
+RTM_RELAY_PORT=3011
+RTM_RELAY_API_BASE_URL=http://127.0.0.1:3001
+RTM_RELAY_BROWSER_EXECUTABLE_PATH=C:\path\to\chromium.exe
+```
+
+Start it separately; root `pnpm dev` intentionally does not start a browser runtime in replay mode:
+
+```bash
+pnpm dev:rtm-relay
+```
+
+The API sets the CAI `agent_rtm_uid` and enables `parameters.data_channel=rtm`. The relay parses Agora's documented `user.transcription` and `assistant.transcription` messages, rejects partial customer turns, other publisher UIDs, or mismatched bindings, and deduplicates valid text-mode assistant updates through a 500 ms quiet window. `GET http://127.0.0.1:3011/health` exposes privacy-safe aggregate transcript counters for local diagnosis. It keeps the legacy `ctc.transcript.final/v1` shape only for custom-pipeline compatibility. Agora Notifications uses the fixed Conversational AI product id `17`; there is no configurable `AGORA_NCS_PRODUCT_ID`. The relay is not a browser feature, and browser code never receives its token or control secret.
 
 ## 5. Start PostgreSQL and apply durable state
 
@@ -254,16 +273,16 @@ Turbo's package-local DB task graph runs `prisma:generate` once before DB build/
 
 Do not expect the following commands or services to work until their pipeline phase is implemented:
 
-| Capability                                                                          |         Planned phase |
-| ----------------------------------------------------------------------------------- | --------------------: |
-| Web REST/SSE adapter and refresh recovery                                           |    **Phase 6 — done** |
-| Mock payment failure outcomes and simulate-failure demo endpoint                    |    **Phase 7 — done** |
-| Server read-model hooks and useServerSimulation wiring                              |    **Phase 7 — done** |
-| Solana Devnet provider, URL, automatic reference discovery, and server verification |    **Phase 8 — done** |
-| Agora adapter and server-to-CAI probe                                               |    **Phase 9 — done** |
-| Agora browser microphone, final transcript, and SSE live acceptance                 |    **Phase 9 — done** |
-| Optional LLM extraction                                                             |              Phase 10 |
-| Redis, MinIO/S3, consent/media workflows                                            |              Phase 11 |
+| Capability                                                                          |      Planned phase |
+| ----------------------------------------------------------------------------------- | -----------------: |
+| Web REST/SSE adapter and refresh recovery                                           | **Phase 6 — done** |
+| Mock payment failure outcomes and simulate-failure demo endpoint                    | **Phase 7 — done** |
+| Server read-model hooks and useServerSimulation wiring                              | **Phase 7 — done** |
+| Solana Devnet provider, URL, automatic reference discovery, and server verification | **Phase 8 — done** |
+| Agora adapter and server-to-CAI probe                                               | **Phase 9 — done** |
+| Agora browser microphone, final transcript, and SSE live acceptance                 | **Phase 9 — done** |
+| Optional LLM extraction                                                             |           Phase 10 |
+| Redis, MinIO/S3, consent/media workflows                                            |           Phase 11 |
 
 Do not create speculative Redis or object-storage configuration before its consumer phase.
 

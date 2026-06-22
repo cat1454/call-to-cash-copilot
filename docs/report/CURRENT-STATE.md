@@ -1,12 +1,16 @@
 # Call-to-Cash Risk Copilot — Current State
 
-> **Snapshot date:** 2026-06-21 (Asia/Bangkok)
+> **Snapshot date:** 2026-06-22 (Asia/Bangkok)
 >
-> **Branch / commit inspected:** `develop` / `cb4fce4` (`chore: close Phase 8 cleanup gaps`)
+> **Branch inspected:** `testing` (Phase 9 closure worktree)
 >
-> **Purpose:** record the verified Phase 9 baseline and closure.
+> **Purpose:** record the verified Phase 9 baseline and current closure status.
 >
-> **Conclusion:** Phase 9 browser RTC and transcript UI are aligned. The current Phase 9.2 working tree adds the authoritative provider/webhook transcript boundary and is ready for an integration commit, but not a production-closure claim: DB-backed reconciliation and the actual server-side Agora Signaling/RTM subscriber still need live evidence.
+> **Conclusion:** Phase 9 is complete as the user-approved Agora media, safe transcript-ingress, customer-to-booking, and realtime-summary slice. It does not claim that the current live assistant-frame variant has been accepted as an `AGENT` turn.
+>
+> **Current Phase 9 stage (2026-06-22): COMPLETE.** Closure is an explicit user decision after realtime customer booking extraction, UI/SSE recovery, redacted relay diagnostics, and the full automated verification suite. The observed assistant-frame variant is recorded honestly as deferred text/AI UX work; it is not recorded as successful live `AGENT` evidence.
+>
+> **Phase 10 stage: NOT STARTED.** Text beautification or semantic rewriting is deferred; Phase 9 retains normalized, display-preserving transcript text only and introduces no LLM/provider/key work.
 
 ---
 
@@ -30,30 +34,30 @@ deterministic transcript replay
 
 Phase 8 replaced mock-only payment confirmation with an opt-in Solana Devnet provider while preserving the same agreement, payment-gate, proof, receipt, privacy, and state-machine rules. Deterministic mock payment remains available for tests and fallback.
 
-The Phase 9 Agora adapter is fully implemented: the browser joins RTC directly, the API owns token/CAI orchestration and consent, and final provider turns reuse the existing transcript/domain path. Live microphone, audible CAI response, final-turn persistence, and SSE acceptance have been verified with aligned environment configurations. Optional LLM extraction, Redis, object storage, and production hardening remain later phases.
+The Phase 9 Agora adapter is complete: the browser joins RTC directly, the API owns token/CAI orchestration and consent, and final provider turns reuse the existing transcript/domain path. Customer transcript extraction, scheduled-catalogue booking updates, and SSE/REST recovery are verified. The unaccepted live assistant-frame variant remains a deferred text/AI UX concern, not a claimed acceptance result. Optional LLM extraction, Redis, object storage, and production hardening remain later phases.
 
-The Phase 9.2 integration commit additionally separates provider-event and Notifications secrets, accepts a fixed public reconciliation webhook, persists provider-turn and notice idempotency keys, and restores the authoritative transcript after refresh. Before production activation, apply its Prisma migration, run the database-backed webhook suite, and connect the approved server-side Agora Signaling/RTM subscriber; browser RTC remains audio-only.
+The Phase 9.2 integration commit additionally separates provider-event and Notifications secrets, accepts a fixed public reconciliation webhook, persists provider-turn and notice idempotency keys, and restores the authoritative transcript after refresh. The current relay slice adds a third API-to-relay control secret, an isolated headless-browser RTM subscriber, strict agent/call/channel/session/final-frame checks, and a signed handoff to the existing canonical transcript ingress. Before production activation, deploy the private relay runtime, configure CAI final-frame publishing, apply the existing Prisma migration, run the database-backed webhook suite, and collect fresh browser evidence; browser RTC remains audio-only.
 
 ---
 
 ## 2. Phase status
 
-|                                 Pipeline phase | Current assessment | Evidence                                                                                            |
-| ---------------------------------------------: | ------------------ | --------------------------------------------------------------------------------------------------- |
-|                        0 — Normalize contracts | **Implemented**    | canonical product, architecture, API/event/error, and privacy contracts                             |
-|                       1 — Executable workspace | **Implemented**    | pnpm/Turbo scripts, Node 20.20 deploy baseline, CI, Compose, validated env surface                   |
-|                           2 — Shared contracts | **Implemented**    | shared Zod DTOs, events, errors, enums, contract tests                                              |
-|                              3 — Domain kernel | **Implemented**    | deterministic scoring, payment gate, agreement and transition guards                                |
-|                    4 — PostgreSQL/Prisma state | **Implemented**    | schema, migration, seed, repositories, DB-backed tests                                              |
-|                         5 — Replay API and SSE | **Implemented**    | Fastify orchestration, durable transcript/state/event flow                                          |
-|                       6 — Web REST/SSE adapter | **Implemented**    | API-mode state, recovery, reconnect, privacy-safe projections                                       |
-|                 7 — Mock payment/proof/receipt | **Implemented**    | authoritative happy path, failure/tamper path, receipt recovery                                     |
-|                              8 — Solana Devnet | **Implemented**    | provider, Solana Pay URL/QR, discovery, verification, polling, proof/receipt linkage                |
-|                9 — Agora live voice/transcript | **Implemented**    | Agora adapter aligned across API/Web envs, enabling live browser voice, CAI probe, and SSE flow |
-| 9.2 — Agora conversation quality optimization | **GO; V1 draft, agent start pass** | RTC-first browser sequence reaches agent join; V1 live conversation evaluation is still required |
-|                   10 — Optional LLM extraction | **Not started**    | `packages/ai` remains a boundary/placeholder                                                        |
-| 11 — Redis, object storage, consent/media jobs | **Not started**    | no active provider integration yet                                                                  |
-|                      12 — Production hardening | **Partial**        | health/readiness, CORS, rate limiting and runbooks exist; auth/RBAC and richer observability remain |
+|                                 Pipeline phase | Current assessment                 | Evidence                                                                                                    |
+| ---------------------------------------------: | ---------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+|                        0 — Normalize contracts | **Implemented**                    | canonical product, architecture, API/event/error, and privacy contracts                                     |
+|                       1 — Executable workspace | **Implemented**                    | pnpm/Turbo scripts, Node 20.20 deploy baseline, CI, Compose, validated env surface                          |
+|                           2 — Shared contracts | **Implemented**                    | shared Zod DTOs, events, errors, enums, contract tests                                                      |
+|                              3 — Domain kernel | **Implemented**                    | deterministic scoring, payment gate, agreement and transition guards                                        |
+|                    4 — PostgreSQL/Prisma state | **Implemented**                    | schema, migration, seed, repositories, DB-backed tests                                                      |
+|                         5 — Replay API and SSE | **Implemented**                    | Fastify orchestration, durable transcript/state/event flow                                                  |
+|                       6 — Web REST/SSE adapter | **Implemented**                    | API-mode state, recovery, reconnect, privacy-safe projections                                               |
+|                 7 — Mock payment/proof/receipt | **Implemented**                    | authoritative happy path, failure/tamper path, receipt recovery                                             |
+|                              8 — Solana Devnet | **Implemented**                    | provider, Solana Pay URL/QR, discovery, verification, polling, proof/receipt linkage                        |
+|                9 — Agora live voice/transcript | **IN PROGRESS**                    | automated relay/API/web/DB tests pass; new live AGENT transcript and realtime booking evidence are required |
+|  9.2 — Agora conversation quality optimization | **GO; V1 draft, agent start pass** | RTC-first browser sequence reaches agent join; V1 live conversation evaluation is still required            |
+|                   10 — Optional LLM extraction | **Not started**                    | `packages/ai` remains a boundary/placeholder                                                                |
+| 11 — Redis, object storage, consent/media jobs | **Not started**                    | no active provider integration yet                                                                          |
+|                      12 — Production hardening | **Partial**                        | health/readiness, CORS, rate limiting and runbooks exist; auth/RBAC and richer observability remain         |
 
 ---
 
@@ -146,23 +150,27 @@ Phase 9 must not move media through the Node API or give Agora authority over bo
 
 ## 7. Current go/no-go decision
 
-**Phase 9 implementation status:** Implemented.
+**Phase 9 implementation status:** COMPLETE — user-approved scope closure; relay, API, web, and database-backed tests pass.
 
-**Go for Phase 9 closure:** Yes.
+**Go for Phase 9 closure:** Yes — the remaining assistant-frame observation is deferred without claiming a passing live `AGENT` transcript.
 
 ---
 
 ## 7.1 Phase 9.1 Agora live acceptance — 2026-06-21
 
-**Status: PASS.** The server-to-CAI probe passed, and the voice mode configurations between the API (`apps/api/.env`) and web client (`apps/web/.env.local`) have been aligned to `agora` to support the live voice, transcript, and SSE pipeline.
+**Status: historical baseline only; superseded for closure.** The server-to-CAI probe passed, and the voice mode configurations between the API (`apps/api/.env`) and web client (`apps/web/.env.local`) have been aligned to `agora` to support the live voice, transcript, and SSE pipeline. It does not prove current assistant transcript delivery.
 
 PostgreSQL-backed verification did run successfully: 6 database tests and 10 API tests passed with no skips using `call_to_cash_test`. No migration was required. The provider-event adapter was hardened to require an HMAC, five-minute freshness window, matching call ID/channel/active agent session, and stable provider-turn deduplication before invoking the existing transcript command.
 
-The live Agora voice connection, microphone input, CAI responses, and final-turn persistence are fully verified and integrated across both front-end and back-end environments.
+The historical browser/CAI probe verified connectivity only. It is not evidence of current
+assistant final-turn persistence. This remains a documented deferred observation after the
+user-approved Phase 9 closure, not a recorded acceptance pass.
 
 ### Phase 9.1 update — server-to-CAI connectivity
 
-The probe received HTTP 200 with an agent ID, then completed a successful leave request. No identifier or credential is recorded here. Browser microphone, live final-turn ingestion, and SSE acceptance have been successfully verified and aligned.
+The probe received HTTP 200 with an agent ID, then completed a successful leave request. No
+identifier or credential is recorded here. It does not prove browser microphone delivery, live
+final-turn ingestion, or SSE acceptance for the current relay implementation.
 
 ---
 

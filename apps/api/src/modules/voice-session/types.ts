@@ -5,5 +5,6 @@ export type VoiceSessionRuntime = {
   customerUid?: number;
   agentId?: string;
   agentRequestName?: string;
+  relayActive?: true;
   rtc?: AgoraSessionMetadata;
 };

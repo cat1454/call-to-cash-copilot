@@ -1,7 +1,7 @@
 # Call-to-Cash Risk Copilot — Booking Contract
 
 > **Status:** MVP v1  
-> **Vertical:** Intercity bus / tour booking — Hà Nội → Sa Pa  
+> **Vertical:** Catalogue-backed intercity bus / tour booking — demo departures include Hà Nội → Sa Pa and Đà Nẵng → Hà Nội
 > **Owner:** Product Lead + Backend Lead  
 > **Related docs:** [Pipeline](../architecture/PIPELINE.md), [Decisions](../architecture/DECISIONS.md), [Risk Scoring](./RISK-SCORING.md)
 
@@ -63,14 +63,14 @@ Call Session
   → Trust Receipt
 ```
 
-| Entity | Purpose | Mutability |
-|---|---|---|
-| `call_session` | Identifies a live/replayed customer interaction | lifecycle updates only |
-| `booking_draft` | Current editable operational proposal | mutable until agreement lock |
-| `agreement_snapshot` | Customer-confirmed commercial terms | immutable/versioned |
-| `payment_intent` | One payable request bound to one agreement | status mutable, terms immutable |
-| `payment_attempt` | A detected user payment transaction | append-only |
-| `trust_receipt` | Customer-facing proof/result | append-only with verification status updates |
+| Entity               | Purpose                                         | Mutability                                   |
+| -------------------- | ----------------------------------------------- | -------------------------------------------- |
+| `call_session`       | Identifies a live/replayed customer interaction | lifecycle updates only                       |
+| `booking_draft`      | Current editable operational proposal           | mutable until agreement lock                 |
+| `agreement_snapshot` | Customer-confirmed commercial terms             | immutable/versioned                          |
+| `payment_intent`     | One payable request bound to one agreement      | status mutable, terms immutable              |
+| `payment_attempt`    | A detected user payment transaction             | append-only                                  |
+| `trust_receipt`      | Customer-facing proof/result                    | append-only with verification status updates |
 
 ---
 
@@ -78,31 +78,49 @@ Call Session
 
 All required fields are validated by backend rules. AI can propose field values but cannot mark them confirmed by itself.
 
-| Field | Type | Required before payment | Source | Validation / rule |
-|---|---|---:|---|---|
-| `route_from` | enum/string | Yes | customer + inventory | supported origin; normalized |
-| `route_to` | enum/string | Yes | customer + inventory | supported destination; normalized |
-| `departure_at` | ISO 8601 datetime | Yes | customer + schedule | valid slot; future time |
-| `passenger_count` | integer | Yes | customer | integer `1..max_capacity` |
-| `pickup_point` | enum/string | Yes | customer + route policy | supported pickup location |
-| `customer_contact` | encrypted phone/email | Yes | customer | valid normalized format; display masked |
-| `fare_total_vnd` | integer | Yes | pricing service | server-calculated only |
-| `deposit_amount_vnd` | integer | Yes | policy service | server-calculated; `> 0` and `<= fare_total_vnd` |
-| `currency` | enum | Yes | system | MVP: `VND` display; payment asset configured separately |
-| `refund_policy_version` | string | Yes | policy service | must exist and be active |
-| `refund_policy_confirmed` | boolean | Yes | customer | must be explicitly accepted |
-| `explicit_confirmation` | boolean | Yes | customer | confirmed against current agreement version |
-| `inventory_reservation_id` | opaque ID | Yes | inventory service | active hold, not expired |
+| Field                      | Type                  | Required before payment | Source                  | Validation / rule                                                                          |
+| -------------------------- | --------------------- | ----------------------: | ----------------------- | ------------------------------------------------------------------------------------------ |
+| `route_from`               | enum/string           |                     Yes | customer + inventory    | supported origin from a scheduled catalogue route; normalized                              |
+| `route_to`                 | enum/string           |                     Yes | customer + inventory    | supported destination in the spoken direction from a scheduled catalogue route; normalized |
+| `departure_at`             | ISO 8601 datetime     |                     Yes | customer + schedule     | valid slot; future time                                                                    |
+| `passenger_count`          | integer               |                     Yes | customer                | integer `1..max_capacity`                                                                  |
+| `pickup_point`             | enum/string           |                     Yes | customer + route policy | supported pickup location                                                                  |
+| `customer_contact`         | encrypted phone/email |                     Yes | customer                | valid normalized format; display masked                                                    |
+| `fare_total_vnd`           | integer               |                     Yes | pricing service         | server-calculated only                                                                     |
+| `deposit_amount_vnd`       | integer               |                     Yes | policy service          | server-calculated; `> 0` and `<= fare_total_vnd`                                           |
+| `currency`                 | enum                  |                     Yes | system                  | MVP: `VND` display; payment asset configured separately                                    |
+| `refund_policy_version`    | string                |                     Yes | policy service          | must exist and be active                                                                   |
+| `refund_policy_confirmed`  | boolean               |                     Yes | customer                | must be explicitly accepted                                                                |
+| `explicit_confirmation`    | boolean               |                     Yes | customer                | confirmed against current agreement version                                                |
+| `inventory_reservation_id` | opaque ID             |                     Yes | inventory service       | active hold, not expired                                                                   |
+
+### Phase 9 deterministic live extraction
+
+The live transcript adapter may propose a route only when the customer says an exact
+scheduled catalogue route and an exact future departure. The summary is updated from the
+authoritative booking snapshot as soon as that departure is selected; it does not wait for
+passenger count. When passenger count arrives in a later customer turn, the server recomputes
+`fare_total_vnd` from the selected departure's fare per seat and the new count.
+
+The deterministic matcher tolerates omitted internal spaces in a catalogue place name (for
+example `Sapa` for `Sa Pa`) and accepts ASR's spoken `hour:minute` form (for example
+`hai mươi hai:ba mươi phút`). It still requires an exact scheduled route and departure; these
+normalizations do not allow a near-match or an inferred inventory choice.
+
+For the current deterministic Vietnamese parser, a contact number may be supplied as a valid
+contiguous number or as digit-by-digit speech after `số điện thoại`, `sđt`, or `liên hệ`.
+Only a valid normalized number is retained off-chain; all booking and realtime displays remain
+masked. These rules only propose draft fields and never confirm a booking or payment.
 
 ### Optional fields
 
-| Field | Why useful | Rule |
-|---|---|---|
-| `customer_name` | receipt personalization | do not require for payment if local policy permits |
-| `luggage_count` | operational preparation | may be collected later |
-| `special_notes` | accessibility/support | redaction and manual review rules apply |
-| `seat_preference` | UX enhancement | no guarantee unless inventory supports it |
-| `agent_notes` | manual operation | never included in customer agreement or on-chain proof |
+| Field             | Why useful              | Rule                                                   |
+| ----------------- | ----------------------- | ------------------------------------------------------ |
+| `customer_name`   | receipt personalization | do not require for payment if local policy permits     |
+| `luggage_count`   | operational preparation | may be collected later                                 |
+| `special_notes`   | accessibility/support   | redaction and manual review rules apply                |
+| `seat_preference` | UX enhancement          | no guarantee unless inventory supports it              |
+| `agent_notes`     | manual operation        | never included in customer agreement or on-chain proof |
 
 ---
 
@@ -112,11 +130,11 @@ Every extracted field records where it came from and how it became trusted.
 
 ```ts
 export type FieldProvenance = {
-  source: 'customer_voice' | 'customer_text' | 'operator' | 'inventory' | 'pricing' | 'system';
+  source: "customer_voice" | "customer_text" | "operator" | "inventory" | "pricing" | "system";
   transcriptSegmentId?: string;
   confidence?: number; // only for AI-derived value
-  status: 'proposed' | 'confirmed' | 'corrected' | 'invalidated';
-  confirmedBy?: 'customer' | 'operator' | 'system';
+  status: "proposed" | "confirmed" | "corrected" | "invalidated";
+  confirmedBy?: "customer" | "operator" | "system";
   confirmedAt?: string;
 };
 ```
@@ -141,7 +159,7 @@ export type BookingDraftV1 = {
   status: BookingStatus;
 
   service: {
-    vertical: 'INTERCITY_BUS';
+    vertical: "INTERCITY_BUS";
     routeFrom?: string;
     routeTo?: string;
     departureAt?: string;
@@ -160,7 +178,7 @@ export type BookingDraftV1 = {
   pricing: {
     fareTotalVnd?: number;
     depositAmountVnd?: number;
-    currency: 'VND';
+    currency: "VND";
     refundPolicyVersion?: string;
   };
 
@@ -187,7 +205,7 @@ export type AgreementSnapshotV1 = {
   id: string;
   bookingId: string;
   version: number;
-  status: 'DRAFT' | 'READY' | 'LOCKED' | 'SUPERSEDED' | 'EXPIRED';
+  status: "DRAFT" | "READY" | "LOCKED" | "SUPERSEDED" | "EXPIRED";
 
   service: {
     routeFrom: string;
@@ -202,7 +220,7 @@ export type AgreementSnapshotV1 = {
   commercialTerms: {
     fareTotalVnd: number;
     depositAmountVnd: number;
-    currency: 'VND';
+    currency: "VND";
     refundPolicyVersion: string;
     refundPolicySummary: string;
   };
@@ -210,10 +228,10 @@ export type AgreementSnapshotV1 = {
   customerAcknowledgement: {
     contactMasked: string;
     explicitConfirmationAt: string;
-    confirmationMethod: 'VOICE' | 'WEB' | 'OPERATOR';
+    confirmationMethod: "VOICE" | "WEB" | "OPERATOR";
   };
 
-  canonicalizationVersion: 'v1';
+  canonicalizationVersion: "v1";
   canonicalPayload: string;
   sha256Hash: string;
   createdAt: string;
@@ -313,7 +331,7 @@ export type PaymentIntentV1 = {
 
   expected: {
     amount: number;
-    currency: 'VND';
+    currency: "VND";
     recipient: string;
     reference: string;
     memoHash?: string;
@@ -369,15 +387,15 @@ REFUND_REQUESTED
 
 ### Core transition table
 
-| From | To | Allowed only when |
-|---|---|---|
-| `FIELDS_PARTIAL` | `BOOKING_DRAFT_READY` | required operational fields present |
-| `BOOKING_DRAFT_READY` | `AGREEMENT_READY` | pricing/policy/inventory hold valid |
-| `AGREEMENT_READY` | `AGREEMENT_LOCKED` | customer gives explicit confirmation |
-| `AGREEMENT_LOCKED` | `PAYMENT_PENDING` | gate passes and payment intent created |
-| `PAYMENT_PENDING` | `PAYMENT_CONFIRMED` | server verifies transaction |
-| `PAYMENT_CONFIRMED` | `BOOKING_CONFIRMED` | inventory hold converted successfully |
-| `BOOKING_CONFIRMED` | `RECEIPT_ISSUED` | proof/receipt generation succeeds |
+| From                  | To                    | Allowed only when                      |
+| --------------------- | --------------------- | -------------------------------------- |
+| `FIELDS_PARTIAL`      | `BOOKING_DRAFT_READY` | required operational fields present    |
+| `BOOKING_DRAFT_READY` | `AGREEMENT_READY`     | pricing/policy/inventory hold valid    |
+| `AGREEMENT_READY`     | `AGREEMENT_LOCKED`    | customer gives explicit confirmation   |
+| `AGREEMENT_LOCKED`    | `PAYMENT_PENDING`     | gate passes and payment intent created |
+| `PAYMENT_PENDING`     | `PAYMENT_CONFIRMED`   | server verifies transaction            |
+| `PAYMENT_CONFIRMED`   | `BOOKING_CONFIRMED`   | inventory hold converted successfully  |
+| `BOOKING_CONFIRMED`   | `RECEIPT_ISSUED`      | proof/receipt generation succeeds      |
 
 ---
 
@@ -419,27 +437,27 @@ The UI must expose a readable detail view and policy version, not only a spoken 
 
 ## 14. Acceptance test matrix
 
-| Scenario | Expected result |
-|---|---|
-| Customer gives complete booking + explicit confirmation | agreement locks; payment gate opens |
-| Customer gives route but no passenger count | gate remains locked; AI asks for count |
-| Customer says “send link first” | no gate unlock; request explicit confirmation |
-| Price changes after confirmation | prior agreement superseded; new confirmation required |
-| Inventory hold expires before payment | payment intent expires; no booking confirmation |
-| Payment amount is short | manual review; no receipt as confirmed |
-| Payment transaction correct | booking confirms; receipt issued |
-| Agreement payload is tampered after proof | receipt reports `MISMATCH`; manual review |
+| Scenario                                                | Expected result                                       |
+| ------------------------------------------------------- | ----------------------------------------------------- |
+| Customer gives complete booking + explicit confirmation | agreement locks; payment gate opens                   |
+| Customer gives route but no passenger count             | gate remains locked; AI asks for count                |
+| Customer says “send link first”                         | no gate unlock; request explicit confirmation         |
+| Price changes after confirmation                        | prior agreement superseded; new confirmation required |
+| Inventory hold expires before payment                   | payment intent expires; no booking confirmation       |
+| Payment amount is short                                 | manual review; no receipt as confirmed                |
+| Payment transaction correct                             | booking confirms; receipt issued                      |
+| Agreement payload is tampered after proof               | receipt reports `MISMATCH`; manual review             |
 
 ---
 
 ## 15. Implementation ownership
 
-| Concern | Code location |
-|---|---|
-| Zod DTOs / enums | `packages/shared` |
-| Prisma models / repositories | `prisma/schema.prisma`, `packages/db` |
-| State transitions / policy guards | `apps/api` + shared domain module |
-| Voice extraction proposal | `packages/ai` |
-| Agora transcript mapping | `packages/agora` |
-| Payment / proof helpers | `packages/solana` |
-| Customer agreement UI | `apps/web` |
+| Concern                           | Code location                         |
+| --------------------------------- | ------------------------------------- |
+| Zod DTOs / enums                  | `packages/shared`                     |
+| Prisma models / repositories      | `prisma/schema.prisma`, `packages/db` |
+| State transitions / policy guards | `apps/api` + shared domain module     |
+| Voice extraction proposal         | `packages/ai`                         |
+| Agora transcript mapping          | `packages/agora`                      |
+| Payment / proof helpers           | `packages/solana`                     |
+| Customer agreement UI             | `apps/web`                            |

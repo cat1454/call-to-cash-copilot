@@ -31,6 +31,7 @@ export default function VoiceSimulatorPanel({
   simStatus,
   streamStatus,
   transcript,
+  agentReplyStatus,
   startSimulation,
   resetSimulation,
   isSimulating,
@@ -40,12 +41,15 @@ export default function VoiceSimulatorPanel({
   voiceMode,
   retryLiveVoice,
   continueInReplayMode,
-  endVoiceSession
+  endVoiceSession,
+  postCallTranscriptSync
 }) {
   const [liveConsent, setLiveConsent] = useState(false);
   const statusLabel = STATUS_LABELS[simStatus] ?? simStatus;
-  const isCompleted = simStatus === "Đã hoàn thành";
+  const isPostCallSyncing = postCallTranscriptSync === "PENDING";
+  const isCompleted = simStatus === "Đã hoàn thành" || isPostCallSyncing;
   const isActive = simStatus === "Cuộc gọi đang trực tiếp";
+  const showAgentReplyPending = agentReplyStatus === "pending" || agentReplyStatus === "slow";
 
   return (
     <Card>
@@ -95,16 +99,33 @@ export default function VoiceSimulatorPanel({
               onEnd={endVoiceSession}
             />
             <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-[#374151]">
-            <label className="mt-2 flex items-start gap-2 leading-4">
-              <input
-                type="checkbox"
-                checked={liveConsent}
-                onChange={(event) => setLiveConsent(event.target.checked)}
-              />
-              <span>Tôi đồng ý dùng âm thanh trực tiếp để tạo phụ đề và phân tích đặt vé.</span>
-            </label>
+              <label className="mt-2 flex items-start gap-2 leading-4">
+                <input
+                  type="checkbox"
+                  checked={liveConsent}
+                  onChange={(event) => setLiveConsent(event.target.checked)}
+                />
+                <span>Tôi đồng ý dùng âm thanh trực tiếp để tạo phụ đề và phân tích đặt vé.</span>
+              </label>
             </div>
           </>
+        )}
+        {isPostCallSyncing && (
+          <p
+            role="status"
+            className="rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900"
+          >
+            Đang nhận bản chép lời hoàn chỉnh từ Agora. Giữ trang này mở trong khi hệ thống đồng bộ.
+          </p>
+        )}
+        {postCallTranscriptSync === "TIMED_OUT" && transcript.length === 0 && (
+          <p
+            role="status"
+            className="rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900"
+          >
+            Chưa nhận được bản chép lời hoàn chỉnh từ Agora. Bạn có thể đặt lại cuộc gọi hoặc dùng
+            bản phát lại.
+          </p>
         )}
         {/* Transcript area */}
         <section
@@ -116,45 +137,85 @@ export default function VoiceSimulatorPanel({
               Chưa có hội thoại. Nhấn micro để bắt đầu.
             </p>
           ) : (
-            transcript.map((bubble, idx) => (
-              <div
-                key={idx}
-                className={cn(
-                  "flex max-w-[88%] flex-col gap-1 [animation:fade-in_0.3s_ease-out]",
-                  bubble.sender === "ai" ? "self-start" : "self-end items-end"
-                )}
-              >
-                <span className="text-xs leading-4 font-medium text-[#6b7280]">
-                  {bubble.sender === "ai" ? "Tổng đài viên AI" : "Hành khách"}
-                </span>
+            <>
+              {transcript.map((bubble, idx) => (
                 <div
+                  key={bubble.turnId ?? idx}
                   className={cn(
-                    "min-w-0 rounded-2xl px-4 py-3 text-sm leading-5 font-normal shadow-[0_1px_2px_rgba(0,0,0,0.02)]",
-                    bubble.sender === "ai"
-                      ? "bg-slate-100 text-[#374151] rounded-tl-none border border-slate-200/50"
-                      : "bg-[#059669] text-white rounded-tr-none shadow-[0_2px_8px_rgba(5,150,105,0.15)]",
-                    bubble.isTyping && "opacity-60"
+                    "flex max-w-[88%] flex-col gap-1 [animation:fade-in_0.3s_ease-out]",
+                    bubble.sender === "ai" ? "self-start" : "self-end items-end"
                   )}
                 >
-                  {bubble.isTyping ? (
-                    <span className="flex gap-1 py-1 px-0.5">
-                      {[0, 0.2, 0.4].map((d) => (
-                        <span
-                          key={d}
-                          className={cn(
-                            "w-1.5 h-1.5 rounded-full [animation:typing-dot_1.2s_ease-in-out_infinite] motion-reduce:animate-none",
-                            bubble.sender === "ai" ? "bg-[#6b7280]" : "bg-white"
-                          )}
-                          style={{ animationDelay: `${d}s` }}
-                        />
-                      ))}
-                    </span>
-                  ) : (
-                    bubble.text
-                  )}
+                  <span className="text-xs leading-4 font-medium text-[#6b7280]">
+                    {bubble.sender === "ai" ? "Tổng đài viên AI" : "Hành khách"}
+                  </span>
+                  <div
+                    className={cn(
+                      "min-w-0 rounded-2xl px-4 py-3 text-sm leading-5 font-normal shadow-[0_1px_2px_rgba(0,0,0,0.02)]",
+                      bubble.sender === "ai"
+                        ? "bg-slate-100 text-[#374151] rounded-tl-none border border-slate-200/50"
+                        : "bg-[#059669] text-white rounded-tr-none shadow-[0_2px_8px_rgba(5,150,105,0.15)]",
+                      bubble.isTyping && "opacity-60"
+                    )}
+                  >
+                    {bubble.isTyping ? (
+                      <span className="flex gap-1 px-0.5 py-1">
+                        {[0, 0.2, 0.4].map((d) => (
+                          <span
+                            key={d}
+                            className={cn(
+                              "h-1.5 w-1.5 rounded-full [animation:typing-dot_1.2s_ease-in-out_infinite] motion-reduce:animate-none",
+                              bubble.sender === "ai" ? "bg-[#6b7280]" : "bg-white"
+                            )}
+                            style={{ animationDelay: `${d}s` }}
+                          />
+                        ))}
+                      </span>
+                    ) : (
+                      bubble.text
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))
+              ))}
+
+              {showAgentReplyPending && (
+                <div
+                  className="flex max-w-[88%] self-start flex-col gap-1 [animation:fade-in_0.3s_ease-out]"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <span className="text-xs leading-4 font-medium text-[#6b7280]">
+                    Tổng đài viên AI
+                  </span>
+                  <div
+                    className={cn(
+                      "rounded-2xl rounded-tl-none border px-4 py-3",
+                      agentReplyStatus === "slow"
+                        ? "border-amber-200 bg-amber-50 text-amber-900"
+                        : "border-slate-200/50 bg-slate-100 text-[#374151]"
+                    )}
+                  >
+                    {agentReplyStatus === "slow" ? (
+                      <span className="text-xs leading-5">
+                        Phụ đề AI đang chậm; cuộc gọi vẫn tiếp tục.
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 px-0.5 py-1">
+                        <span className="sr-only">Tổng đài AI đang xử lý...</span>
+                        {[0, 0.2, 0.4].map((delay) => (
+                          <span
+                            key={delay}
+                            aria-hidden="true"
+                            className="h-1.5 w-1.5 rounded-full bg-[#6b7280] [animation:typing-dot_1.2s_ease-in-out_infinite] motion-reduce:animate-none"
+                            style={{ animationDelay: `${delay}s` }}
+                          />
+                        ))}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </section>
 

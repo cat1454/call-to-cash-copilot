@@ -48,12 +48,17 @@ const demoConfig = {
     customerSecret: "",
     providerEventSecret: "",
     ncsWebhookSecret: "",
-    ncsProductId: "conversation-ai",
     agentProperties: {},
     tokenTtlSeconds: 600,
     agentUid: 9001,
     agentName: "call-to-cash-agent",
     baseUrl: "https://api.agora.io/",
+    liveRelay: {
+      url: "http://127.0.0.1:3011/",
+      controlSecret: "",
+      uid: 9002,
+      ready: false
+    },
     ready: false
   },
   aiProvider: "deterministic",
@@ -193,7 +198,7 @@ async function createReplayBooking(app: ReturnType<typeof buildApp>, resetDataba
       }
     }
   });
-  assert.equal(turnResponse.statusCode, 202);
+  assert.equal(turnResponse.statusCode, 202, turnResponse.body);
 
   const callReadResponse = await app.inject({
     method: "GET",
@@ -305,6 +310,7 @@ test(
       [
         EventName.CallCreated,
         EventName.TranscriptTurnCreated,
+        EventName.BookingCreated,
         EventName.BookingUpdated,
         EventName.RiskScoreUpdated,
         EventName.RiskPaymentGateUpdated
@@ -325,6 +331,7 @@ test(
       parseSseEvents(replayResponse.payload).map((event) => event.event),
       [
         EventName.TranscriptTurnCreated,
+        EventName.BookingCreated,
         EventName.BookingUpdated,
         EventName.RiskScoreUpdated,
         EventName.RiskPaymentGateUpdated
@@ -359,6 +366,132 @@ test(
       [EventName.CallEnded]
     );
 
+    await app.close();
+  }
+);
+
+test(
+  "a final agent turn is persisted without changing the customer booking",
+  { skip: phase5SkipReason() },
+  async () => {
+    const app = buildApp(demoConfig);
+    const { callId, bookingId } = await createReplayBooking(app);
+    const before = await app.inject({ method: "GET", url: `/v1/bookings/${bookingId}` });
+    assert.equal(before.statusCode, 200);
+
+    const agentTurn = await app.inject({
+      method: "POST",
+      url: `/v1/calls/${callId}/transcript-turns`,
+      payload: {
+        turn: {
+          clientTurnId: `agent-turn-${uniqueSuffix()}`,
+          sequenceNo: 2,
+          speaker: "AGENT",
+          content: "Tôi đã đổi thành 9 vé Huế đi Cần Thơ.",
+          language: "vi-VN",
+          isFinal: true,
+          source: "REPLAY"
+        }
+      }
+    });
+    assert.equal(agentTurn.statusCode, 202);
+
+    const after = await app.inject({ method: "GET", url: `/v1/bookings/${bookingId}` });
+    assert.equal(after.statusCode, 200);
+    assert.deepEqual(after.json().data, before.json().data);
+
+    const transcript = await app.inject({ method: "GET", url: `/v1/calls/${callId}/transcript` });
+    assert.equal(transcript.statusCode, 200);
+    assert.equal(transcript.json().data.turns.at(-1).speaker, "AGENT");
+    await app.close();
+  }
+);
+
+test(
+  "adding passenger count after a selected departure recalculates the fare total",
+  { skip: phase5SkipReason() },
+  async () => {
+    await seedFutureDeparture();
+    const app = buildApp(demoConfig);
+    const callResponse = await app.inject({
+      method: "POST",
+      url: "/v1/calls",
+      payload: { channelPurpose: "BOOKING", sourceMode: "TRANSCRIPT_REPLAY" }
+    });
+    const callId = callResponse.json().data.callId as string;
+
+    for (const [sequenceNo, content] of [
+      [1, "Tôi muốn đi Hà Nội Sa Pa chuyến 22:30"],
+      [2, "3 khách"]
+    ] as const) {
+      const turn = await app.inject({
+        method: "POST",
+        url: `/v1/calls/${callId}/transcript-turns`,
+        payload: {
+          turn: {
+            clientTurnId: `pricing-turn-${sequenceNo}-${uniqueSuffix()}`,
+            sequenceNo,
+            speaker: "CUSTOMER",
+            content,
+            language: "vi-VN",
+            isFinal: true,
+            source: "REPLAY"
+          }
+        }
+      });
+      assert.equal(turn.statusCode, 202);
+    }
+
+    const call = await app.inject({ method: "GET", url: `/v1/calls/${callId}` });
+    const booking = await app.inject({
+      method: "GET",
+      url: `/v1/bookings/${call.json().data.booking.bookingId}`
+    });
+    assert.equal(booking.statusCode, 200);
+    assert.equal(booking.json().data.fareTotalVnd, 900_000);
+    await app.close();
+  }
+);
+
+test(
+  "a selected route and departure are available before passenger count arrives",
+  { skip: phase5SkipReason() },
+  async () => {
+    await seedFutureDeparture();
+    const app = buildApp(demoConfig);
+    const callResponse = await app.inject({
+      method: "POST",
+      url: "/v1/calls",
+      payload: { channelPurpose: "BOOKING", sourceMode: "TRANSCRIPT_REPLAY" }
+    });
+    const callId = callResponse.json().data.callId as string;
+    const turn = await app.inject({
+      method: "POST",
+      url: `/v1/calls/${callId}/transcript-turns`,
+      payload: {
+        turn: {
+          clientTurnId: `route-first-${uniqueSuffix()}`,
+          sequenceNo: 1,
+          speaker: "CUSTOMER",
+          content: "Ha Noi Sapa, hai muoi hai:ba muoi phut.",
+          language: "vi-VN",
+          isFinal: true,
+          source: "REPLAY"
+        }
+      }
+    });
+    assert.equal(turn.statusCode, 202);
+
+    const call = await app.inject({ method: "GET", url: `/v1/calls/${callId}` });
+    const booking = await app.inject({
+      method: "GET",
+      url: `/v1/bookings/${call.json().data.booking.bookingId}`
+    });
+    assert.equal(booking.statusCode, 200);
+    assert.equal(booking.json().data.routeFrom, "Ha Noi");
+    assert.equal(booking.json().data.routeTo, "Sa Pa");
+    assert.notEqual(booking.json().data.departureAt, null);
+    assert.equal(booking.json().data.fareTotalVnd, null);
     await app.close();
   }
 );

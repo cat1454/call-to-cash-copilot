@@ -35,12 +35,17 @@ export type RuntimeConfig = {
     providerEventSecret: string;
     /** Agora Notifications Center secret for Agora-Signature-V2. */
     ncsWebhookSecret: string;
-    ncsProductId: string;
     agentProperties: Record<string, unknown>;
     tokenTtlSeconds: number;
     agentUid: number;
     agentName: string;
     baseUrl: string;
+    liveRelay: {
+      url: string;
+      controlSecret: string;
+      uid: number;
+      ready: boolean;
+    };
     ready: boolean;
   };
   aiProvider: AiProvider;
@@ -160,7 +165,6 @@ export function readRuntimeConfig(
       customerSecret: env.AGORA_CUSTOMER_SECRET?.trim() ?? "",
       providerEventSecret: env.AGORA_PROVIDER_EVENT_SECRET?.trim() ?? "",
       ncsWebhookSecret: env.AGORA_NCS_WEBHOOK_SECRET?.trim() ?? "",
-      ncsProductId: env.AGORA_NCS_PRODUCT_ID?.trim() || "conversation-ai",
       agentProperties: readJsonObject("AGORA_CAI_PROPERTIES_JSON", env.AGORA_CAI_PROPERTIES_JSON),
       tokenTtlSeconds: readStrictPositiveInt(
         "AGORA_TOKEN_TTL_SECONDS",
@@ -170,12 +174,19 @@ export function readRuntimeConfig(
       agentUid: readStrictPositiveInt("AGORA_AGENT_UID", env.AGORA_AGENT_UID, 9_001),
       agentName: env.AGORA_CAI_AGENT_NAME?.trim() || "call-to-cash-agent",
       baseUrl: readHttpUrl("AGORA_API_BASE_URL", env.AGORA_API_BASE_URL, "https://api.agora.io"),
+      liveRelay: {
+        url: readHttpUrl("AGORA_RTM_RELAY_URL", env.AGORA_RTM_RELAY_URL, "http://127.0.0.1:3011"),
+        controlSecret: env.AGORA_RTM_RELAY_CONTROL_SECRET?.trim() ?? "",
+        uid: readStrictPositiveInt("AGORA_RTM_RELAY_UID", env.AGORA_RTM_RELAY_UID, 9_002),
+        ready: (env.AGORA_RTM_RELAY_CONTROL_SECRET?.trim().length ?? 0) > 0
+      },
       ready:
         (env.AGORA_APP_ID?.trim().length ?? 0) > 0 &&
         (env.AGORA_APP_CERTIFICATE?.trim().length ?? 0) > 0 &&
         (env.AGORA_CUSTOMER_ID?.trim().length ?? 0) > 0 &&
         (env.AGORA_CUSTOMER_SECRET?.trim().length ?? 0) > 0 &&
         (env.AGORA_PROVIDER_EVENT_SECRET?.trim().length ?? 0) > 0 &&
+        (env.AGORA_RTM_RELAY_CONTROL_SECRET?.trim().length ?? 0) > 0 &&
         Object.keys(readJsonObject("AGORA_CAI_PROPERTIES_JSON", env.AGORA_CAI_PROPERTIES_JSON))
           .length > 0
     },

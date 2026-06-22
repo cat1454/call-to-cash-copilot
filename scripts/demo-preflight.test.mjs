@@ -49,6 +49,7 @@ test("provider alignment accepts explicit live and replay pairs", () => {
       AGORA_CUSTOMER_ID: "present",
       AGORA_CUSTOMER_SECRET: "present",
       AGORA_PROVIDER_EVENT_SECRET: "present",
+      AGORA_RTM_RELAY_CONTROL_SECRET: "present",
       AGORA_NCS_WEBHOOK_SECRET: "present",
       AGORA_CAI_PROPERTIES_JSON: "{}"
     },

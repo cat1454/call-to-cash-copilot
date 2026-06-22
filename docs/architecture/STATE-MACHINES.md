@@ -23,13 +23,13 @@ State machines make payment and receipt behavior deterministic. The frontend may
 
 ### 2.1 States
 
-| State | Meaning | Terminal? |
-|---|---|---|
-| `CREATED` | call session exists; participant may not have joined | No |
-| `ACTIVE` | at least one participant joined; transcript may arrive | No |
-| `ENDED` | normal completion/end action | Yes |
-| `FAILED` | infrastructure/session failure before normal end | Yes |
-| `CANCELLED` | cancelled before active call begins | Yes |
+| State       | Meaning                                                                                                    | Terminal? |
+| ----------- | ---------------------------------------------------------------------------------------------------------- | --------- |
+| `CREATED`   | call session exists; participant may not have joined                                                       | No        |
+| `ACTIVE`    | at least one participant joined; transcript may arrive                                                     | No        |
+| `ENDED`     | normal completion/end action; signed provider history may reconcile final turns without reopening the call | Yes       |
+| `FAILED`    | infrastructure/session failure before normal end                                                           | Yes       |
+| `CANCELLED` | cancelled before active call begins                                                                        | Yes       |
 
 ### 2.2 Transitions
 
@@ -42,15 +42,28 @@ CREATED ──join──> ACTIVE ──end──> ENDED
 ACTIVE ──provider failure / timeout──> FAILED
 ```
 
-| From | Command / event | To | Guards | Side effects |
-|---|---|---|---|---|
-| `CREATED` | participant joins / Agora webhook | `ACTIVE` | valid call, authorized participant | set `started_at`; audit; emit `call.joined` |
-| `CREATED` | `POST /end` before join | `CANCELLED` | caller owns call | audit; emit `call.ended` |
-| `CREATED` | token/channel setup failure | `FAILED` | server-detected | error audit; emit `call.failed` |
-| `ACTIVE` | `POST /end` / webhook left | `ENDED` | idempotent | set `ended_at`; flush buffers; emit `call.ended` |
-| `ACTIVE` | provider outage/timeout | `FAILED` | server-detected | preserve transcript; queue recovery; emit `call.failed` |
+| From      | Command / event                   | To          | Guards                             | Side effects                                            |
+| --------- | --------------------------------- | ----------- | ---------------------------------- | ------------------------------------------------------- |
+| `CREATED` | participant joins / Agora webhook | `ACTIVE`    | valid call, authorized participant | set `started_at`; audit; emit `call.joined`             |
+| `CREATED` | `POST /end` before join           | `CANCELLED` | caller owns call                   | audit; emit `call.ended`                                |
+| `CREATED` | token/channel setup failure       | `FAILED`    | server-detected                    | error audit; emit `call.failed`                         |
+| `CREATED` | CAI or RTM relay start failure    | `FAILED`    | API stops any started provider participant | no transcript authority is opened; retry/replay only |
+| `ACTIVE`  | `POST /end` / webhook left        | `ENDED`     | idempotent                         | set `ended_at`; flush buffers; emit `call.ended`        |
+| `ACTIVE`  | provider outage/timeout           | `FAILED`    | server-detected                    | preserve transcript; queue recovery; emit `call.failed` |
 
 **Call state must not decide payment gate.** It only governs session lifecycle and transcript acceptance.
+
+### 2.3 Post-session provider history reconciliation
+
+Agora Notifications history can arrive after the normal `ACTIVE → ENDED` transition. The trusted,
+signed provider ingress may append a previously unseen final turn while the call is `ENDED`; it does
+not reactivate the call or change `ended_at`. The normal browser/replay transcript command remains
+closed after `ENDED`, and no source may append after `FAILED` or `CANCELLED`. Provider turn identity
+remains idempotent, then the existing booking/risk/event transaction runs normally.
+
+### 2.4 Live RTM relay lifecycle
+
+The API starts the CAI agent first, then starts the isolated RTM relay with the returned agent session ID and a server-issued, short-lived relay token. The call is considered live only after both starts succeed. API stop first closes the relay subscription, then asks CAI to leave, then ends the local call. RTM frames do not transition call state: only a valid final frame may enter the existing transcript command. A malformed frame, publisher UID mismatch, call/channel/session mismatch, partial frame, relay outage, or a relay start failure cannot create a transcript turn or alter booking/risk/payment state.
 
 ---
 
@@ -58,20 +71,20 @@ ACTIVE ──provider failure / timeout──> FAILED
 
 ### 3.1 Canonical states
 
-| State | Meaning | Payment allowed? |
-|---|---|---|
-| `DRAFT` | booking record exists but required fields are incomplete | No |
-| `FIELDS_PARTIAL` | some fields extracted; missing/ambiguous data remains | No |
-| `BOOKING_DRAFT_READY` | operational fields are complete; price/policy/inventory still may need resolution | No |
-| `AGREEMENT_READY` | current terms are available to render/read to customer | No |
-| `AGREEMENT_LOCKED` | customer explicitly confirmed a specific agreement version | Not yet; intent creation guard still required |
-| `PAYMENT_PENDING` | valid payment intent exists and is awaiting verification | Yes, for that intent only |
-| `PAYMENT_CONFIRMED` | transaction validated server-side | No new payment required |
-| `BOOKING_CONFIRMED` | provider inventory hold converted/confirmed | No |
-| `RECEIPT_ISSUED` | customer receipt generated | Terminal success for MVP |
-| `CANCELLED` | customer/provider cancelled before confirmed payment | Terminal |
-| `MANUAL_REVIEW_REQUIRED` | exception requires operator resolution | Hold |
-| `EXPIRED` | inventory hold/agreement/payment window expired | Terminal for current agreement |
+| State                    | Meaning                                                                           | Payment allowed?                              |
+| ------------------------ | --------------------------------------------------------------------------------- | --------------------------------------------- |
+| `DRAFT`                  | booking record exists but required fields are incomplete                          | No                                            |
+| `FIELDS_PARTIAL`         | some fields extracted; missing/ambiguous data remains                             | No                                            |
+| `BOOKING_DRAFT_READY`    | operational fields are complete; price/policy/inventory still may need resolution | No                                            |
+| `AGREEMENT_READY`        | current terms are available to render/read to customer                            | No                                            |
+| `AGREEMENT_LOCKED`       | customer explicitly confirmed a specific agreement version                        | Not yet; intent creation guard still required |
+| `PAYMENT_PENDING`        | valid payment intent exists and is awaiting verification                          | Yes, for that intent only                     |
+| `PAYMENT_CONFIRMED`      | transaction validated server-side                                                 | No new payment required                       |
+| `BOOKING_CONFIRMED`      | provider inventory hold converted/confirmed                                       | No                                            |
+| `RECEIPT_ISSUED`         | customer receipt generated                                                        | Terminal success for MVP                      |
+| `CANCELLED`              | customer/provider cancelled before confirmed payment                              | Terminal                                      |
+| `MANUAL_REVIEW_REQUIRED` | exception requires operator resolution                                            | Hold                                          |
+| `EXPIRED`                | inventory hold/agreement/payment window expired                                   | Terminal for current agreement                |
 
 ### 3.2 Main path
 
@@ -102,19 +115,19 @@ PAYMENT_PENDING / PAYMENT_CONFIRMED / BOOKING_CONFIRMED
 
 ### 3.4 Transition guards
 
-| From | To | Required command / event | Non-negotiable guards |
-|---|---|---|---|
-| `DRAFT` | `FIELDS_PARTIAL` | extraction accepted | at least one canonical field captured |
-| `FIELDS_PARTIAL` | `BOOKING_DRAFT_READY` | update/recompute | required operational fields complete and non-contradictory |
-| `BOOKING_DRAFT_READY` | `AGREEMENT_READY` | create agreement draft | current price, deposit, policy, and inventory hold valid |
-| `AGREEMENT_READY` | `AGREEMENT_LOCKED` | booking confirm | explicit confirmation of rendered agreement version; final transcript/interaction evidence |
-| `AGREEMENT_LOCKED` | `PAYMENT_PENDING` | create payment intent | gate `UNLOCKED`; hold valid; no critical blocker; no existing active intent |
-| `PAYMENT_PENDING` | `PAYMENT_CONFIRMED` | verified chain transaction | correct amount, recipient, token, reference, intent not expired, signature unused |
-| `PAYMENT_CONFIRMED` | `BOOKING_CONFIRMED` | inventory confirmation | provider/hold conversion success |
-| `BOOKING_CONFIRMED` | `RECEIPT_ISSUED` | receipt issue | proof record generated and receipt payload valid |
-| `RECEIPT_ISSUED` | `MANUAL_REVIEW_REQUIRED` | proof re-verification mismatch | preserve locked agreement/payment; expose mismatch without rewriting history |
-| any non-terminal pre-payment state | `CANCELLED` | cancel command | no confirmed payment exists |
-| any non-terminal payment state | `MANUAL_REVIEW_REQUIRED` | exception detected | mismatch, stale agreement, manual override, policy exception |
+| From                               | To                       | Required command / event       | Non-negotiable guards                                                                      |
+| ---------------------------------- | ------------------------ | ------------------------------ | ------------------------------------------------------------------------------------------ |
+| `DRAFT`                            | `FIELDS_PARTIAL`         | extraction accepted            | at least one canonical field captured                                                      |
+| `FIELDS_PARTIAL`                   | `BOOKING_DRAFT_READY`    | update/recompute               | required operational fields complete and non-contradictory                                 |
+| `BOOKING_DRAFT_READY`              | `AGREEMENT_READY`        | create agreement draft         | current price, deposit, policy, and inventory hold valid                                   |
+| `AGREEMENT_READY`                  | `AGREEMENT_LOCKED`       | booking confirm                | explicit confirmation of rendered agreement version; final transcript/interaction evidence |
+| `AGREEMENT_LOCKED`                 | `PAYMENT_PENDING`        | create payment intent          | gate `UNLOCKED`; hold valid; no critical blocker; no existing active intent                |
+| `PAYMENT_PENDING`                  | `PAYMENT_CONFIRMED`      | verified chain transaction     | correct amount, recipient, token, reference, intent not expired, signature unused          |
+| `PAYMENT_CONFIRMED`                | `BOOKING_CONFIRMED`      | inventory confirmation         | provider/hold conversion success                                                           |
+| `BOOKING_CONFIRMED`                | `RECEIPT_ISSUED`         | receipt issue                  | proof record generated and receipt payload valid                                           |
+| `RECEIPT_ISSUED`                   | `MANUAL_REVIEW_REQUIRED` | proof re-verification mismatch | preserve locked agreement/payment; expose mismatch without rewriting history               |
+| any non-terminal pre-payment state | `CANCELLED`              | cancel command                 | no confirmed payment exists                                                                |
+| any non-terminal payment state     | `MANUAL_REVIEW_REQUIRED` | exception detected             | mismatch, stale agreement, manual override, policy exception                               |
 
 ### 3.5 Material change rule
 
@@ -141,12 +154,12 @@ When any material term changes:
 
 The public decision enum stays aligned with `RISK-SCORING.md`. A separate `next_action` tells the UI what to do.
 
-| Gate decision | UI meaning | Typical next action | Can create payment intent? |
-|---|---|---|---|
-| `LOCKED` | information/policy not ready | `ASK_CLARIFICATION` or `HOLD` | No |
-| `READY_FOR_CONFIRMATION` | terms are ready, explicit confirmation still missing | `ASK_CONFIRMATION` | No |
-| `UNLOCKED` | deterministic rules permit payment intent creation | `OPEN` | Yes |
-| `MANUAL_REVIEW_REQUIRED` | critical exception or mismatch | `BLOCK` / `HANDOFF` | No |
+| Gate decision            | UI meaning                                           | Typical next action           | Can create payment intent? |
+| ------------------------ | ---------------------------------------------------- | ----------------------------- | -------------------------- |
+| `LOCKED`                 | information/policy not ready                         | `ASK_CLARIFICATION` or `HOLD` | No                         |
+| `READY_FOR_CONFIRMATION` | terms are ready, explicit confirmation still missing | `ASK_CONFIRMATION`            | No                         |
+| `UNLOCKED`               | deterministic rules permit payment intent creation   | `OPEN`                        | Yes                        |
+| `MANUAL_REVIEW_REQUIRED` | critical exception or mismatch                       | `BLOCK` / `HANDOFF`           | No                         |
 
 ### 4.1 Gate transition inputs
 
@@ -180,17 +193,17 @@ else => UNLOCKED
 
 ### 5.1 States
 
-| State | Meaning | Terminal? |
-|---|---|---|
-| `NOT_CREATED` | no payment intent exists | No |
-| `CREATED` | server created QR/link/reference | No |
-| `PENDING` | a transaction may be in flight or awaiting confirmation | No |
-| `CONFIRMED` | server has validated the on-chain transaction | Yes |
-| `FAILED` | technical verification failed; may retry safely | No / operational terminal |
-| `EXPIRED` | time window ended | Yes |
-| `REJECTED` | observed payment failed validation | Yes for this intent |
-| `MANUAL_REVIEW_REQUIRED` | ambiguous/mismatch requires operator | Yes for automatic flow |
-| `CANCELLED` | intent invalidated by changed agreement/cancel | Yes |
+| State                    | Meaning                                                 | Terminal?                 |
+| ------------------------ | ------------------------------------------------------- | ------------------------- |
+| `NOT_CREATED`            | no payment intent exists                                | No                        |
+| `CREATED`                | server created QR/link/reference                        | No                        |
+| `PENDING`                | a transaction may be in flight or awaiting confirmation | No                        |
+| `CONFIRMED`              | server has validated the on-chain transaction           | Yes                       |
+| `FAILED`                 | technical verification failed; may retry safely         | No / operational terminal |
+| `EXPIRED`                | time window ended                                       | Yes                       |
+| `REJECTED`               | observed payment failed validation                      | Yes for this intent       |
+| `MANUAL_REVIEW_REQUIRED` | ambiguous/mismatch requires operator                    | Yes for automatic flow    |
+| `CANCELLED`              | intent invalidated by changed agreement/cancel          | Yes                       |
 
 ### 5.2 Transitions
 
@@ -203,15 +216,15 @@ NOT_CREATED → CREATED → PENDING → CONFIRMED
                     └→ CANCELLED
 ```
 
-| From | To | Trigger | Guards |
-|---|---|---|---|
-| `NOT_CREATED` | `CREATED` | create payment API | booking `AGREEMENT_LOCKED`, gate `UNLOCKED`, no active intent |
-| `CREATED` | `PENDING` | wallet/webhook/poller detects candidate tx | reference matches intent candidate |
-| `PENDING` | `CONFIRMED` | server verification | amount/recipient/token/reference/signature all valid |
-| `PENDING` | `REJECTED` | server verification | amount/recipient/reference incorrect or signature reused |
-| `CREATED`/`PENDING` | `EXPIRED` | expiry worker | now >= `expires_at`; no confirmation |
-| `CREATED`/`PENDING` | `CANCELLED` | material booking change/cancel | agreement no longer active |
-| any non-confirmed | `MANUAL_REVIEW_REQUIRED` | ambiguous chain/provider condition | audit reason required |
+| From                | To                       | Trigger                                    | Guards                                                        |
+| ------------------- | ------------------------ | ------------------------------------------ | ------------------------------------------------------------- |
+| `NOT_CREATED`       | `CREATED`                | create payment API                         | booking `AGREEMENT_LOCKED`, gate `UNLOCKED`, no active intent |
+| `CREATED`           | `PENDING`                | wallet/webhook/poller detects candidate tx | reference matches intent candidate                            |
+| `PENDING`           | `CONFIRMED`              | server verification                        | amount/recipient/token/reference/signature all valid          |
+| `PENDING`           | `REJECTED`               | server verification                        | amount/recipient/reference incorrect or signature reused      |
+| `CREATED`/`PENDING` | `EXPIRED`                | expiry worker                              | now >= `expires_at`; no confirmation                          |
+| `CREATED`/`PENDING` | `CANCELLED`              | material booking change/cancel             | agreement no longer active                                    |
+| any non-confirmed   | `MANUAL_REVIEW_REQUIRED` | ambiguous chain/provider condition         | audit reason required                                         |
 
 **Never transition from `CONFIRMED` back to `PENDING`, `CREATED`, or `CANCELLED`.** Refunds are separate workflows and must not pretend the original payment never happened.
 
@@ -227,13 +240,13 @@ OBSERVED
 → CONFIRMED | REJECTED | FAILED
 ```
 
-| State | Meaning |
-|---|---|
-| `OBSERVED` | tx signature detected from client, webhook, or poller |
-| `VALIDATING` | chain data is being checked by backend |
-| `CONFIRMED` | all verification predicates matched |
-| `REJECTED` | definitive mismatch, reused signature, or invalid chain data |
-| `FAILED` | temporary infrastructure/chain query failure; retry allowed |
+| State        | Meaning                                                      |
+| ------------ | ------------------------------------------------------------ |
+| `OBSERVED`   | tx signature detected from client, webhook, or poller        |
+| `VALIDATING` | chain data is being checked by backend                       |
+| `CONFIRMED`  | all verification predicates matched                          |
+| `REJECTED`   | definitive mismatch, reused signature, or invalid chain data |
+| `FAILED`     | temporary infrastructure/chain query failure; retry allowed  |
 
 A transaction record is append-only. A retry creates a new verification attempt/audit entry; it does not rewrite observed values.
 
@@ -241,12 +254,12 @@ A transaction record is append-only. A retry creates a new verification attempt/
 
 ## 7. Proof state machine
 
-| State | Meaning |
-|---|---|
-| `PENDING` | agreement hash exists; waiting for verified payment anchor |
-| `MATCH` | recomputed canonical agreement hash matches stored/anchored proof |
-| `MISMATCH` | hash or agreement version differs; requires manual review |
-| `UNAVAILABLE` | verification data temporarily unavailable; do not claim success |
+| State         | Meaning                                                           |
+| ------------- | ----------------------------------------------------------------- |
+| `PENDING`     | agreement hash exists; waiting for verified payment anchor        |
+| `MATCH`       | recomputed canonical agreement hash matches stored/anchored proof |
+| `MISMATCH`    | hash or agreement version differs; requires manual review         |
+| `UNAVAILABLE` | verification data temporarily unavailable; do not claim success   |
 
 ```text
 PENDING → MATCH
@@ -261,13 +274,13 @@ UNAVAILABLE → PENDING (retry) → MATCH | MISMATCH
 
 ## 8. Trust Receipt state machine
 
-| State | Meaning | Customer copy |
-|---|---|---|
-| `NOT_CREATED` | no receipt yet | none |
-| `ISSUED` | receipt created, verification may still be pending | “Đang xác minh” |
-| `VERIFIED_MATCH` | payment and proof verified | “Đã xác minh” |
-| `MISMATCH` | proof/payment mismatch | “Cần kiểm tra thủ công” |
-| `MANUAL_REVIEW` | support/operator handling exception | “Đang được hỗ trợ” |
+| State            | Meaning                                            | Customer copy           |
+| ---------------- | -------------------------------------------------- | ----------------------- |
+| `NOT_CREATED`    | no receipt yet                                     | none                    |
+| `ISSUED`         | receipt created, verification may still be pending | “Đang xác minh”         |
+| `VERIFIED_MATCH` | payment and proof verified                         | “Đã xác minh”           |
+| `MISMATCH`       | proof/payment mismatch                             | “Cần kiểm tra thủ công” |
+| `MANUAL_REVIEW`  | support/operator handling exception                | “Đang được hỗ trợ”      |
 
 ```text
 NOT_CREATED → ISSUED → VERIFIED_MATCH
@@ -306,13 +319,13 @@ All authoritative transitions should follow this order:
 
 ## 10. State machine test matrix
 
-| Scenario | Expected outcome |
-|---|---|
-| Same transcript turn posted twice | one durable turn / idempotent API response |
-| Customer says “ok” before terms rendered | gate remains `LOCKED` or `READY_FOR_CONFIRMATION`; no agreement lock |
-| Agreement changes after QR shown | old intent `CANCELLED`; new agreement confirmation required |
-| Transaction has correct amount but wrong reference | transaction `REJECTED`; booking goes `MANUAL_REVIEW_REQUIRED` |
-| Browser reports payment success without server verification | booking remains `PAYMENT_PENDING` |
-| Correct verified transaction replayed to another booking | second use rejected by unique tx signature |
-| Proof recomputation differs after DB tamper test | proof/receipt becomes `MISMATCH`; payment is not silently altered |
-| Call drops during confirmation | booking remains pre-payment; gate locked; no payment intent |
+| Scenario                                                    | Expected outcome                                                     |
+| ----------------------------------------------------------- | -------------------------------------------------------------------- |
+| Same transcript turn posted twice                           | one durable turn / idempotent API response                           |
+| Customer says “ok” before terms rendered                    | gate remains `LOCKED` or `READY_FOR_CONFIRMATION`; no agreement lock |
+| Agreement changes after QR shown                            | old intent `CANCELLED`; new agreement confirmation required          |
+| Transaction has correct amount but wrong reference          | transaction `REJECTED`; booking goes `MANUAL_REVIEW_REQUIRED`        |
+| Browser reports payment success without server verification | booking remains `PAYMENT_PENDING`                                    |
+| Correct verified transaction replayed to another booking    | second use rejected by unique tx signature                           |
+| Proof recomputation differs after DB tamper test            | proof/receipt becomes `MISMATCH`; payment is not silently altered    |
+| Call drops during confirmation                              | booking remains pre-payment; gate locked; no payment intent          |

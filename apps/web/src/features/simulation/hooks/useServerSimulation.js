@@ -12,6 +12,7 @@ import { buildVerificationPayload } from "./serverPayment.js";
 import { useServerSessionRecovery } from "./useServerSessionRecovery.js";
 import { useSolanaPaymentPolling } from "./useSolanaPaymentPolling.js";
 import { idempotencyKey, toError } from "./serverSimulationUtils.js";
+import { usePostCallTranscriptSync } from "./usePostCallTranscriptSync.js";
 export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, scenarios) {
   const [state, dispatch] = useReducer(reducer, undefined, makeInitialState);
   const [currentTurnIdx, setCurrentTurnIdx] = useState(0);
@@ -21,11 +22,9 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
   const sequenceRef = useRef(1);
   const recoveryTimerRef = useRef(null);
   const paymentCreatingRef = useRef(false);
-
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
-
   const recoverServerState = useCallback(
     (callId, hints = {}) => {
       if (!apiClient || !callId) return Promise.resolve({});
@@ -33,7 +32,6 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
     },
     [apiClient]
   );
-
   const scheduleRecovery = useCallback(
     (callId, hints = {}) => {
       if (recoveryTimerRef.current !== null) clearTimeout(recoveryTimerRef.current);
@@ -46,7 +44,6 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
     },
     [recoverServerState]
   );
-
   const connectSse = useCallback(
     (callId) => {
       if (!apiBaseUrl) return;
@@ -75,7 +72,6 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
     },
     [apiBaseUrl, scheduleRecovery]
   );
-
   const clearSession = useServerSessionRecovery({
     apiClient,
     apiBaseUrl,
@@ -86,7 +82,13 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
     callIdRef,
     sseRef
   });
-
+  const postCallTranscriptSync = usePostCallTranscriptSync({
+    apiClient,
+    callIdRef,
+    dispatch,
+    recoverServerState,
+    status: state.postCallTranscriptSync
+  });
   const finishReplay = useCallback(
     async (callId, confirmedTurnId) => {
       if (!apiClient) return;
@@ -111,7 +113,6 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
     },
     [apiClient, recoverServerState]
   );
-
   const submitNextTurn = useCallback(
     async (callId) => {
       if (!apiClient) return false;
@@ -137,7 +138,6 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
     },
     [apiClient, currentTurnIdx, finishReplay, scenarioIdx, scenarios]
   );
-
   const startSimulation = useCallback(async () => {
     if (!apiClient || stateRef.current.isSimulating) return;
     dispatch({ type: ACTION.START });
@@ -162,7 +162,6 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
     },
     [connectSse]
   );
-
   const triggerPayment = useCallback(async () => {
     const bookingId = stateRef.current.bookingId;
     if (!apiClient || !bookingId || paymentCreatingRef.current) return;
@@ -230,6 +229,7 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
     sseRef.current?.disconnect();
     sseRef.current = null;
     if (recoveryTimerRef.current !== null) clearTimeout(recoveryTimerRef.current);
+    postCallTranscriptSync.cancel();
     if (
       apiClient &&
       current.callId &&
@@ -242,7 +242,7 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
     sequenceRef.current = 1;
     setCurrentTurnIdx(0);
     dispatch({ type: ACTION.RESET });
-  }, [apiClient, clearSession]);
+  }, [apiClient, clearSession, postCallTranscriptSync]);
 
   useEffect(() => {
     if (!state.isSimulating || !state.replayInputEnabled || !state.callId || !apiClient) return;
@@ -291,6 +291,7 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
     currentTurnIdx,
     startSimulation,
     connectLiveCall,
+    startPostCallTranscriptSync: postCallTranscriptSync.start,
     simulateWalletPayment,
     tamperAgreement,
     resetSimulation

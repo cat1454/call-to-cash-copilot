@@ -106,6 +106,24 @@ importers:
         specifier: ^4.0.0
         version: 4.4.3
 
+  apps/rtm-relay:
+    dependencies:
+      agora-rtm:
+        specifier: 2.2.4
+        version: 2.2.4(agora-rtc-sdk-ng@4.23.0)
+      dotenv:
+        specifier: ^17.2.3
+        version: 17.4.2
+      fastify:
+        specifier: ^5.0.0
+        version: 5.8.5
+      playwright-core:
+        specifier: ^1.56.0
+        version: 1.61.0
+      zod:
+        specifier: ^4.0.0
+        version: 4.4.3
+
   apps/web:
     dependencies:
       '@call-to-cash/shared':
@@ -236,14 +254,23 @@ packages:
   '@adraffy/ens-normalize@1.11.1':
     resolution: {integrity: sha512-nhCBV3quEgesuf7c7KYfperqSS14T8bYuvJ8PcLJp6znkZpFc0AuW4qBtr8eKVyPPe/8RSr7sglCWPU5eaxwKQ==}
 
+  '@agora-js/media@4.23.0':
+    resolution: {integrity: sha512-rV0CGP5nhvd7XrzpCqN7Fud+W//c/+f0dMe7wPB+DS/ckeTVxSdg96cTfEJS9poeTdDUvfhHyi0iECLPfUjkKA==}
+
   '@agora-js/media@4.24.4':
     resolution: {integrity: sha512-SbeoW50qrppY+gqoVfouWJHsmI++G7cbeKutUkWLnmKHsJkelEsAgxjFoT2ebagTQwLbohIhKHopBduKabCftA==}
 
   '@agora-js/protocol@4.24.4':
     resolution: {integrity: sha512-NYxZen4bdSmeeT0BvZbOWYfRJVIeOt7hxtMjtOGktGsCxOdrs+aPEnq/BEweYrSuGoV//ZPYJwudDyBgtNGtIw==}
 
+  '@agora-js/report@4.23.0':
+    resolution: {integrity: sha512-ti2HZc8ITRgbmukHRa+ZlH4ecCByHdQpPVT6v3vIn+ihvqrxs3A871iLe1jbjbeGNuOwqcaznSoRXOVsREeq2A==}
+
   '@agora-js/report@4.24.4':
     resolution: {integrity: sha512-WeE6o3iLuCHJfvSrRifZ4Ig4R7pmvyJpnsKkUJAGRrbMfVDC8CR6feru4Fg5O9QTOROne2KCNqqiX1+8l9MTdg==}
+
+  '@agora-js/shared@4.23.0':
+    resolution: {integrity: sha512-gfcEJu/+vPvMKYcjyWqmQKo4d0r0yggl9AhktsTWjg6mhScv4Lt3B8JdGGXvlIP6R+horRHjxsqPCdCVs1N4/w==}
 
   '@agora-js/shared@4.24.4':
     resolution: {integrity: sha512-7g8TIMowacunEo3d6r55Y2aVFMJdBztzPa2twud5kbaey2qGnwJEi0EOPT44QE/z7Nh8y6urIZX6NvkjOuJxPA==}
@@ -2796,11 +2823,19 @@ packages:
     resolution: {integrity: sha512-kja8j7PjmncONqaTsB8fQ+wE2mSU2DJ9D4XKoJ5PFWIdRMa6SLSN1ff4mOr4jCbfRSsxR4keIiySJU0N9T5hIQ==}
     engines: {node: '>= 8.0.0'}
 
+  agora-rtc-sdk-ng@4.23.0:
+    resolution: {integrity: sha512-/DVTowwsU0PpwTT/xXOa9UAB3qlVpLty2Cxsn+B0mEKHbXTd4P4cgeLaSCbxQFqDhYQAqpwyClxC5ABYBal5yA==}
+
   agora-rtc-sdk-ng@4.24.4:
     resolution: {integrity: sha512-rbD2cYAvuL+lLbquFQRDj49Ym8avj/zM6HE+dxTRqVZtq88hs7AFXJbrZPlRbuYXxfNQQGmiF6mZO+tFSH8wNg==}
 
   agora-rte-extension@1.2.4:
     resolution: {integrity: sha512-0ovZz1lbe30QraG1cU+ji7EnQ8aUu+Hf3F+a8xPml3wPOyUQEK6CTdxV9kMecr9t+fIDrGeW7wgJTsM1DQE7Nw==}
+
+  agora-rtm@2.2.4:
+    resolution: {integrity: sha512-c2BPYiIjAF7I8yMjplD+w8o0SieVGiuIDN0YSOT+Xg7GpGmK60F3IPzHMuWICMpmThcf3CS8NdmxXHIBh62+ug==}
+    peerDependencies:
+      agora-rtc-sdk-ng: 4.23.0
 
   agora-token@2.0.5:
     resolution: {integrity: sha512-0NcbzC3iuutlksv3b4bCMKHrW3pko6gdiGEMRo6APDice24kfXAuWyAlG9hRBrrPBVDShwm9/GUz2Scd3zuZQw==}
@@ -4628,6 +4663,11 @@ packages:
   pkg-types@2.3.1:
     resolution: {integrity: sha512-y+ichcgc2LrADuhLNAx8DFjVfgz91pRxfZdI3UDhxHvcVEZsenLO+7XaU5vOp0u/7V/wZ+plyuQxtrDlZJ+yeg==}
 
+  playwright-core@1.61.0:
+    resolution: {integrity: sha512-caX7TrY3Ml6egyDX0WUcTHDxodl/b51y5wJOdCEA36QviK/s2g081hvmGs8eaE3DWb6NYZQ6BjO/QkNRPenoPA==}
+    engines: {node: '>=18'}
+    hasBin: true
+
   pngjs@5.0.0:
     resolution: {integrity: sha512-40QW5YalBNfQo5yRYmiw7Yz6TKKVr3h6970B2YE+3fQpsWcrbj1PzJgxeJ19DRQjhMbKPIuMY8rFaXc8moolVw==}
     engines: {node: '>=10.13.0'}
@@ -5712,6 +5752,17 @@ snapshots:
 
   '@adraffy/ens-normalize@1.11.1': {}
 
+  '@agora-js/media@4.23.0':
+    dependencies:
+      '@agora-js/report': 4.23.0
+      '@agora-js/shared': 4.23.0
+      agora-rte-extension: 1.2.4
+      axios: 1.18.0
+      webrtc-adapter: 8.2.0
+    transitivePeerDependencies:
+      - debug
+      - supports-color
+
   '@agora-js/media@4.24.4':
     dependencies:
       '@agora-js/report': 4.24.4
@@ -5735,10 +5786,26 @@ snapshots:
       - debug
       - supports-color
 
+  '@agora-js/report@4.23.0':
+    dependencies:
+      '@agora-js/shared': 4.23.0
+      axios: 1.18.0
+    transitivePeerDependencies:
+      - debug
+      - supports-color
+
   '@agora-js/report@4.24.4':
     dependencies:
       '@agora-js/shared': 4.24.4
       axios: 1.18.0
+    transitivePeerDependencies:
+      - debug
+      - supports-color
+
+  '@agora-js/shared@4.23.0':
+    dependencies:
+      axios: 1.18.0
+      ua-parser-js: 0.7.41
     transitivePeerDependencies:
       - debug
       - supports-color
@@ -9561,6 +9628,21 @@ snapshots:
     dependencies:
       humanize-ms: 1.2.1
 
+  agora-rtc-sdk-ng@4.23.0:
+    dependencies:
+      '@agora-js/media': 4.23.0
+      '@agora-js/report': 4.23.0
+      '@agora-js/shared': 4.23.0
+      agora-rte-extension: 1.2.4
+      axios: 1.18.0
+      formdata-polyfill: 4.0.10
+      pako: 2.1.0
+      ua-parser-js: 0.7.41
+      webrtc-adapter: 8.2.0
+    transitivePeerDependencies:
+      - debug
+      - supports-color
+
   agora-rtc-sdk-ng@4.24.4:
     dependencies:
       '@agora-js/media': 4.24.4
@@ -9578,6 +9660,10 @@ snapshots:
       - supports-color
 
   agora-rte-extension@1.2.4: {}
+
+  agora-rtm@2.2.4(agora-rtc-sdk-ng@4.23.0):
+    dependencies:
+      agora-rtc-sdk-ng: 4.23.0
 
   agora-token@2.0.5:
     dependencies:
@@ -11635,6 +11721,8 @@ snapshots:
       confbox: 0.2.4
       exsolve: 1.0.8
       pathe: 2.0.3
+
+  playwright-core@1.61.0: {}
 
   pngjs@5.0.0: {}
 

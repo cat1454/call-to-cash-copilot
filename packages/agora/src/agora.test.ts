@@ -4,6 +4,7 @@ import test from "node:test";
 
 import {
   AgoraConversationAgentClient,
+  AgoraConversationHistoryNotificationSchema,
   TranscriptDeduplicator,
   normalizeTranscriptEvent,
   verifyAgoraNotificationSignature
@@ -94,8 +95,8 @@ test("join request injects the versioned V1 system message server-side", async (
     agentToken: "server-only-token",
     agentUid: 10001,
     customerUid: 10002,
-    name: "call-012345"
-    ,callId: "call_012345"
+    name: "call-012345",
+    callId: "call_012345"
   });
 
   assert.equal(joinBody?.pipeline_id, "pipeline-id");
@@ -109,12 +110,38 @@ test("join request injects the versioned V1 system message server-side", async (
   assert.equal(properties.providerManagedSetting, true);
   assert.deepEqual(properties.remote_rtc_uids, ["10002"]);
   assert.equal(properties.agent_rtc_uid, "10001");
+  assert.equal(properties.agent_rtm_uid, "10001");
   assert.deepEqual(joinBody?.labels, { call_id: "call_012345", schema_version: "ctc-v1" });
   assert.notEqual(properties.remote_rtc_uids[0], properties.agent_rtc_uid);
   const systemMessages = llm.system_messages as Array<{ role: string; content: string }>;
   assert.equal(systemMessages.length, 1);
   assert.equal(systemMessages[0]?.role, "system");
   assert.match(systemMessages[0]?.content ?? "", /Prompt ID: CTC-AGORA-VI-V1/u);
+});
+
+test("accepts the documented Agora event 103 history payload", () => {
+  const parsed = AgoraConversationHistoryNotificationSchema.parse({
+    noticeId: "notice-103-1",
+    productId: 17,
+    eventType: 103,
+    notifyMs: 1782100000000,
+    sid: "notification-session-1",
+    payload: {
+      agent_id: "agent-session-1",
+      name: "call-agent",
+      channel: "ctc_call_012345",
+      start_ts: 1782099900,
+      stop_ts: 1782100000,
+      contents: [
+        { role: "user", content: "Tôi muốn đi Sa Pa." },
+        { role: "assistant", content: "Bạn muốn khởi hành khi nào?" }
+      ],
+      labels: { call_id: "call_012345", schema_version: "ctc-v1" }
+    }
+  });
+
+  assert.equal(parsed.payload.channel, "ctc_call_012345");
+  assert.equal(parsed.payload.contents.length, 2);
 });
 
 test("notification signature verifies exact raw request bytes", () => {

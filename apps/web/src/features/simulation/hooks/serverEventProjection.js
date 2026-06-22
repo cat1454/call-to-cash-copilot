@@ -1,4 +1,5 @@
 import { EventEnvelopeSchema, EventName } from "@call-to-cash/shared";
+import { hasCustomerAndAgentTurns } from "./transcriptCompleteness.js";
 
 export const emptyBooking = {
   bookingId: "",
@@ -202,7 +203,15 @@ export function applyServerEvent(state, input) {
     case EventName.CallCreated:
       return { ...next, callStatus: data.status };
     case EventName.CallEnded:
-      return { ...next, callStatus: data.status, isSimulating: false, simStatus: "Đã hoàn thành" };
+      return {
+        ...next,
+        callStatus: data.status,
+        isSimulating: false,
+        simStatus:
+          next.postCallTranscriptSync === "PENDING"
+            ? "Đang đồng bộ hội thoại sau cuộc gọi..."
+            : "Đã hoàn thành"
+      };
     case EventName.CallFailed:
       return {
         ...next,
@@ -214,10 +223,23 @@ export function applyServerEvent(state, input) {
       if (next.transcript.some((turn) => turn.turnId === data.turnId)) return next;
       const sender = data.speaker === "CUSTOMER" ? "customer" : "ai";
       const text = sanitizePublicText(data.content);
+      const transcript = [
+        ...next.transcript,
+        { sender, text, turnId: data.turnId, timestamp: data.timestamp }
+      ];
+      const transcriptComplete = hasCustomerAndAgentTurns(transcript);
       return {
         ...next,
-        transcript: [...next.transcript, { sender, text, turnId: data.turnId }],
-        subtitles: { speaker: sender === "customer" ? "Khách hàng" : "Tổng đài AI", text }
+        transcript,
+        subtitles: { speaker: sender === "customer" ? "Khách hàng" : "Tổng đài AI", text },
+        postCallTranscriptSync:
+          next.postCallTranscriptSync === "PENDING" && transcriptComplete
+            ? "COMPLETE"
+            : next.postCallTranscriptSync,
+        simStatus:
+          next.postCallTranscriptSync === "PENDING" && transcriptComplete
+            ? "Đã hoàn thành"
+            : next.simStatus
       };
     }
     case EventName.RiskScoreUpdated:

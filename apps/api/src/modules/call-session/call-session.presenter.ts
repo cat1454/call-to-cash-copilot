@@ -17,6 +17,17 @@ export function redactContent(content: string): string {
   return content.replace(/\b0\d{8,10}\b/gu, (phone) => maskPhone(phone));
 }
 
+export function formatTranscriptForDisplay(content: string): string {
+  const normalized = content
+    .normalize("NFC")
+    .replace(/\s+/gu, " ")
+    .replace(/\s+([,.!?;:])/gu, "$1")
+    .trim();
+  if (normalized.length === 0) return normalized;
+  const capitalized = `${normalized[0]?.toLocaleUpperCase("vi-VN")}${normalized.slice(1)}`;
+  return /[.!?]$/u.test(capitalized) ? capitalized : `${capitalized}.`;
+}
+
 export function presentCreatedCall(call: {
   publicId: string;
   status: string;

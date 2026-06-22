@@ -26,6 +26,7 @@ export async function acceptProviderTranscriptEvent(
   const result = await appendTranscriptTurn(client, {
     callId: input.callId,
     requestId: input.requestId,
+    trustedPostSessionIngress: true,
     turn: {
       clientTurnId: input.providerTurnId,
       provider: input.provider,
