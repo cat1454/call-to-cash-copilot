@@ -126,8 +126,6 @@ export default function App() {
         voiceMode={sim.voiceMode}
         retryLiveVoice={sim.retryLiveVoice}
         continueInReplayMode={sim.continueInReplayMode}
-        startReplayHappyPath={sim.startReplayHappyPath}
-        canStartReplayHappyPath={sim.canStartReplayHappyPath}
         endVoiceSession={sim.endVoiceSession}
         postCallTranscriptSync={sim.postCallTranscriptSync}
       />

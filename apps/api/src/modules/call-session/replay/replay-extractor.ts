@@ -122,11 +122,12 @@ function extractSpokenPhone(normalized: string): string | undefined {
     );
   });
   if (marker < 0) return undefined;
-  const firstDigitIndex =
+  let firstDigitIndex =
     tokens[marker] === "sdt" ? marker + 1 : tokens[marker] === "lien" ? marker + 2 : marker + 3;
+  while (["la"].includes(tokens[firstDigitIndex] ?? "")) firstDigitIndex += 1;
   const digits: string[] = [];
   for (const token of tokens.slice(firstDigitIndex)) {
-    const digit = NUMBER_UNITS[token];
+    const digit = NUMBER_UNITS[token.replace(/[^\p{L}\p{N}]/gu, "")];
     if (digit === undefined) break;
     digits.push(String(digit));
     if (digits.length > 11) break;
@@ -143,16 +144,27 @@ function extractSupportedPickupPoint(normalized: string): string | undefined {
   return undefined;
 }
 
+function extractPassengerCount(normalized: string): number | undefined {
+  const passengerUnit = "(?:ve|khach|nguoi|cho)";
+  const replacement = normalized.match(
+    new RegExp(
+      `\\b(?:thanh|doi\\s+(?:sang|qua)|sua(?:\\s+lai)?\\s+thanh)\\s+(${NUMBER_EXPRESSION})\\s*${passengerUnit}\\b`,
+      "u"
+    )
+  );
+  const firstMention = normalized.match(
+    new RegExp(`\\b(${NUMBER_EXPRESSION})\\s*${passengerUnit}\\b`, "u")
+  );
+  return parseNumber(replacement?.[1] ?? firstMention?.[1]);
+}
+
 export function extractReplayFacts(
   content: string,
   options: ExtractionOptions = {}
 ): ExtractedFacts {
   const normalized = normalizeForSearch(content).replace(/\s+/gu, " ").trim();
   const phone = content.match(/\b0\d{8,10}\b/u)?.[0] ?? extractSpokenPhone(normalized);
-  const passengerMatch = normalized.match(
-    new RegExp(`\\b(${NUMBER_EXPRESSION})\\s*(?:ve|khach|nguoi|cho)\\b`, "u")
-  );
-  const passengerCount = parseNumber(passengerMatch?.[1]);
+  const passengerCount = extractPassengerCount(normalized);
   const pickupPoint = extractSupportedPickupPoint(normalized);
   const departures = (options.departures ?? []).filter(
     (departure) => departure.departureAtUtc > (options.now ?? new Date())

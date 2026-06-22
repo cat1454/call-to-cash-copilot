@@ -60,6 +60,18 @@ function matchesDeparture(
   );
 }
 
+export function resolveDepartureRoute(
+  facts: UpsertBookingFromFactsInput["facts"],
+  existing: { routeFrom: string | null; routeTo: string | null } | null
+): { routeFrom?: string; routeTo?: string } {
+  const routeFrom = facts.routeFrom ?? existing?.routeFrom ?? undefined;
+  const routeTo = facts.routeTo ?? existing?.routeTo ?? undefined;
+  return {
+    ...(routeFrom === undefined ? {} : { routeFrom }),
+    ...(routeTo === undefined ? {} : { routeTo })
+  };
+}
+
 export async function upsertBookingFromFacts(
   transaction: Transaction,
   input: UpsertBookingFromFactsInput
@@ -72,14 +84,17 @@ export async function upsertBookingFromFacts(
 }> {
   const { callSessionId, facts, now } = input;
   const existing = await transaction.booking.findUnique({ where: { callSessionId } });
+  const departureRoute = resolveDepartureRoute(facts, existing);
   const hasDepartureHint =
     facts.departureLocalTime !== undefined || facts.departureDay !== undefined;
   const departureCandidates =
-    facts.routeFrom !== undefined && facts.routeTo !== undefined && hasDepartureHint
+    departureRoute.routeFrom !== undefined &&
+    departureRoute.routeTo !== undefined &&
+    hasDepartureHint
       ? await transaction.tripDeparture.findMany({
           where: {
-            routeFrom: facts.routeFrom,
-            routeTo: facts.routeTo,
+            routeFrom: departureRoute.routeFrom,
+            routeTo: departureRoute.routeTo,
             operationalStatus: "SCHEDULED",
             departureAtUtc: { gt: now }
           },

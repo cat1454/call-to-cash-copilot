@@ -102,6 +102,10 @@ authoritative booking snapshot as soon as that departure is selected; it does no
 passenger count. When passenger count arrives in a later customer turn, the server recomputes
 `fare_total_vnd` from the selected departure's fare per seat and the new count.
 
+Route, departure date, and departure time may arrive in separate final customer turns. The
+server retains the already accepted route while matching a later date/time turn against the
+scheduled catalogue; it does not require the customer to repeat every prior field in one sentence.
+
 The deterministic matcher tolerates omitted internal spaces in a catalogue place name (for
 example `Sapa` for `Sa Pa`) and accepts ASR's spoken `hour:minute` form (for example
 `hai mươi hai:ba mươi phút`). It still requires an exact scheduled route and departure; these
@@ -111,6 +115,10 @@ For the current deterministic Vietnamese parser, a contact number may be supplie
 contiguous number or as digit-by-digit speech after `số điện thoại`, `sđt`, or `liên hệ`.
 Only a valid normalized number is retained off-chain; all booking and realtime displays remain
 masked. These rules only propose draft fields and never confirm a booking or payment.
+
+The digit-by-digit form may contain the filler word `là` and terminal punctuation. For a material
+passenger-count change such as `từ ba người thành bốn người`, the replacement count after the
+change keyword is authoritative for the new draft; the earlier count remains transcript evidence.
 
 ### Optional fields
 

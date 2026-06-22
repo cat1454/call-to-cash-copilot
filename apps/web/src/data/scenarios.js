@@ -246,36 +246,5 @@ export const scenarios = [
         timeline: [1, 2, 3, 4, 5]
       }
     }
-  ],
-  // Scenario 4: deterministic happy path with a material passenger-count change.
-  [
-    {
-      sender: "customer",
-      text: "Tôi muốn đặt xe từ Đà Nẵng đi Hà Nội ngày 28 tháng 6 lúc 19 giờ, 3 người."
-    },
-    {
-      sender: "ai",
-      text: "Em đã ghi nhận chuyến Đà Nẵng đi Hà Nội lúc 19:00 ngày 28/06 cho 3 khách. Anh/chị cho em xin số liên hệ và điểm đón để giữ chỗ nhé."
-    },
-    {
-      sender: "customer",
-      text: "Số điện thoại của tôi là 0901234567, đón ở bến xe trung tâm Đà Nẵng."
-    },
-    {
-      sender: "ai",
-      text: "Dự thảo hiện có 3 khách, tổng tiền 1.350.000 đồng và tiền cọc 300.000 đồng theo BUS-V1 v1.0. Anh/chị kiểm tra giúp em nhé."
-    },
-    {
-      sender: "customer",
-      text: "Tôi đổi từ 3 thành 4 người, vẫn chuyến 19 giờ ngày 28 tháng 6."
-    },
-    {
-      sender: "ai",
-      text: "Em đã cập nhật thành 4 khách. Tổng tiền mới là 1.800.000 đồng, tiền cọc giữ chỗ là 300.000 đồng. Anh/chị xác nhận lại điều khoản giúp em nhé."
-    },
-    {
-      sender: "customer",
-      text: "Tôi xác nhận 4 người chuyến Đà Nẵng đi Hà Nội lúc 19 giờ ngày 28 tháng 6 và đồng ý đặt cọc theo điều khoản vừa đọc."
-    }
   ]
 ];

@@ -25,7 +25,7 @@ import { useTimeoutRegistry } from "./useTimeoutRegistry";
 import { useViewportMode } from "./useViewportMode";
 import { useApiMode } from "./useApiMode";
 import useServerSimulation from "./useServerSimulation";
-import { DEMO_MODE, VOICE_PROVIDER } from "../../../config/runtime";
+import { VOICE_PROVIDER } from "../../../config/runtime";
 import { useLiveVoiceSession } from "../../voice/useLiveVoiceSession";
 
 export default function useCallSimulation() {
@@ -170,13 +170,6 @@ export default function useCallSimulation() {
       setVoiceMode("replay");
       setTimeout(() => void server.startSimulation(), 0);
     };
-    const startReplayHappyPath = () => {
-      if (!DEMO_MODE || server.isSimulating) return;
-      void liveVoice.stop();
-      server.resetSimulation();
-      setVoiceMode("replay");
-      setTimeout(() => void server.startSimulation(), 0);
-    };
     const endVoiceSession = async () => {
       await liveVoice.stop();
       server.resetSimulation();
@@ -238,8 +231,6 @@ export default function useCallSimulation() {
       postCallTranscriptSync: server.postCallTranscriptSync,
       retryLiveVoice,
       continueInReplayMode,
-      startReplayHappyPath,
-      canStartReplayHappyPath: DEMO_MODE && voiceMode === "agora",
       endVoiceSession
     };
   }
@@ -289,8 +280,6 @@ export default function useCallSimulation() {
     postCallTranscriptSync: "IDLE",
     retryLiveVoice: () => {},
     continueInReplayMode: () => {},
-    startReplayHappyPath: mockStartSimulation,
-    canStartReplayHappyPath: false,
     endVoiceSession: () => {}
   };
 }

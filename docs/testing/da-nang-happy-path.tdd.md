@@ -5,39 +5,39 @@
 
 ## User journey
 
-As a demo operator, I can run a clearly labelled deterministic replay for a booking from Da Nang to Ha Noi on 28/06 at 19:00, collect the required contact and pickup point, change the passenger count from three to four, and see the server-authoritative booking/risk flow progress before a fresh confirmation.
-
-The replay is a demo fallback. It is not presented as an Agora transcript source.
+As a caller, I can speak the eight agreed Vietnamese phrases as separate final Agora turns and see the authoritative booking summary accumulate the route, date/time, passenger count, masked contact, and pickup point before changing the passenger count from three to four.
 
 ## RED
 
 Command:
 
 ```powershell
-corepack pnpm --filter @call-to-cash/api exec tsx --test src/modules/call-session/replay/replay-extractor.test.ts
+corepack pnpm --filter @call-to-cash/api exec tsx --test src/modules/call-session/replay/agora-spoken-happy-path.test.ts src/modules/booking/commands/upsert-booking-from-facts.test.ts
 ```
 
-Result: failed at `extracts the Da Nang to Ha Noi happy-path facts and its supported pickup point` because the deterministic extractor returned route, date/time, and passenger count but omitted the requested pickup point.
+Results: the spoken phone phrase failed because the filler word `là` stopped digit collection, and the split-turn booking test failed because no helper reused the persisted route for a later date/time turn.
 
 ## GREEN
 
 Commands:
 
 ```powershell
-corepack pnpm --filter @call-to-cash/api exec tsx --test src/modules/call-session/replay/replay-extractor.test.ts
+corepack pnpm --filter @call-to-cash/api exec tsx --test src/modules/call-session/replay/agora-spoken-happy-path.test.ts src/modules/call-session/replay/replay-extractor.test.ts src/modules/booking/commands/upsert-booking-from-facts.test.ts
+corepack pnpm --filter @call-to-cash/api typecheck
 corepack pnpm --filter @call-to-cash/web test
 corepack pnpm --filter @call-to-cash/web typecheck
 ```
 
 Results:
 
-- API replay extractor: 9/9 passed.
+- Focused API parser/upsert regression: 12/12 passed.
+- API typecheck: passed.
 - Web test suite: 65/65 passed.
 - Web typecheck/build: passed.
 
 ## Local authoritative run
 
-After starting Docker Desktop, applying the existing migrations, and reseeding the local catalogue, the API replay boundary was exercised against PostgreSQL. The final local read model was:
+The eight exact phrases were submitted as eight separate final customer turns through the authoritative API command path against PostgreSQL. This proves the same parser/upsert command used after trusted Agora event admission. It does not claim a fresh browser/provider acceptance run. The read model progressed from route-only to the following final summary:
 
 ```text
 route: Da Nang -> Ha Noi
@@ -46,21 +46,21 @@ passengerCount: 4
 fareTotalVnd: 1800000
 depositAmountVnd: 300000
 contactPhoneMasked: 0901***567
-bookingStatus: AGREEMENT_LOCKED
-paymentGate: UNLOCKED
 completenessScore: 100
 disputeRisk: 0
-paymentReadiness: 100
+paymentReadiness: 20
+paymentGate: LOCKED
 ```
 
 ## Guarantees
 
-| Guarantee                                                                                                                            | Evidence                                                          | Result                                 |
-| ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- | -------------------------------------- |
-| Vietnamese date/time, route, three passengers, and the Da Nang pickup are extracted deterministically.                               | `replay-extractor.test.ts` happy-path test                        | PASS                                   |
-| Updating the passenger turn from 3 to 4 uses the existing authoritative booking upsert and re-prices against the selected departure. | existing `upsertBookingFromFacts` path exercised by replay inputs | covered by existing authoritative flow |
-| The customer can opt into a visibly labelled Replay happy path instead of misrepresenting an unavailable Agora transcript as live.   | web test suite and typecheck                                      | PASS                                   |
+| Guarantee                                                                                               | Evidence                                           | Result |
+| ------------------------------------------------------------------------------------------------------- | -------------------------------------------------- | ------ |
+| All eight Vietnamese phrases extract their intended draft facts when received as separate final turns.  | `agora-spoken-happy-path.test.ts`                  | PASS   |
+| A later date/time turn reuses the previously persisted Da Nang to Ha Noi route.                         | `upsert-booking-from-facts.test.ts`                | PASS   |
+| `từ ba người thành bốn người` selects four and re-prices the authoritative draft to 1,800,000 VND.      | focused parser test plus PostgreSQL-backed API run | PASS   |
+| Full phone and transcript content remain outside the browser summary; the contact read model is masked. | PostgreSQL-backed API run                          | PASS   |
 
 ## Coverage and known gap
 
-This workspace does not define a `test:coverage` script. The focused unit regression, full web test suite, and a PostgreSQL-backed API replay were run. Browser microphone/Agora acceptance remains a separate live-provider check; this replay path is explicitly labelled and does not claim to be Agora.
+This workspace does not define a `test:coverage` script. Browser microphone, provider transcription, trusted relay admission, and SSE rendering still require a fresh manual Agora smoke run. Spoken confirmation is intentionally not converted directly into payment authority by this parser; the agreement confirmation command remains a separate guarded action.

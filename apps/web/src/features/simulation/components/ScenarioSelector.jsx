@@ -22,13 +22,6 @@ const SCENARIOS = [
     badge: "Sửa đổi Draft vé",
     type: "neutral",
     desc: "Khách đổi ý đặt 2 người rồi đổi sang 4 người, kỳ kèo chính sách và yêu cầu thay đổi giá tiền vé."
-  },
-  {
-    idx: 3,
-    title: "Happy path: Đà Nẵng → Hà Nội 28/06",
-    badge: "3 → 4 khách",
-    type: "success",
-    desc: "Chuyến 19:00 ngày 28/06 được cập nhật từ 3 sang 4 khách trước khi xác nhận lại điều khoản."
   }
 ];
 

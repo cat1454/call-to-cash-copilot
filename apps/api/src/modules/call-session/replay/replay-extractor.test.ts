@@ -65,6 +65,16 @@ test("extracts the Da Nang to Ha Noi happy-path facts and its supported pickup p
   });
 });
 
+test("prefers the replacement passenger count after Vietnamese change keywords", () => {
+  for (const content of [
+    "Tôi muốn sửa số lượng hành khách từ ba người thành bốn người.",
+    "Đổi sang bốn người nhé.",
+    "Cho tôi đổi qua bốn khách."
+  ]) {
+    assert.equal(extractReplayFacts(content).passengerCount, 4, content);
+  }
+});
+
 test("keeps numeric 22:30 replay input compatible with the departure catalogue", () => {
   const facts = extractReplayFacts("chuyến 22:30", { departures });
   assert.equal(facts.departureLocalTime, "22:30");
