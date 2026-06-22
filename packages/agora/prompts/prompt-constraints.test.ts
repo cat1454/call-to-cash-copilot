@@ -90,6 +90,14 @@ test("V1 prompt contains stable privacy, authority, and payment-handoff restrict
   assert.doesNotMatch(spokenExamples, /giao dịch token|cho vay|lợi suất|đầu cơ/iu);
 });
 
+test("V1 prompt permits masked booking-contact capture without weakening secret protections", () => {
+  const prompt = readText(promptPath);
+
+  assert.match(prompt, /SAFE_BOOKING_CONTACT_CAPTURE/u);
+  assert.match(prompt, /không từ chối.*số điện thoại/iu);
+  assert.match(prompt, /không lặp lại đầy đủ số điện thoại/iu);
+});
+
 test("prompt README documents the actual server deployment and recovery boundary without secrets", () => {
   const readme = readText(readmePath);
 

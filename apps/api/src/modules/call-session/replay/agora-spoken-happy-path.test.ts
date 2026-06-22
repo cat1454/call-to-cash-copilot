@@ -15,10 +15,10 @@ const options = {
 };
 
 test("extracts every separately spoken Agora happy-path phrase", () => {
-  assert.deepEqual(
-    extractReplayFacts("Tôi muốn đặt vé xe từ Đà Nẵng đến Hà Nội.", options),
-    { routeFrom: "Da Nang", routeTo: "Ha Noi" }
-  );
+  assert.deepEqual(extractReplayFacts("Tôi muốn đặt vé xe từ Đà Nẵng đến Hà Nội.", options), {
+    routeFrom: "Da Nang",
+    routeTo: "Ha Noi"
+  });
   assert.deepEqual(extractReplayFacts("Ngày khởi hành là ngày hai mươi tám tháng sáu."), {
     departureDay: 28,
     departureMonth: 6
