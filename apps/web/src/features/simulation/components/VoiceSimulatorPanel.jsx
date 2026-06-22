@@ -41,6 +41,8 @@ export default function VoiceSimulatorPanel({
   voiceMode,
   retryLiveVoice,
   continueInReplayMode,
+  startReplayHappyPath,
+  canStartReplayHappyPath,
   endVoiceSession,
   postCallTranscriptSync
 }) {
@@ -254,6 +256,16 @@ export default function VoiceSimulatorPanel({
           {voiceConnectionState === "CONNECTED" && (
             <Button variant="secondary" size="sm" onClick={stopLiveVoice} className="min-h-11">
               Kết thúc cuộc gọi
+            </Button>
+          )}
+          {canStartReplayHappyPath && !isSimulating && !isCompleted && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={startReplayHappyPath}
+              className="min-h-11"
+            >
+              Happy path (Replay)
             </Button>
           )}
         </div>

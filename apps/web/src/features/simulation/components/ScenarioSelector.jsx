@@ -3,26 +3,33 @@ import { Badge } from "../../../components/ui/Badge";
 
 const SCENARIOS = [
   {
-    idx:   0,
+    idx: 0,
     title: "Kịch bản 1: Đặt chỗ bình thường",
     badge: "Thành công nhanh",
-    type:  "success",
-    desc:  "Hành khách đặt xe Hà Nội đi Sa Pa tối nay, thông tin đầy đủ rõ ràng, thanh toán cọc nhanh chóng.",
+    type: "success",
+    desc: "Hành khách đặt xe Hà Nội đi Sa Pa tối nay, thông tin đầy đủ rõ ràng, thanh toán cọc nhanh chóng."
   },
   {
-    idx:   1,
+    idx: 1,
     title: "Kịch bản 2: Kỳ kèo cọc & Nghi ngờ Crypto",
     badge: "Dispute Risk cao",
-    type:  "warning",
-    desc:  "Khách nghi ngại cọc tiền, hỏi Solana có phải coin lừa đảo không, xác nhận mơ hồ. AI xử lý kéo giảm rủi ro.",
+    type: "warning",
+    desc: "Khách nghi ngại cọc tiền, hỏi Solana có phải coin lừa đảo không, xác nhận mơ hồ. AI xử lý kéo giảm rủi ro."
   },
   {
-    idx:   2,
+    idx: 2,
     title: "Kịch bản 3: Thay đổi số ghế giữa cuộc thoại",
     badge: "Sửa đổi Draft vé",
-    type:  "neutral",
-    desc:  "Khách đổi ý đặt 2 người rồi đổi sang 4 người, kỳ kèo chính sách và yêu cầu thay đổi giá tiền vé.",
+    type: "neutral",
+    desc: "Khách đổi ý đặt 2 người rồi đổi sang 4 người, kỳ kèo chính sách và yêu cầu thay đổi giá tiền vé."
   },
+  {
+    idx: 3,
+    title: "Happy path: Đà Nẵng → Hà Nội 28/06",
+    badge: "3 → 4 khách",
+    type: "success",
+    desc: "Chuyến 19:00 ngày 28/06 được cập nhật từ 3 sang 4 khách trước khi xác nhận lại điều khoản."
+  }
 ];
 
 export default function ScenarioSelector({ currentScenarioIdx, selectScenario }) {

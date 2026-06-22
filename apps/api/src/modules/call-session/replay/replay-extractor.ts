@@ -135,6 +135,14 @@ function extractSpokenPhone(normalized: string): string | undefined {
   return /^0\d{8,10}$/u.test(phone) ? phone : undefined;
 }
 
+function extractSupportedPickupPoint(normalized: string): string | undefined {
+  if (/\bmy\s*dinh\b/u.test(normalized)) return "My Dinh";
+  if (/\bben\s*xe\s*trung\s*tam\s*da\s*nang\b/u.test(normalized)) {
+    return "Ben xe Trung tam Da Nang";
+  }
+  return undefined;
+}
+
 export function extractReplayFacts(
   content: string,
   options: ExtractionOptions = {}
@@ -145,7 +153,7 @@ export function extractReplayFacts(
     new RegExp(`\\b(${NUMBER_EXPRESSION})\\s*(?:ve|khach|nguoi|cho)\\b`, "u")
   );
   const passengerCount = parseNumber(passengerMatch?.[1]);
-  const mentionsMyDinh = /\bmy\s*dinh\b/u.test(normalized);
+  const pickupPoint = extractSupportedPickupPoint(normalized);
   const departures = (options.departures ?? []).filter(
     (departure) => departure.departureAtUtc > (options.now ?? new Date())
   );
@@ -156,7 +164,7 @@ export function extractReplayFacts(
     ...(passengerCount !== undefined && passengerCount >= 1 && passengerCount <= 36
       ? { passengerCount }
       : {}),
-    ...(mentionsMyDinh ? { pickupPoint: "My Dinh" } : {}),
+    ...(pickupPoint === undefined ? {} : { pickupPoint }),
     ...(phone !== undefined ? { contactPhoneMasked: maskPhone(phone) } : {})
   };
 }
