@@ -192,27 +192,34 @@ Call channel names must be derived from opaque `callSessionId` values. Do not pl
 ## ADR-007 — LLM output is advisory; deterministic rules make final decisions
 
 ### Decision
-The AI layer may extract fields, identify missing data, classify user confirmation, propose risk signals, and generate a natural-language next question. It cannot directly unlock payment, mutate a confirmed agreement, or write to Solana.
+The AI layer may propose only bounded booking-field candidates with confidence/status and source-turn evidence. It cannot classify confirmation, propose risk signals, generate payment guidance, directly unlock payment, mutate a confirmed agreement, or write to Solana.
+
+### Phase 10 provider decision
+
+When `AI_PROVIDER=openai`, the backend uses `OPENAI_MODEL=gpt-5-mini` through a server-only
+structured extraction request. This is independent of the GPT model configured in Agora Agent
+Studio for conversational voice responses. `AI_EXTRACTION_MODE=hybrid` runs deterministic
+extraction first and invokes OpenAI only for incomplete or ambiguous results; timeout, rate-limit,
+unavailable, or invalid output falls back to deterministic extraction. No `OPENAI_*` or
+`AI_EXTRACTION_*` variable may be exposed through `VITE_*`.
 
 ### Required AI output contract
 
 ```json
 {
-  "intent": "book_intercity_trip",
-  "extracted_fields": {},
-  "field_confidence": {},
-  "missing_fields": [],
-  "confirmation": "explicit|ambiguous|none",
-  "proposed_signals": [],
-  "next_action": "ASK_PICKUP_POINT",
-  "next_question": "..."
+  "schemaVersion": "ctc.booking-extraction.v1",
+  "fields": {
+    "origin": { "value": "string|null", "confidence": 0.0, "status": "PRESENT|MISSING|AMBIGUOUS|INVALID", "evidenceRefs": [] },
+    "destination": { "value": "string|null", "confidence": 0.0, "status": "PRESENT|MISSING|AMBIGUOUS|INVALID", "evidenceRefs": [] }
+  },
+  "warnings": []
 }
 ```
 
 ### Backend decision path
 
 ```text
-AI structured proposal
+AI structured booking proposal
 → Zod validation
 → confidence / policy validation
 → domain rules

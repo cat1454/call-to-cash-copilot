@@ -13,6 +13,7 @@
     "start": "node dist/server.js"
   },
   "dependencies": {
+    "@call-to-cash/ai": "workspace:*",
     "@call-to-cash/agora": "workspace:*",
     "@call-to-cash/config": "workspace:*",
     "@call-to-cash/db": "workspace:*",

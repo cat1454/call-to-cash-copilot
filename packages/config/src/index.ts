@@ -1,11 +1,13 @@
 export const PAYMENT_PROVIDERS = ["mock", "solana_devnet"] as const;
 export const VOICE_PROVIDERS = ["replay", "agora"] as const;
-export const AI_PROVIDERS = ["deterministic", "llm"] as const;
+export const AI_PROVIDERS = ["deterministic", "openai"] as const;
+export const AI_EXTRACTION_MODES = ["deterministic", "hybrid"] as const;
 export const LOG_LEVELS = ["trace", "debug", "info", "warn", "error", "fatal", "silent"] as const;
 
 export type PaymentProvider = (typeof PAYMENT_PROVIDERS)[number];
 export type VoiceProvider = (typeof VOICE_PROVIDERS)[number];
 export type AiProvider = (typeof AI_PROVIDERS)[number];
+export type AiExtractionMode = (typeof AI_EXTRACTION_MODES)[number];
 export type LogLevel = (typeof LOG_LEVELS)[number];
 
 export type RuntimeConfig = {
@@ -49,6 +51,13 @@ export type RuntimeConfig = {
     ready: boolean;
   };
   aiProvider: AiProvider;
+  aiExtraction: {
+    mode: AiExtractionMode;
+    model: string;
+    apiKey: string;
+    timeoutMs: number;
+    promptVersion: string;
+  };
   /** Pino log level. Defaults to "info". Set LOG_LEVEL=debug for verbose output. */
   logLevel: LogLevel;
   /**
@@ -137,6 +146,17 @@ export function readRuntimeConfig(
     ["devnet"] as const,
     "devnet"
   );
+  const aiProvider = readEnum("AI_PROVIDER", env.AI_PROVIDER, AI_PROVIDERS, "deterministic");
+  const aiExtraction = {
+    mode: readEnum("AI_EXTRACTION_MODE", env.AI_EXTRACTION_MODE, AI_EXTRACTION_MODES, "hybrid"),
+    model: env.OPENAI_MODEL?.trim() || "gpt-5-mini",
+    apiKey: env.OPENAI_API_KEY?.trim() ?? "",
+    timeoutMs: readStrictPositiveInt("AI_EXTRACTION_TIMEOUT_MS", env.AI_EXTRACTION_TIMEOUT_MS, 1_500),
+    promptVersion: env.AI_EXTRACTION_PROMPT_VERSION?.trim() || "CTC-BOOKING-EXTRACTION-V1"
+  };
+  if (aiProvider === "openai" && aiExtraction.apiKey.length === 0) {
+    throw new Error("OPENAI_API_KEY is required when AI_PROVIDER=openai");
+  }
   return {
     nodeEnv: env.NODE_ENV ?? "development",
     host: env.API_HOST ?? "127.0.0.1",
@@ -190,7 +210,8 @@ export function readRuntimeConfig(
         Object.keys(readJsonObject("AGORA_CAI_PROPERTIES_JSON", env.AGORA_CAI_PROPERTIES_JSON))
           .length > 0
     },
-    aiProvider: readEnum("AI_PROVIDER", env.AI_PROVIDER, AI_PROVIDERS, "deterministic"),
+    aiProvider,
+    aiExtraction,
     logLevel: readEnum("LOG_LEVEL", env.LOG_LEVEL, LOG_LEVELS, "info"),
     rateLimitMax: readPositiveInt("RATE_LIMIT_MAX", env.RATE_LIMIT_MAX, 100)
   };

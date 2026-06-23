@@ -1,9 +1,9 @@
 # Call-to-Cash Risk Copilot — Current State
 
-> **Snapshot date:** 2026-06-22 (Asia/Bangkok)
+> **Snapshot date:** 2026-06-23 (Asia/Bangkok)
 > **Branch inspected:** `testing` (Phase 9 closure worktree)
-> **Purpose:** state the current product maturity, the Phase 9 closure boundary, and the immediate transcript-quality priority.
-> **Status at this snapshot:** Phase 9 core scope is **complete by user-approved closure**. The current P0 work is transcript display-quality hardening; it does not reopen the Phase 9 architecture or start Phase 10.
+> **Purpose:** state the current product maturity, the Phase 9 closure boundary, and the in-progress Phase 10 evidence boundary.
+> **Status at this snapshot:** Phase 9 core scope is **complete by user-approved closure**. Phase 10 is **IN PROGRESS**; Phase 9 transcript-quality hardening remains an independent quality workstream.
 
 ---
 
@@ -35,18 +35,18 @@ The project has completed the Phase 9 closure slice for user-approved scope:
 - live voice, audible agent audio, and visible customer/agent transcript have been demonstrated in recorded live-browser smoke evidence;
 - the web labels Live Agora and Replay Demo explicitly and does not silently present replay as live voice.
 
-The current open work is **not** an Agora architecture rewrite and is **not** LLM extraction. The immediate quality issue is transcript presentation: some displayed text can contain spacing, punctuation, repeated-fragment, or chunk-boundary artifacts. This is a Phase 9 transcript-frame assembly and UI-rendering hardening task.
+Transcript presentation hardening remains a Phase 9 quality task: some displayed text can contain spacing, punctuation, repeated-fragment, or chunk-boundary artifacts. It does not reopen the Phase 9 architecture and does not block the approved Phase 10 start.
 
-Phase 9.2 may continue with static-prompt artifacts in draft form, but prompt activation/evaluation must follow transcript-quality stabilization. Phase 10 optional LLM extraction remains deferred as P3.
+Phase 9.2 may continue with static-prompt artifacts and controlled evaluation as its own workstream. Phase 10 now begins as optional LLM extraction behind strict schemas and deterministic domain guardrails; it is not an LLM-based transcript formatting repair.
 
-The current transcript hardening work has source-level implementation in place, but it is not yet a PASS/demo-ready claim. Verification is incomplete because the local dependency graph currently cannot resolve some workspace/runtime packages after restoring the repository package-manager baseline.
+The transcript hardening work has source-level implementation in place but is not yet a PASS/demo-ready claim. Its outstanding local verification debt (fresh live Agora proof, DB-backed coverage, lint, and format checks) remains documented and must not be described as green; it is not a condition blocking Phase 10 kickoff under this user-approved transition.
 
 ---
 
 ## 2. Canonical pipeline status
 
 | Pipeline phase | Current assessment | Evidence / notes |
-|---:|---|---|
+| --- | --- | --- |
 | 0 — Contract normalization | **Implemented** | Canonical product, architecture, API/event/error, and privacy contracts exist. |
 | 1 — Workspace, API scaffold, config, CI | **Implemented** | Workspace scripts, local environment conventions, CI, and Compose baseline exist. |
 | 2 — Shared executable contracts | **Implemented** | Shared schemas, DTOs, events, errors, enums, and contract tests exist. |
@@ -59,7 +59,7 @@ The current transcript hardening work has source-level implementation in place, 
 | 9 — Agora voice, transcript, token integration | **Complete — closure scope** | Live voice and transcript path are demonstrated; P0 transcript display-quality hardening remains open. |
 | 9.2 — Agora conversation quality optimization | **GO — V1 draft only** | Versioned static prompt artifacts may be maintained; controlled live prompt evaluation and activation remain pending. |
 | 9.3 — Server-to-agent runtime directives | **Not started** | Future Phase 9 follow-up; domain/API decides what the next step is, agent decides how to phrase it. |
-| 10 — Optional LLM extraction with strict schemas | **Not started / P3** | `packages/ai` remains a boundary. LLM is not used to repair transcript formatting. |
+| 10 — Optional LLM extraction with strict schemas | **IN PROGRESS** | OpenAI `gpt-5-mini` server-side strict-schema adapter, deterministic fallback, and focused checks are implemented; isolated DB and controlled live-provider evidence remain outstanding. |
 | 11 — Redis, queue, object storage | **Not started** | No active provider integration is required for current demo closure. |
 | 12 — E2E, observability, accessibility, deployment | **Partial** | Health/readiness, CORS, rate limiting, runbooks, and local checks exist; broader hardening remains later work. |
 | 13 — Outcome labeling, evaluation, opt-in training data | **Not started** | Later phase. |
@@ -71,7 +71,7 @@ The current transcript hardening work has source-level implementation in place, 
 The following boundaries are non-negotiable.
 
 | Layer | Owns | Must not own |
-|---|---|---|
+| --- | --- | --- |
 | Browser / web app | microphone permission, direct RTC join, rendering, local recovery UX | booking confirmation, risk decision, payment verification, receipt issuance |
 | Agora | real-time audio, agent interaction, transcript/provider facts | inventory, availability, risk, payment, proof, receipt, refund decisions |
 | API | token/session orchestration, transcript admission, REST endpoints, SSE stream | arbitrary business authority delegated to provider or browser |
@@ -96,7 +96,7 @@ Rules:
 Phase 8 is implemented with a provider-neutral payment boundary.
 
 | Requirement | Status | Recorded evidence |
-|---|---|---|
+| --- | --- | --- |
 | Server creates payment request | **Pass** | Server returns Devnet-only Solana Pay URL and QR payload. |
 | Reference and memo exclude PII | **Pass** | Random base58 reference and opaque/versioned memo structure. |
 | Browser cannot authoritatively confirm payment | **Pass** | Browser submits only intent/verification request; server verifies facts. |
@@ -187,7 +187,7 @@ Dạ, em muốn đặt ba chỗ từ Đà Nẵng ra Hà Nội, chuyến bảy gi
 Trace finding:
 
 | Layer | Finding |
-|---|---|
+| --- | --- |
 | Raw provider frame | The RTM/API boundary accepts final `user.transcription` / `assistant.transcription` frames and a custom `ctc.transcript.final/v1` frame. Provider text may contain repeated whitespace or punctuation-boundary artifacts. The current durable path does not persist interim frames. |
 | API-normalized payload | `packages/agora` and the RTM relay now apply shared deterministic display normalization before provider text reaches the canonical final-turn admission path. Non-final provider frames remain non-durable. |
 | Browser DOM textContent | Web SSE and REST recovery projections now run the same display normalization before rendering transcript bubbles. |
@@ -239,7 +239,7 @@ Booking extraction is separate final-turn/domain behavior. For supported input f
 ### 5.5 Current verification evidence — 2026-06-22
 
 | Area | Status | Evidence / note |
-|---|---|---|
+| --- | --- | --- |
 | `git diff --check` | **PASS** | Passed in the latest verification report. |
 | Frozen install under temporary pnpm 11.1.1 | **PASS, historical/local** | Completed before the package-manager baseline correction. This is not a pnpm 11 migration claim. |
 | Runtime package export regression | **PASS** | 7/7 package checks passed. |
@@ -277,16 +277,16 @@ Package-manager decision:
 
 ## 6. Current priority order
 
-1. **Keep Phase 9 closure scope intact.** Do not rewrite Agora/API/Solana architecture.
-2. **Treat transcript formatting as a Phase 9 hardening bug.** It is a display/frame-assembly concern.
-3. **Trace one controlled sentence through three layers:** raw provider frame → API normalized text → DOM textContent.
-4. **Correct fragment assembly:** distinguish snapshot, delta, and final frames.
-5. **Apply deterministic display normalization only:** whitespace, punctuation boundaries, duplicate suppression, and sequence handling.
-6. **Check CSS and typography:** confirm wrapping/word-break rules do not make correct text appear broken.
-7. **Add regression tests:** unit, integration, and browser coverage for the observed failure modes.
-8. **Record a fresh live proof:** readable customer/agent transcript, booking/risk update, and refresh recovery.
-9. **Continue Phase 9.2 V1 evaluation:** only after transcript presentation is stable.
-10. **Keep Phase 10 deferred:** optional LLM extraction remains P3.
+ 1. **Keep Phase 9 closure scope intact.** Do not rewrite Agora/API/Solana architecture.
+ 2. **Treat transcript formatting as a Phase 9 hardening bug.** It is a display/frame-assembly concern.
+ 3. **Trace one controlled sentence through three layers:** raw provider frame → API normalized text → DOM textContent.
+ 4. **Correct fragment assembly:** distinguish snapshot, delta, and final frames.
+ 5. **Apply deterministic display normalization only:** whitespace, punctuation boundaries, duplicate suppression, and sequence handling.
+ 6. **Check CSS and typography:** confirm wrapping/word-break rules do not make correct text appear broken.
+ 7. **Add regression tests:** unit, integration, and browser coverage for the observed failure modes.
+ 8. **Record a fresh live proof:** readable customer/agent transcript, booking/risk update, and refresh recovery.
+ 9. **Continue Phase 9.2 V1 evaluation:** transcript presentation remains its independent acceptance requirement.
+10. **Start Phase 10 behind strict guardrails:** add optional structured extraction in `packages/ai`, validate it deterministically, and retain the deterministic provider as the safe fallback.
 
 ---
 
@@ -409,15 +409,21 @@ Phase 9.3 is not implemented in this snapshot.
 
 ## 9. Phase 10 — Optional LLM extraction
 
-**Status:** Not started / P3.
+**Status:** IN PROGRESS. The first strict-schema adapter/fallback slice is implemented with the approved server-side OpenAI `gpt-5-mini` provider. It is not yet COMPLETE because isolated DB integration and controlled live-provider evidence are not recorded.
 
-Future optional flow:
+Phase 10 begins independently of the remaining Phase 9 transcript-quality verification debt. This approval starts an adapter workstream; it does not mark Phase 10 complete or waive its required contracts, fallback behavior, and acceptance tests.
+
+Current optional flow:
 
 ```text
-final transcript
-  → optional strict-schema LLM extraction
-  → deterministic validation
+final CUSTOMER transcript
+  → deterministic-first/hybrid extraction orchestration
+  → optional GPT-5 mini strict-schema candidate
+  → shared schema validation
+  → deterministic normalization and catalogue validation
   → domain rules
+  → durable booking/risk state
+  → SSE and REST recovery
 ```
 
 Phase 10 is not speech-to-text, not transcript rendering, and not prompt wording.
@@ -436,6 +442,13 @@ Trust Receipt issuance
 ```
 
 LLM must not be introduced to repair spacing, punctuation, chunk ordering, or CSS bugs.
+
+The first implementation slice must:
+
+1. keep `AI_PROVIDER=deterministic` as the default/fallback path;
+2. add an optional provider adapter in `packages/ai` that returns strict shared-schema output with confidence and evidence references;
+3. treat invalid, partial, ambiguous, or timed-out model output as missing data;
+4. preserve deterministic domain authority and the existing API/event/state-machine contracts until a separately documented contract change is approved.
 
 ---
 
@@ -504,7 +517,7 @@ Never capture secrets, seed phrases, private keys, unmasked phone numbers, raw w
 5. Add browser E2E coverage for payment drawer and recovery where not already covered; Phantom signing remains a manual Devnet smoke step.
 6. Implement authentication/RBAC before exposing booking/payment APIs outside controlled demo conditions.
 7. Resolve the current local dependency-resolution/toolchain blocker through the canonical `pnpm@10.34.4` workspace setup, not through undocumented local workarounds.
-8. Keep Phase 10 LLM extraction, Redis, queues, object storage, and production hardening in later phases.
+8. Complete isolated DB integration and controlled OpenAI fallback smoke evidence for Phase 10; Redis, queues, object storage, and broader production hardening remain later work.
 
 ---
 
@@ -516,14 +529,14 @@ Never capture secrets, seed phrases, private keys, unmasked phone numbers, raw w
 
 **Phase 9.2 static prompt V1:** **GO for draft maintenance; not yet activated or fully evaluated.**
 
-**Phase 10 optional LLM extraction:** **NO-GO / P3 deferred.**
+**Phase 10 optional LLM extraction:** **IN PROGRESS — focused local checks pass; DB/live-provider closure evidence remains.**
 
-The correct next progression is:
+The approved next progression is:
 
 ```text
-fix transcript frame/render quality
-  → prove one fresh readable live run
-  → evaluate V1 static prompt
-  → consider Phase 9.3 runtime directives
-  → consider Phase 10 optional LLM extraction only later
+complete Phase 10 isolated DB and controlled provider evidence
+  → preserve deterministic fallback and domain authority
+  → continue Phase 9 transcript hardening and fresh live proof independently
+  → evaluate Phase 9.2 V1 when its own acceptance criteria are met
+  → consider Phase 9.3 runtime directives separately
 ```

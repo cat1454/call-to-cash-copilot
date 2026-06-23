@@ -62,6 +62,13 @@ const demoConfig = {
     ready: false
   },
   aiProvider: "deterministic",
+  aiExtraction: {
+    mode: "hybrid",
+    model: "gpt-5-mini",
+    apiKey: "",
+    timeoutMs: 1_500,
+    promptVersion: "CTC-BOOKING-EXTRACTION-V1"
+  },
   logLevel: "silent" as const,
   rateLimitMax: 0
 } as const;
@@ -235,6 +242,74 @@ async function confirmReplayBooking(app: ReturnType<typeof buildApp>, resetDatab
 
   return { ...replay, confirmationKey };
 }
+
+test(
+  "Phase 10 persists safe deterministic fallback provenance without changing booking authority",
+  { skip: phase5SkipReason() },
+  async () => {
+    assert.ok(databaseUrl);
+    const app = buildApp({ ...demoConfig, aiProvider: "openai" });
+    const { callId, bookingId } = await createReplayBooking(app);
+    const prisma = createPrismaClient({ databaseUrl });
+    const extraction = await prisma.bookingExtraction.findFirst({
+      where: { callSession: { publicId: callId } },
+      orderBy: { createdAt: "desc" }
+    });
+
+    assert.ok(extraction);
+    assert.equal(extraction.extractionVersion, "ctc-booking-extraction-v1:deterministic");
+    assert.equal((extraction.payload as { fallbackUsed?: boolean }).fallbackUsed, true);
+    assert.equal(JSON.stringify(extraction.payload).includes("0912345678"), false);
+
+    const riskResponse = await app.inject({ method: "GET", url: `/v1/calls/${callId}/risk` });
+    assert.equal(riskResponse.statusCode, 200);
+    assert.equal(riskResponse.json().data.bookingId, bookingId);
+    assert.notEqual(riskResponse.json().data.paymentGate, PaymentGateStatus.Unlocked);
+
+    await prisma.$disconnect();
+    await app.close();
+  }
+);
+
+test(
+  "Phase 10 accepts an injected strict-schema candidate only through the existing booking path",
+  { skip: phase5SkipReason() },
+  async () => {
+    assert.ok(databaseUrl);
+    const app = buildApp(demoConfig, {
+      bookingExtractor: {
+        name: "fake-llm",
+        async extract(input) {
+          return {
+            outcome: "SUCCESS" as const,
+            provider: "fake-llm",
+            fallbackUsed: false,
+            candidate: {
+              schemaVersion: "ctc.booking-extraction.v1" as const,
+              fields: {
+                origin: { value: "Ha Noi", confidence: 0.9, status: "PRESENT" as const, evidenceRefs: [{ turnId: input.sourceTurnId }] },
+                destination: { value: "Sa Pa", confidence: 0.9, status: "PRESENT" as const, evidenceRefs: [{ turnId: input.sourceTurnId }] },
+                departureTime: { value: "22:30", confidence: 0.9, status: "PRESENT" as const, evidenceRefs: [{ turnId: input.sourceTurnId }] },
+                passengerCount: { value: 3, confidence: 0.9, status: "PRESENT" as const, evidenceRefs: [{ turnId: input.sourceTurnId }] },
+                pickupPoint: { value: "My Dinh", confidence: 0.9, status: "PRESENT" as const, evidenceRefs: [{ turnId: input.sourceTurnId }] },
+                contactPhoneCandidate: { value: "0912***678", confidence: 0.9, status: "PRESENT" as const, evidenceRefs: [{ turnId: input.sourceTurnId }] }
+              },
+              warnings: []
+            }
+          };
+        }
+      }
+    });
+    const { callId } = await createReplayBooking(app);
+    const prisma = createPrismaClient({ databaseUrl });
+    const extraction = await prisma.bookingExtraction.findFirst({ where: { callSession: { publicId: callId } } });
+
+    assert.equal((extraction?.payload as { provider?: string }).provider, "fake-llm");
+    assert.equal((extraction?.payload as { fallbackUsed?: boolean }).fallbackUsed, false);
+    await prisma.$disconnect();
+    await app.close();
+  }
+);
 
 test("GET /health returns the standard success envelope", async () => {
   const app = buildApp(demoConfig);

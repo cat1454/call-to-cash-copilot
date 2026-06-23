@@ -3,6 +3,9 @@ import test from "node:test";
 
 import {
   canPersistFinalTranscriptForCall,
+  deterministicCandidateFromFacts,
+  isTrustedAgoraVoiceConfirmation,
+  retainCorroboratedCandidateFacts,
   shouldExtractBookingFacts
 } from "./append-transcript-turn.js";
 import { acceptProviderTranscriptEvent } from "./accept-provider-transcript-event.js";
@@ -20,6 +23,33 @@ test("only customer turns can propose booking facts", () => {
   assert.equal(shouldExtractBookingFacts("AGENT"), false);
   assert.equal(shouldExtractBookingFacts("OPERATOR"), false);
   assert.equal(shouldExtractBookingFacts("SYSTEM"), false);
+  assert.equal(isTrustedAgoraVoiceConfirmation("AGORA", "Tôi xác nhận đặt cọc."), true);
+  assert.equal(isTrustedAgoraVoiceConfirmation("REPLAY", "Tôi xác nhận đặt cọc."), false);
+});
+
+test("deterministic Phase 10 candidates carry source-turn evidence and masked contact only", () => {
+  const candidate = deterministicCandidateFromFacts(
+    {
+      routeFrom: "Da Nang",
+      routeTo: "Ha Noi",
+      departureLocalTime: "20:00",
+      passengerCount: 3,
+      contactPhoneMasked: "0901***567"
+    },
+    "turn_phase10source"
+  );
+
+  assert.equal(candidate.fields.origin?.evidenceRefs[0]?.turnId, "turn_phase10source");
+  assert.equal(candidate.fields.contactPhoneCandidate?.value, "0901***567");
+  assert.equal(JSON.stringify(candidate).includes("0901234567"), false);
+});
+
+test("LLM candidates cannot introduce booking facts without deterministic corroboration", () => {
+  const facts = { routeFrom: "Da Nang" };
+  const candidate = deterministicCandidateFromFacts({ routeFrom: "Ha Noi" }, "turn_phase10source");
+  const result = retainCorroboratedCandidateFacts(facts, candidate, "turn_phase10source");
+
+  assert.deepEqual(result, facts);
 });
 
 test("interim provider transcript frames do not reach durable transcript admission", async () => {

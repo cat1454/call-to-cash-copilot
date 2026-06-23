@@ -66,6 +66,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@call-to-cash/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
       '@call-to-cash/agora':
         specifier: workspace:*
         version: link:../../packages/agora
@@ -218,7 +221,11 @@ importers:
         specifier: ^4.0.0
         version: 4.0.0
 
-  packages/ai: {}
+  packages/ai:
+    dependencies:
+      '@call-to-cash/shared':
+        specifier: workspace:*
+        version: link:../shared
 
   packages/config: {}
 

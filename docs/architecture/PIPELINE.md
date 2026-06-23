@@ -749,12 +749,12 @@ Live transcript input creates exactly the same server-owned booking/risk/payment
 
 ## Role
 
-Use AI to extract structured facts and recommend the next question while keeping all business authority in the domain layer.
+Use AI only to propose structured booking facts while keeping all business authority in the domain layer.
 
 ## Boundary
 
 ```text
-AI returns: extracted fields, confidence, missing fields, suggested next question, evidence references.
+AI returns: approved booking-field candidates, confidence/status, warnings, and evidence references.
 Domain returns: score, blockers, gate state, allowed next action.
 API returns: persisted, validated, auditable state.
 ```
@@ -767,7 +767,7 @@ API returns: persisted, validated, auditable state.
 4. Store provider/model/prompt version, confidence, and evidence segment references.
 5. Treat invalid/partial/ambiguous output as missing data, never as confirmation.
 6. Maintain a fallback path when LLM times out or fails.
-7. Redact/mask PII before unnecessary model calls where feasible.
+7. Send only the final customer transcript and approved safe context; mask contact data in persistence and public projections.
 
 ## Prohibited AI behavior
 
@@ -778,7 +778,7 @@ API returns: persisted, validated, auditable state.
 
 ## Exit criteria
 
-LLM can be disabled with `AI_PROVIDER=deterministic`, and all acceptance tests still pass with deterministic domain decisions.
+LLM can be disabled with `AI_PROVIDER=deterministic`, and all acceptance tests still pass with deterministic domain decisions. When `AI_PROVIDER=openai`, `OPENAI_MODEL=gpt-5-mini` is server-only and strict schema/fallback behavior preserves the same domain authority.
 
 ---
 

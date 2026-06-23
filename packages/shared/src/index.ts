@@ -4,5 +4,6 @@ export * from "./enums/index.js";
 export * from "./errors/index.js";
 export * from "./events/index.js";
 export * from "./schemas/domain.js";
+export * from "./schemas/ai-extraction.js";
 export * from "./schemas/primitives.js";
 export * from "./transcript-display.js";

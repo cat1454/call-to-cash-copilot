@@ -16,7 +16,12 @@ export function registerCallSessionRoutes(
   app: FastifyInstance,
   dependencies: ApiDependencies
 ): void {
-  const handlers = createCallSessionHandlers(dependencies.databaseClient);
+  const handlers = createCallSessionHandlers(
+    dependencies.databaseClient,
+    dependencies.config.aiProvider,
+    dependencies.bookingExtractor,
+    dependencies.config.aiExtraction
+  );
   const CallParamsSchema = z.object({ callId: CallIdSchema }).strict();
 
   app.post("/v1/calls", async (request, reply) => {

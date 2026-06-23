@@ -42,9 +42,36 @@ test("runtime config defaults to explicit deterministic demo providers", () => {
       ready: false
     },
     aiProvider: "deterministic",
+    aiExtraction: {
+      mode: "hybrid",
+      model: "gpt-5-mini",
+      apiKey: "",
+      timeoutMs: 1_500,
+      promptVersion: "CTC-BOOKING-EXTRACTION-V1"
+    },
     logLevel: "info",
     rateLimitMax: 100
   });
+});
+
+test("OpenAI extraction config is server-only and validates its bounded timeout", () => {
+  const config = readRuntimeConfig({
+    AI_PROVIDER: "openai",
+    OPENAI_API_KEY: "server-only-test-key",
+    OPENAI_MODEL: "gpt-5-mini",
+    AI_EXTRACTION_TIMEOUT_MS: "1500"
+  });
+  assert.equal(config.aiProvider, "openai");
+  assert.equal(config.aiExtraction.apiKey, "server-only-test-key");
+  assert.equal(config.aiExtraction.timeoutMs, 1_500);
+});
+
+test("OpenAI extraction requires a server-only key only when selected", () => {
+  assert.throws(
+    () => readRuntimeConfig({ AI_PROVIDER: "openai" }),
+    /OPENAI_API_KEY is required/
+  );
+  assert.equal(readRuntimeConfig({}).aiExtraction.apiKey, "");
 });
 
 test("Agora configuration is opt-in and rejects malformed agent properties", () => {

@@ -41,6 +41,7 @@ export function createDependencies(
     mockPaymentProvider,
     ...(databaseClient === undefined ? {} : { databaseClient }),
     ...(ownedDatabaseClient === undefined ? {} : { ownedDatabaseClient }),
-    ...(paymentProvider === undefined ? {} : { paymentProvider })
+    ...(paymentProvider === undefined ? {} : { paymentProvider }),
+    ...(options.bookingExtractor === undefined ? {} : { bookingExtractor: options.bookingExtractor })
   };
 }
