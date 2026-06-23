@@ -5,4 +5,5 @@ export * from "./payment-gate/index.js";
 export * from "./policies/index.js";
 export * from "./proof/index.js";
 export * from "./risk/index.js";
+export * from "./revenue-twin/index.js";
 export * from "./state-machines/index.js";

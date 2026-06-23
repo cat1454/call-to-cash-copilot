@@ -33,7 +33,33 @@ test("extracts every separately spoken Agora happy-path phrase", () => {
     "0901***567"
   );
   assert.equal(
+    extractReplayFacts("Số điện thoại làkhông, chín không, mộthai, ba, bốn, năm, sáu, bảy.")
+      .contactPhoneMasked,
+    "0901***567"
+  );
+  assert.equal(
+    extractReplayFacts("Số điện thoại là chín trăm lẻ một hai ba bốn năm sáu bảy.")
+      .contactPhoneMasked,
+    "0901***567"
+  );
+  assert.equal(
+    extractReplayFacts("không chín không một hai ba bốn năm sáu bảy.").contactPhoneMasked,
+    undefined
+  );
+  assert.equal(
+    extractReplayFacts("một hai ba bốn năm sáu bảy tám chín.").contactPhoneMasked,
+    undefined
+  );
+  assert.equal(
     extractReplayFacts("Điểm đón là bến xe trung tâm Đà Nẵng.").pickupPoint,
+    "Ben xe Trung tam Da Nang"
+  );
+  assert.equal(
+    extractReplayFacts("Điểm đón là bảy xe trung tâm Đà Nẵng.").pickupPoint,
+    "Ben xe Trung tam Da Nang"
+  );
+  assert.equal(
+    extractReplayFacts("Điểm đốn là bảy xe trung tâm Đà Nẵng.").pickupPoint,
     "Ben xe Trung tam Da Nang"
   );
   assert.equal(

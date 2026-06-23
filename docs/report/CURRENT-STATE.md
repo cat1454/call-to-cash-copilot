@@ -2,8 +2,8 @@
 
 > **Snapshot date:** 2026-06-23 (Asia/Bangkok)
 > **Branch inspected:** `testing` (Phase 9 closure worktree)
-> **Purpose:** state the current product maturity, the Phase 9 closure boundary, and the in-progress Phase 10 evidence boundary.
-> **Status at this snapshot:** Phase 9 core scope is **complete by user-approved closure**. Phase 10 is **IN PROGRESS**; Phase 9 transcript-quality hardening remains an independent quality workstream.
+> **Purpose:** state the current product maturity, the Phase 9 closure boundary, Phase 10 strict-schema extraction closure, and the active Phase 11 roadmap.
+> **Status at this snapshot:** Phase 9 core scope and Phase 10 are **complete by user-approved closure**. Phase 11 — Fleet Revenue Twin is **MVP COMPLETE / automated verification passed** with the Scenario-Robust Revenue Rebalancing Optimizer; controlled Agora live-provider smoke remains an independent operational validation. Phase 9 transcript-quality hardening remains an independent quality workstream.
 
 ---
 
@@ -35,9 +35,9 @@ The project has completed the Phase 9 closure slice for user-approved scope:
 - live voice, audible agent audio, and visible customer/agent transcript have been demonstrated in recorded live-browser smoke evidence;
 - the web labels Live Agora and Replay Demo explicitly and does not silently present replay as live voice.
 
-Transcript presentation hardening remains a Phase 9 quality task: some displayed text can contain spacing, punctuation, repeated-fragment, or chunk-boundary artifacts. It does not reopen the Phase 9 architecture and does not block the approved Phase 10 start.
+Transcript presentation hardening remains a Phase 9 quality task: some displayed text can contain spacing, punctuation, repeated-fragment, or chunk-boundary artifacts. It does not reopen the Phase 9 architecture and does not affect the approved Phase 10 closure.
 
-Phase 9.2 may continue with static-prompt artifacts and controlled evaluation as its own workstream. Phase 10 now begins as optional LLM extraction behind strict schemas and deterministic domain guardrails; it is not an LLM-based transcript formatting repair.
+Phase 9.2 may continue with static-prompt artifacts and controlled evaluation as its own workstream. Phase 10 is complete as optional LLM extraction behind strict schemas and deterministic domain guardrails; it is not an LLM-based transcript formatting repair.
 
 The transcript hardening work has source-level implementation in place but is not yet a PASS/demo-ready claim. Its outstanding local verification debt (fresh live Agora proof, DB-backed coverage, lint, and format checks) remains documented and must not be described as green; it is not a condition blocking Phase 10 kickoff under this user-approved transition.
 
@@ -59,10 +59,11 @@ The transcript hardening work has source-level implementation in place but is no
 | 9 — Agora voice, transcript, token integration | **Complete — closure scope** | Live voice and transcript path are demonstrated; P0 transcript display-quality hardening remains open. |
 | 9.2 — Agora conversation quality optimization | **GO — V1 draft only** | Versioned static prompt artifacts may be maintained; controlled live prompt evaluation and activation remain pending. |
 | 9.3 — Server-to-agent runtime directives | **Not started** | Future Phase 9 follow-up; domain/API decides what the next step is, agent decides how to phrase it. |
-| 10 — Optional LLM extraction with strict schemas | **IN PROGRESS** | OpenAI `gpt-5-mini` server-side strict-schema adapter, deterministic fallback, and focused checks are implemented; isolated DB and controlled live-provider evidence remain outstanding. |
-| 11 — Redis, queue, object storage | **Not started** | No active provider integration is required for current demo closure. |
-| 12 — E2E, observability, accessibility, deployment | **Partial** | Health/readiness, CORS, rate limiting, runbooks, and local checks exist; broader hardening remains later work. |
-| 13 — Outcome labeling, evaluation, opt-in training data | **Not started** | Later phase. |
+| 10 — Strict-schema LLM extraction | **Complete** | Server-side strict-schema adapter, deterministic fallback, and deterministic-domain authority are the approved closure boundary. |
+| 11 — Fleet Revenue Twin | **MVP complete — automated pass** | DB-backed snapshot, deterministic optimizer, bounded incentives, persisted acceptance, safe directive/dashboard projections, and deterministic simulation are implemented; controlled Agora live smoke is still pending. |
+| 12 — E2E, observability, accessibility, deployment | **Partial / after Phase 11** | Health/readiness, CORS, rate limiting, runbooks, and local checks exist; broader hardening follows the Fleet Revenue Twin work. |
+| 13 — Outcome labeling, evaluation, opt-in data | **Not started** | Later phase. |
+| 14 — Redis, queue, object storage | **Deferred** | No active infrastructure provider integration is required for current demo closure. |
 
 ---
 
@@ -407,11 +408,11 @@ Phase 9.3 is not implemented in this snapshot.
 
 ---
 
-## 9. Phase 10 — Optional LLM extraction
+## 9. Phase 10 — Strict-schema LLM Extraction
 
-**Status:** IN PROGRESS. The first strict-schema adapter/fallback slice is implemented with the approved server-side OpenAI `gpt-5-mini` provider. It is not yet COMPLETE because isolated DB integration and controlled live-provider evidence are not recorded.
+**Status:** COMPLETE by user-approved roadmap closure. The strict-schema adapter/fallback slice is implemented with the approved server-side OpenAI `gpt-5-mini` provider while deterministic domain authority remains unchanged.
 
-Phase 10 begins independently of the remaining Phase 9 transcript-quality verification debt. This approval starts an adapter workstream; it does not mark Phase 10 complete or waive its required contracts, fallback behavior, and acceptance tests.
+Phase 10 is complete independently of the remaining Phase 9 transcript-quality verification debt. Follow-up provider or DB evidence may be added as quality evidence, but it is not an open Phase 10 exit condition under the agreed roadmap.
 
 Current optional flow:
 
@@ -443,7 +444,7 @@ Trust Receipt issuance
 
 LLM must not be introduced to repair spacing, punctuation, chunk ordering, or CSS bugs.
 
-The first implementation slice must:
+The completed implementation preserves these rules:
 
 1. keep `AI_PROVIDER=deterministic` as the default/fallback path;
 2. add an optional provider adapter in `packages/ai` that returns strict shared-schema output with confidence and evidence references;
@@ -452,7 +453,26 @@ The first implementation slice must:
 
 ---
 
-## 10. Verification and evidence standard
+## 10. Phase 11 — Fleet Revenue Twin
+
+**Status:** MVP COMPLETE / automated verification passed. The optimizer is Scenario-Robust Revenue Rebalancing Optimizer; judge-visible surfaces are Priority Allocation, Dynamic Incentive, and Overflow Routing. Isolated PostgreSQL migration, API lifecycle, idempotency, dashboard privacy, and inventory concurrency validation passed. Controlled live-provider smoke remains an operational follow-up and is not represented as completed.
+
+```text
+11.0 — Contract Normalization
+11.1 — Fleet Demand & Departure Snapshot
+11.2 — Overflow Recommendation Engine
+11.3 — Incentive Policy Engine
+11.4 — Offer Acceptance & Inventory Revalidation
+11.5 — Voice Negotiation Runtime Directive
+11.6 — Revenue Recovery Dashboard
+11.7 — Multi-demand Simulation
+```
+
+This is a capability sequence, not authorization to add undocumented routes, events, states, entities, PII fields, payment behavior, or external infrastructure. Each lane starts with its governing contract/documentation update and must preserve PostgreSQL and centralized domain authority.
+
+---
+
+## 11. Verification and evidence standard
 
 ### Automated verification
 
@@ -508,7 +528,7 @@ Never capture secrets, seed phrases, private keys, unmasked phone numbers, raw w
 
 ---
 
-## 11. Known open items
+## 12. Known open items
 
 1. Complete transcript display-quality hardening verification and preserve regression tests.
 2. Record a fresh live run that specifically proves readable transcript output after the fix.
@@ -517,11 +537,12 @@ Never capture secrets, seed phrases, private keys, unmasked phone numbers, raw w
 5. Add browser E2E coverage for payment drawer and recovery where not already covered; Phantom signing remains a manual Devnet smoke step.
 6. Implement authentication/RBAC before exposing booking/payment APIs outside controlled demo conditions.
 7. Resolve the current local dependency-resolution/toolchain blocker through the canonical `pnpm@10.34.4` workspace setup, not through undocumented local workarounds.
-8. Complete isolated DB integration and controlled OpenAI fallback smoke evidence for Phase 10; Redis, queues, object storage, and broader production hardening remain later work.
+8. Run the controlled live Agora Revenue Twin smoke before making a production-provider claim.
+9. Redis, queues, and object storage remain deferred to Phase 14.
 
 ---
 
-## 12. Go / no-go
+## 13. Go / no-go
 
 **Phase 9 core closure:** **GO / complete by user-approved scope.**
 
@@ -529,14 +550,16 @@ Never capture secrets, seed phrases, private keys, unmasked phone numbers, raw w
 
 **Phase 9.2 static prompt V1:** **GO for draft maintenance; not yet activated or fully evaluated.**
 
-**Phase 10 optional LLM extraction:** **IN PROGRESS — focused local checks pass; DB/live-provider closure evidence remains.**
+**Phase 10 strict-schema LLM extraction:** **GO / complete by user-approved roadmap closure.**
+
+**Phase 11 Fleet Revenue Twin:** **MVP COMPLETE / automated verification passed; controlled live Agora smoke pending.**
 
 The approved next progression is:
 
 ```text
-complete Phase 10 isolated DB and controlled provider evidence
+run controlled Agora Revenue Twin smoke
   → preserve deterministic fallback and domain authority
   → continue Phase 9 transcript hardening and fresh live proof independently
   → evaluate Phase 9.2 V1 when its own acceptance criteria are met
-  → consider Phase 9.3 runtime directives separately
+  → sequence 11.1–11.7 only through documented contracts
 ```

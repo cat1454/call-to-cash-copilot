@@ -128,6 +128,8 @@ async function seedFutureDeparture(resetDatabase = true) {
 
   if (resetDatabase) {
     await prisma.$transaction([
+      prisma.revenueTwinOffer.deleteMany(),
+      prisma.revenueTwinEvaluation.deleteMany(),
       prisma.trustReceipt.deleteMany(),
       prisma.proofRecord.deleteMany(),
       prisma.paymentTransaction.deleteMany(),
@@ -243,6 +245,137 @@ async function confirmReplayBooking(app: ReturnType<typeof buildApp>, resetDatab
   return { ...replay, confirmationKey };
 }
 
+async function seedRevenueTwinOverflow() {
+  assert.ok(databaseUrl);
+  const prisma = createPrismaClient({ databaseUrl });
+  const suffix = uniqueSuffix();
+  const now = new Date("2030-06-20T15:00:00.000Z");
+  const primary = await prisma.tripDeparture.create({
+    data: {
+      publicId: `dep_rtw_primary_${suffix}`,
+      routeCode: `RTW-${suffix}`,
+      routeFrom: "Da Nang",
+      routeTo: "Ba Na",
+      departureAtUtc: now,
+      departureTimezone: "Asia/Ho_Chi_Minh",
+      capacity: 2,
+      operationalStatus: "SCHEDULED",
+      currency: "VND",
+      farePerSeatMinor: 200_000,
+      depositAmountMinor: 30_000,
+      pricePolicyVersion: "RTW-PRICE-V1",
+      refundPolicyVersion: "RTW-REFUND-V1"
+    }
+  });
+  const alternative = await prisma.tripDeparture.create({
+    data: {
+      publicId: `dep_rtw_alternative_${suffix}`,
+      routeCode: primary.routeCode,
+      routeFrom: "Da Nang",
+      routeTo: "Ba Na",
+      departureAtUtc: new Date(now.getTime() + 30 * 60_000),
+      departureTimezone: "Asia/Ho_Chi_Minh",
+      capacity: 20,
+      operationalStatus: "SCHEDULED",
+      currency: "VND",
+      farePerSeatMinor: 200_000,
+      depositAmountMinor: 30_000,
+      pricePolicyVersion: "RTW-PRICE-V1",
+      refundPolicyVersion: "RTW-REFUND-V1"
+    }
+  });
+  const call = await prisma.callSession.create({
+    data: {
+      publicId: `call_rtw_${suffix}`,
+      channelName: `ctc_rtw_${suffix}`,
+      sourceMode: "DEMO",
+      status: "ACTIVE"
+    }
+  });
+  const booking = await prisma.booking.create({
+    data: {
+      publicId: `bk_rtw_${suffix}`,
+      callSessionId: call.id,
+      tripDepartureId: primary.id,
+      status: "AGREEMENT_READY",
+      routeFrom: "Da Nang",
+      routeTo: "Ba Na",
+      departureAtUtc: primary.departureAtUtc,
+      passengerCount: 1,
+      totalAmountMinor: 200_000,
+      depositAmountMinor: 30_000,
+      refundPolicyVersion: "RTW-REFUND-V1"
+    }
+  });
+  await prisma.callSession.update({ where: { id: call.id }, data: { bookingId: booking.id } });
+  const occupiedBooking = await prisma.booking.create({
+    data: {
+      publicId: `bk_rtw_occupied_${suffix}`,
+      tripDepartureId: primary.id,
+      status: "AGREEMENT_LOCKED",
+      passengerCount: 2,
+      routeFrom: "Da Nang",
+      routeTo: "Ba Na",
+      departureAtUtc: primary.departureAtUtc,
+      totalAmountMinor: 400_000,
+      depositAmountMinor: 60_000,
+      refundPolicyVersion: "RTW-REFUND-V1"
+    }
+  });
+  await prisma.inventoryHold.create({
+    data: {
+      publicId: `hold_rtw_${suffix}`,
+      idempotencyKey: `hold-rtw-${suffix}`,
+      bookingId: occupiedBooking.id,
+      departureId: primary.id,
+      quantity: 2,
+      status: "ACTIVE",
+      expiresAt: new Date(now.getTime() + 60 * 60_000)
+    }
+  });
+  await prisma.$disconnect();
+  return {
+    callId: call.publicId,
+    primaryDepartureId: primary.publicId,
+    alternativeDepartureId: alternative.publicId
+  };
+}
+
+async function createRevenueTwinCompetingCall(primaryDepartureId: string) {
+  assert.ok(databaseUrl);
+  const prisma = createPrismaClient({ databaseUrl });
+  const primary = await prisma.tripDeparture.findUniqueOrThrow({
+    where: { publicId: primaryDepartureId }
+  });
+  const suffix = uniqueSuffix();
+  const call = await prisma.callSession.create({
+    data: {
+      publicId: `call_rtw_competing_${suffix}`,
+      channelName: `ctc_rtw_competing_${suffix}`,
+      sourceMode: "DEMO",
+      status: "ACTIVE"
+    }
+  });
+  const booking = await prisma.booking.create({
+    data: {
+      publicId: `bk_rtw_competing_${suffix}`,
+      callSessionId: call.id,
+      tripDepartureId: primary.id,
+      status: "AGREEMENT_READY",
+      routeFrom: primary.routeFrom,
+      routeTo: primary.routeTo,
+      departureAtUtc: primary.departureAtUtc,
+      passengerCount: 1,
+      totalAmountMinor: primary.farePerSeatMinor,
+      depositAmountMinor: primary.depositAmountMinor,
+      refundPolicyVersion: primary.refundPolicyVersion
+    }
+  });
+  await prisma.callSession.update({ where: { id: call.id }, data: { bookingId: booking.id } });
+  await prisma.$disconnect();
+  return call.publicId;
+}
+
 test(
   "Phase 10 persists safe deterministic fallback provenance without changing booking authority",
   { skip: phase5SkipReason() },
@@ -287,12 +420,42 @@ test(
             candidate: {
               schemaVersion: "ctc.booking-extraction.v1" as const,
               fields: {
-                origin: { value: "Ha Noi", confidence: 0.9, status: "PRESENT" as const, evidenceRefs: [{ turnId: input.sourceTurnId }] },
-                destination: { value: "Sa Pa", confidence: 0.9, status: "PRESENT" as const, evidenceRefs: [{ turnId: input.sourceTurnId }] },
-                departureTime: { value: "22:30", confidence: 0.9, status: "PRESENT" as const, evidenceRefs: [{ turnId: input.sourceTurnId }] },
-                passengerCount: { value: 3, confidence: 0.9, status: "PRESENT" as const, evidenceRefs: [{ turnId: input.sourceTurnId }] },
-                pickupPoint: { value: "My Dinh", confidence: 0.9, status: "PRESENT" as const, evidenceRefs: [{ turnId: input.sourceTurnId }] },
-                contactPhoneCandidate: { value: "0912***678", confidence: 0.9, status: "PRESENT" as const, evidenceRefs: [{ turnId: input.sourceTurnId }] }
+                origin: {
+                  value: "Ha Noi",
+                  confidence: 0.9,
+                  status: "PRESENT" as const,
+                  evidenceRefs: [{ turnId: input.sourceTurnId }]
+                },
+                destination: {
+                  value: "Sa Pa",
+                  confidence: 0.9,
+                  status: "PRESENT" as const,
+                  evidenceRefs: [{ turnId: input.sourceTurnId }]
+                },
+                departureTime: {
+                  value: "22:30",
+                  confidence: 0.9,
+                  status: "PRESENT" as const,
+                  evidenceRefs: [{ turnId: input.sourceTurnId }]
+                },
+                passengerCount: {
+                  value: 3,
+                  confidence: 0.9,
+                  status: "PRESENT" as const,
+                  evidenceRefs: [{ turnId: input.sourceTurnId }]
+                },
+                pickupPoint: {
+                  value: "My Dinh",
+                  confidence: 0.9,
+                  status: "PRESENT" as const,
+                  evidenceRefs: [{ turnId: input.sourceTurnId }]
+                },
+                contactPhoneCandidate: {
+                  value: "0912***678",
+                  confidence: 0.9,
+                  status: "PRESENT" as const,
+                  evidenceRefs: [{ turnId: input.sourceTurnId }]
+                }
               },
               warnings: []
             }
@@ -302,7 +465,9 @@ test(
     });
     const { callId } = await createReplayBooking(app);
     const prisma = createPrismaClient({ databaseUrl });
-    const extraction = await prisma.bookingExtraction.findFirst({ where: { callSession: { publicId: callId } } });
+    const extraction = await prisma.bookingExtraction.findFirst({
+      where: { callSession: { publicId: callId } }
+    });
 
     assert.equal((extraction?.payload as { provider?: string }).provider, "fake-llm");
     assert.equal((extraction?.payload as { fallbackUsed?: boolean }).fallbackUsed, false);
@@ -325,6 +490,190 @@ test("GET /health returns the standard success envelope", async () => {
 
   await app.close();
 });
+
+test("Revenue Twin routes reject mismatched identifiers with the documented safe error envelope", async () => {
+  const app = buildApp(demoConfig);
+  const response = await app.inject({
+    method: "POST",
+    url: "/v1/calls/call_01JTEST0001/revenue-twin/offers/rtw_offer_01JTEST0001/accept",
+    headers: { "Idempotency-Key": "revenue-twin-accept-001" },
+    payload: {
+      callId: "call_01JTEST0001",
+      evaluationId: "rtw_eval_01JTEST0001",
+      offerId: "rtw_offer_01JTEST9999",
+      idempotencyKey: "revenue-twin-accept-001"
+    }
+  });
+
+  assert.equal(response.statusCode, 400);
+  assert.equal(response.json().success, false);
+  assert.equal(response.json().error.code, ErrorCodeSchema.enum.VALIDATION_ERROR);
+  await app.close();
+});
+
+test(
+  "Revenue Twin evaluates overflow, accepts an offer once, and replays its canonical hold",
+  { skip: phase5SkipReason() },
+  async () => {
+    await seedFutureDeparture();
+    const fixture = await seedRevenueTwinOverflow();
+    const app = buildApp(demoConfig);
+
+    const evaluationResponse = await app.inject({
+      method: "POST",
+      url: `/v1/calls/${fixture.callId}/revenue-twin/evaluations`
+    });
+    assert.equal(evaluationResponse.statusCode, 201, evaluationResponse.body);
+    const evaluation = evaluationResponse.json().data.evaluation;
+    assert.equal(evaluation.status, "OVERFLOW_OFFERS_AVAILABLE");
+    assert.equal(evaluation.offers.length, 1);
+    assert.equal(evaluation.offers[0].alternativeDepartureId, fixture.alternativeDepartureId);
+
+    const offer = evaluation.offers[0];
+    const body = {
+      callId: fixture.callId,
+      evaluationId: evaluation.evaluationId,
+      offerId: offer.offerId,
+      idempotencyKey: `rtw-accept-${uniqueSuffix()}`
+    };
+    const acceptResponse = await app.inject({
+      method: "POST",
+      url: `/v1/calls/${fixture.callId}/revenue-twin/offers/${offer.offerId}/accept`,
+      headers: { "Idempotency-Key": body.idempotencyKey },
+      payload: body
+    });
+    assert.equal(acceptResponse.statusCode, 200, acceptResponse.body);
+    const accepted = acceptResponse.json().data;
+    assert.equal(accepted.status, "ACCEPTED");
+    assert.match(accepted.inventoryHoldId, /^hold_/u);
+
+    const replayResponse = await app.inject({
+      method: "POST",
+      url: `/v1/calls/${fixture.callId}/revenue-twin/offers/${offer.offerId}/accept`,
+      headers: { "Idempotency-Key": body.idempotencyKey },
+      payload: body
+    });
+    assert.equal(replayResponse.statusCode, 200, replayResponse.body);
+    assert.deepEqual(replayResponse.json().data, accepted);
+
+    const dashboardResponse = await app.inject({
+      method: "GET",
+      url: "/v1/revenue-twin/dashboard"
+    });
+    assert.equal(dashboardResponse.statusCode, 200, dashboardResponse.body);
+    const dashboard = dashboardResponse.json().data;
+    assert.equal(dashboard.metrics.offersAccepted, 1);
+    assert.equal(dashboard.metrics.securedRecoveredRevenueAmountMinor, 0);
+    assert.equal(dashboard.metrics.reevaluations, 0);
+    assert.equal(dashboard.metrics.lostDemandReductionBasisPoints, 10_000);
+    assert.equal(dashboard.occupancy.beforeOccupiedSeats, 0);
+    assert.equal(dashboard.occupancy.afterOccupiedSeats, 1);
+    assert.equal(dashboard.timeline[0].kind, "ACCEPTED");
+    assert.equal(dashboard.routing[0].offerId, offer.offerId);
+    assert.equal(JSON.stringify(dashboard).includes("0912345678"), false);
+    await app.close();
+  }
+);
+
+test(
+  "a final customer voice selection accepts only the stored Revenue Twin offer",
+  { skip: phase5SkipReason() },
+  async () => {
+    await seedFutureDeparture();
+    const fixture = await seedRevenueTwinOverflow();
+    const app = buildApp(demoConfig);
+    const evaluationResponse = await app.inject({
+      method: "POST",
+      url: `/v1/calls/${fixture.callId}/revenue-twin/evaluations`
+    });
+    assert.equal(evaluationResponse.statusCode, 201, evaluationResponse.body);
+    const offer = evaluationResponse.json().data.evaluation.offers[0];
+    const selectionResponse = await app.inject({
+      method: "POST",
+      url: `/v1/calls/${fixture.callId}/transcript-turns`,
+      payload: {
+        turn: {
+          clientTurnId: `voice-selection-${uniqueSuffix()}`,
+          sequenceNo: 1,
+          speaker: "CUSTOMER",
+          content: "Chốt chuyến đầu tiên.",
+          language: "vi-VN",
+          isFinal: true,
+          source: "REPLAY"
+        }
+      }
+    });
+    assert.equal(selectionResponse.statusCode, 202, selectionResponse.body);
+    const latestResponse = await app.inject({
+      method: "GET",
+      url: `/v1/calls/${fixture.callId}/revenue-twin/evaluations/latest`
+    });
+    assert.equal(latestResponse.statusCode, 200, latestResponse.body);
+    assert.equal(latestResponse.json().data.offers[0].offerId, offer.offerId);
+    assert.equal(latestResponse.json().data.offers[0].status, "ACCEPTED");
+    assert.equal(latestResponse.json().data.directive.action, "CONFIRM_SELECTED_OFFER");
+    await app.close();
+  }
+);
+
+test(
+  "two Revenue Twin acceptances competing for the final alternative seat cannot oversell",
+  { skip: phase5SkipReason() },
+  async () => {
+    await seedFutureDeparture();
+    const fixture = await seedRevenueTwinOverflow();
+    const prisma = createPrismaClient({ databaseUrl: databaseUrl! });
+    await prisma.tripDeparture.update({
+      where: { publicId: fixture.alternativeDepartureId },
+      data: { capacity: 1 }
+    });
+    await prisma.$disconnect();
+    const competingCallId = await createRevenueTwinCompetingCall(fixture.primaryDepartureId);
+    const app = buildApp(demoConfig);
+    const firstEvaluation = await app.inject({
+      method: "POST",
+      url: `/v1/calls/${fixture.callId}/revenue-twin/evaluations`
+    });
+    const secondEvaluation = await app.inject({
+      method: "POST",
+      url: `/v1/calls/${competingCallId}/revenue-twin/evaluations`
+    });
+    const first = firstEvaluation.json().data.evaluation;
+    const second = secondEvaluation.json().data.evaluation;
+    const accept = (
+      callId: string,
+      evaluation: { evaluationId: string; offers: Array<{ offerId: string }> }
+    ) => {
+      const offerId = evaluation.offers[0]!.offerId;
+      const payload = {
+        callId,
+        evaluationId: evaluation.evaluationId,
+        offerId,
+        idempotencyKey: `last-seat-${uniqueSuffix()}`
+      };
+      return app.inject({
+        method: "POST",
+        url: `/v1/calls/${callId}/revenue-twin/offers/${offerId}/accept`,
+        headers: { "Idempotency-Key": payload.idempotencyKey },
+        payload
+      });
+    };
+    const responses = await Promise.all([
+      accept(fixture.callId, first),
+      accept(competingCallId, second)
+    ]);
+    assert.deepEqual(responses.map((response) => response.statusCode).sort(), [200, 409]);
+    const verify = createPrismaClient({ databaseUrl: databaseUrl! });
+    assert.equal(
+      await verify.inventoryHold.count({
+        where: { departure: { publicId: fixture.alternativeDepartureId }, status: "ACTIVE" }
+      }),
+      1
+    );
+    await verify.$disconnect();
+    await app.close();
+  }
+);
 
 test("GET / returns a safe API discovery envelope", async () => {
   const app = buildApp(demoConfig);

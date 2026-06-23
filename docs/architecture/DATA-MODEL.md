@@ -536,6 +536,8 @@ The following tables are the minimum production-shaped schema. A hackathon may i
 8. Every terminal payment/proof exception creates an audit log entry.
 9. Capacity cannot be oversold: hold creation serializes on the departure and counts active/consumed quantities.
 10. Agreement, payment, proof, and receipt foreign keys must remain within the same booking aggregate.
+11. `revenue_twin_evaluations` persist only safe demand/snapshot provenance and aggregate impact; `revenue_twin_offers` persist server-calculated terms, expiry, decision state, and canonical hold linkage. They never persist raw transcript, phone, model trace, wallet, or provider secret.
+12. An accepted Revenue Twin offer is unique per offer/idempotency key and competing open offers are superseded in the same transaction as its inventory hold.
 ```
 
 ---

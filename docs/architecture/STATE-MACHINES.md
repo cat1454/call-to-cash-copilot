@@ -315,6 +315,15 @@ All authoritative transitions should follow this order:
 - optimistic `version` field or `SELECT ... FOR UPDATE` for booking/payment transitions;
 - idempotency key for every money-adjacent POST command.
 
+### Revenue Twin offer lifecycle
+
+```text
+OPEN → ACCEPTED | DECLINED | EXPIRED | REQUIRES_REEVALUATION
+OPEN → SUPERSEDED (when a competing offer is accepted)
+```
+
+`ACCEPTED` is allowed only after TTL, policy-version, inventory-version and full-group-capacity checks pass inside the same transaction that creates the existing inventory hold. It never confirms agreement or payment.
+
 ---
 
 ## 10. State machine test matrix

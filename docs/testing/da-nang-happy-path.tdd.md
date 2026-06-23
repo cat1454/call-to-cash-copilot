@@ -54,12 +54,13 @@ paymentGate: LOCKED
 
 ## Guarantees
 
-| Guarantee                                                                                               | Evidence                                           | Result |
-| ------------------------------------------------------------------------------------------------------- | -------------------------------------------------- | ------ |
-| All eight Vietnamese phrases extract their intended draft facts when received as separate final turns.  | `agora-spoken-happy-path.test.ts`                  | PASS   |
-| A later date/time turn reuses the previously persisted Da Nang to Ha Noi route.                         | `upsert-booking-from-facts.test.ts`                | PASS   |
-| `từ ba người thành bốn người` selects four and re-prices the authoritative draft to 1,800,000 VND.      | focused parser test plus PostgreSQL-backed API run | PASS   |
-| Full phone and transcript content remain outside the browser summary; the contact read model is masked. | PostgreSQL-backed API run                          | PASS   |
+| Guarantee                                                                                                                  | Evidence                                           | Result |
+| -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- | ------ |
+| All eight Vietnamese phrases extract their intended draft facts when received as separate final turns.                     | `agora-spoken-happy-path.test.ts`                  | PASS   |
+| A later date/time turn reuses the previously persisted Da Nang to Ha Noi route.                                            | `upsert-booking-from-facts.test.ts`                | PASS   |
+| `từ ba người thành bốn người` selects four and re-prices the authoritative draft to 1,800,000 VND.                         | focused parser test plus PostgreSQL-backed API run | PASS   |
+| Full phone and transcript content remain outside the browser summary; the contact read model is masked.                    | PostgreSQL-backed API run                          | PASS   |
+| A labelled phone turn with ASR-joined words such as `làkhông` and `mộthai` is accepted and projected only as `0901***567`. | focused parser test plus PostgreSQL-backed API run | PASS   |
 
 ## Coverage and known gap
 

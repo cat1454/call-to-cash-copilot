@@ -453,3 +453,19 @@ Phase 5 uses append-only `audit_logs` rows with `aggregate_type = CALL_STREAM`, 
 - [ ] `payment.confirmed` only follows server-side verification;
 - [ ] failed/expired payment events lead to safe UI, not success receipt;
 - [ ] event schema is generated/validated from `@call-to-cash/shared` Zod schemas.
+
+---
+
+## 8. Phase 11.0 Revenue Twin events
+
+Phase 11 emits these version-1 safe event schemas from committed Revenue Twin transactions.
+
+| Event | Safe payload purpose |
+|---|---|
+| `revenue_twin.evaluated` | evaluation ID, status, requested departure ID, offer count, potential net amount, safe reason codes, timestamp |
+| `revenue_twin.offer.accepted` | evaluation/offer IDs, selected departure ID, existing hold ID, final fare, discount, timestamp |
+| `revenue_twin.offer.declined` | evaluation/offer IDs, safe reason codes, timestamp |
+| `revenue_twin.offer.expired` | evaluation/offer IDs, safe reason codes, timestamp |
+| `revenue_twin.reevaluation.required` | evaluation/offer IDs, safe reason codes, timestamp |
+
+No Revenue Twin event may contain a raw transcript, phone number, wallet address, payment signature, risk-score internals, model prompt/response, or chain-of-thought.

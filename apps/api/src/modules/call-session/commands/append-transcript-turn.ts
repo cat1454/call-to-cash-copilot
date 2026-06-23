@@ -19,6 +19,10 @@ import { transitionCall, type StateTransitionResult } from "@call-to-cash/domain
 
 import { bookingDraftWriter, recomputeBookingRiskAndEvents } from "../../booking/index.js";
 import { confirmBooking } from "../../booking/commands/confirm-booking.js";
+import {
+  applyRevenueTwinVoiceSelection,
+  mayContainRevenueTwinVoiceSelection
+} from "../../revenue-twin/voice-selection.js";
 import type { BookingDraftWriter } from "../../booking/index.js";
 import { ApiCommandError } from "../../../platform/http/api-command-error.js";
 import { appendEvent } from "../../../platform/events/event-log.js";
@@ -60,9 +64,7 @@ export function deterministicCandidateFromFacts(
     schemaVersion: "ctc.booking-extraction.v1",
     fields: {
       ...(facts.routeFrom === undefined ? {} : { origin: present(facts.routeFrom, sourceTurnId) }),
-      ...(facts.routeTo === undefined
-        ? {}
-        : { destination: present(facts.routeTo, sourceTurnId) }),
+      ...(facts.routeTo === undefined ? {} : { destination: present(facts.routeTo, sourceTurnId) }),
       ...(facts.departureLocalTime === undefined
         ? {}
         : { departureTime: present(facts.departureLocalTime, sourceTurnId) }),
@@ -80,7 +82,9 @@ export function deterministicCandidateFromFacts(
   };
 }
 
-function fieldConfidence(candidate: BookingExtractionCandidate | undefined): Record<string, number> {
+function fieldConfidence(
+  candidate: BookingExtractionCandidate | undefined
+): Record<string, number> {
   const fields = candidate?.fields;
   const entries = [
     ["origin", fields?.origin],
@@ -141,7 +145,9 @@ export function retainCorroboratedCandidateFacts(
     ...(same(fields.passengerCount?.value, facts.passengerCount)
       ? { passengerCount: facts.passengerCount }
       : {}),
-    ...(same(fields.pickupPoint?.value, facts.pickupPoint) ? { pickupPoint: facts.pickupPoint } : {}),
+    ...(same(fields.pickupPoint?.value, facts.pickupPoint)
+      ? { pickupPoint: facts.pickupPoint }
+      : {}),
     ...(same(fields.contactPhoneCandidate?.value, facts.contactPhoneMasked)
       ? { contactPhoneMasked: facts.contactPhoneMasked }
       : {})
@@ -237,7 +243,9 @@ export async function appendTranscriptTurn(
       await transaction.$executeRaw(Prisma.sql`
         SELECT pg_advisory_xact_lock(hashtext(${call.publicId}))
       `);
-      const extractsBookingFacts = shouldExtractBookingFacts(input.turn.speaker);
+      const extractsBookingFacts =
+        shouldExtractBookingFacts(input.turn.speaker) &&
+        !mayContainRevenueTwinVoiceSelection(input.turn.content);
       const departures = extractsBookingFacts
         ? await transaction.tripDeparture.findMany({
             where: { operationalStatus: "SCHEDULED", departureAtUtc: { gt: now } },
@@ -307,25 +315,27 @@ export async function appendTranscriptTurn(
         });
         return { call: activeCall, turn, duplicate: false };
       }
-      const extractor = injectedBookingExtractor ?? createBookingExtractionService({
-        provider: aiProvider,
-        ...(aiExtraction === undefined ? {} : { mode: aiExtraction.mode }),
-        deterministic: createDeterministicBookingExtractor(() =>
-          deterministicCandidateFromFacts(facts, turn.publicId)
-        ),
-        ...(aiProvider !== "openai" || aiExtraction === undefined
-          ? {}
-          : {
-              openai: createLlmBookingExtractor(
-                createOpenAiStructuredTransport({
-                  apiKey: aiExtraction.apiKey,
-                  model: aiExtraction.model,
-                  timeoutMs: aiExtraction.timeoutMs
-                }),
-                aiExtraction.promptVersion
-              )
-            })
-      });
+      const extractor =
+        injectedBookingExtractor ??
+        createBookingExtractionService({
+          provider: aiProvider,
+          ...(aiExtraction === undefined ? {} : { mode: aiExtraction.mode }),
+          deterministic: createDeterministicBookingExtractor(() =>
+            deterministicCandidateFromFacts(facts, turn.publicId)
+          ),
+          ...(aiProvider !== "openai" || aiExtraction === undefined
+            ? {}
+            : {
+                openai: createLlmBookingExtractor(
+                  createOpenAiStructuredTransport({
+                    apiKey: aiExtraction.apiKey,
+                    model: aiExtraction.model,
+                    timeoutMs: aiExtraction.timeoutMs
+                  }),
+                  aiExtraction.promptVersion
+                )
+              })
+        });
       const extraction = await extractor.extract({
         sourceTurnId: turn.publicId,
         transcript: input.turn.content,
@@ -353,7 +363,7 @@ export async function appendTranscriptTurn(
           payload: asJson({
             extractorType: aiProvider,
             provider: extraction.provider,
-            model: extraction.provider === "openai" ? aiExtraction?.model ?? null : null,
+            model: extraction.provider === "openai" ? (aiExtraction?.model ?? null) : null,
             schemaVersion: "ctc.booking-extraction.v1",
             promptVersion: extraction.promptVersion ?? null,
             fallbackUsed: extraction.fallbackUsed,
@@ -415,6 +425,15 @@ export async function appendTranscriptTurn(
       timeout: 10_000
     }
   );
+
+  if (!persisted.duplicate && input.turn.speaker === "CUSTOMER") {
+    await applyRevenueTwinVoiceSelection(client, {
+      callId: input.callId,
+      turnId: persisted.turn.publicId,
+      content: input.turn.content,
+      requestId: input.requestId
+    });
+  }
 
   return {
     turnId: persisted.turn.publicId,

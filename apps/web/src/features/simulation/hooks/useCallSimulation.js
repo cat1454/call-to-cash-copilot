@@ -180,6 +180,7 @@ export default function useCallSimulation() {
     };
     return {
       apiMode,
+      apiClient,
       isProbing,
       streamStatus: server.streamStatus,
       paymentGate: server.paymentGate,
@@ -238,6 +239,7 @@ export default function useCallSimulation() {
   // Mock branch — unchanged behaviour
   return {
     apiMode,
+    apiClient: null,
     isProbing,
     streamStatus: isProbing ? "connecting" : "demo",
     paymentGate: null,

@@ -27,6 +27,9 @@ const NUMBER_UNITS: Record<string, number> = {
   tam: 8,
   chin: 9
 };
+const PHONE_DIGIT_WORDS = Object.keys(NUMBER_UNITS).sort(
+  (left, right) => right.length - left.length
+);
 const UNIT_WORD = "(?:khong|mot|hai|ba|bon|tu|nam|lam|sau|bay|tam|chin)";
 const NUMBER_EXPRESSION = `(?:\\d{1,2}|${UNIT_WORD}\\s+muoi(?:\\s+${UNIT_WORD})?|muoi(?:\\s+${UNIT_WORD})?|${UNIT_WORD})`;
 
@@ -122,23 +125,48 @@ function extractSpokenPhone(normalized: string): string | undefined {
     );
   });
   if (marker < 0) return undefined;
-  let firstDigitIndex =
+  const firstDigitIndex =
     tokens[marker] === "sdt" ? marker + 1 : tokens[marker] === "lien" ? marker + 2 : marker + 3;
-  while (["la"].includes(tokens[firstDigitIndex] ?? "")) firstDigitIndex += 1;
   const digits: string[] = [];
-  for (const token of tokens.slice(firstDigitIndex)) {
-    const digit = NUMBER_UNITS[token.replace(/[^\p{L}\p{N}]/gu, "")];
-    if (digit === undefined) break;
-    digits.push(String(digit));
-    if (digits.length > 11) break;
+  const phoneTokens = tokens.slice(firstDigitIndex).map((token, offset) => {
+    const compact = token.replace(/[^\p{L}\p{N}]/gu, "");
+    return offset === 0 && compact.startsWith("la") ? compact.slice(2) : compact;
+  });
+  for (let index = 0; index < phoneTokens.length; index += 1) {
+    const token = phoneTokens[index] ?? "";
+    const hundredDigit = NUMBER_UNITS[token];
+    const unitAfterHundred = NUMBER_UNITS[phoneTokens[index + 3] ?? ""];
+    if (
+      hundredDigit !== undefined &&
+      phoneTokens[index + 1] === "tram" &&
+      phoneTokens[index + 2] === "le" &&
+      unitAfterHundred !== undefined
+    ) {
+      digits.push(String(hundredDigit), "0", String(unitAfterHundred));
+      index += 3;
+      continue;
+    }
+    let remaining = token;
+    while (remaining.length > 0) {
+      const word = PHONE_DIGIT_WORDS.find((candidate) => remaining.startsWith(candidate));
+      if (word === undefined) break;
+      digits.push(String(NUMBER_UNITS[word]));
+      remaining = remaining.slice(word.length);
+      if (digits.length > 11) return undefined;
+    }
+    if (remaining.length > 0) break;
   }
-  const phone = digits.join("");
+  const normalizedDigits = digits.join("");
+  const phone =
+    normalizedDigits.length === 9 && !normalizedDigits.startsWith("0")
+      ? `0${normalizedDigits}`
+      : normalizedDigits;
   return /^0\d{8,10}$/u.test(phone) ? phone : undefined;
 }
 
 function extractSupportedPickupPoint(normalized: string): string | undefined {
   if (/\bmy\s*dinh\b/u.test(normalized)) return "My Dinh";
-  if (/\bben\s*xe\s*trung\s*tam\s*da\s*nang\b/u.test(normalized)) {
+  if (/\b(?:ben|bay)\s*xe\s*trung\s*tam\s*da\s*nang\b/u.test(normalized)) {
     return "Ben xe Trung tam Da Nang";
   }
   return undefined;

@@ -21,6 +21,13 @@ export const ProofIdSchema = createPublicIdSchema("proof");
 export const RequestIdSchema = z.string().min(1).max(128);
 export const JobIdSchema = createPublicIdSchema("job");
 export const InventoryReservationIdSchema = createPublicIdSchema("hold");
+export const DepartureIdSchema = createPublicIdSchema("dep");
+export const OperatorIdSchema = createPublicIdSchema("op");
+export const RouteIdSchema = createPublicIdSchema("route");
+export const PickupPointIdSchema = createPublicIdSchema("pickup");
+export const RevenueTwinEvaluationIdSchema = createPublicIdSchema("rtw_eval");
+export const RevenueTwinOfferIdSchema = createPublicIdSchema("rtw_offer");
+export const IdempotencyKeySchema = z.string().min(8).max(256);
 
 export const IsoTimestampSchema = z
   .string()
@@ -52,3 +59,9 @@ export type PaymentIntentId = z.infer<typeof PaymentIntentIdSchema>;
 export type ReceiptId = z.infer<typeof ReceiptIdSchema>;
 export type EventId = z.infer<typeof EventIdSchema>;
 export type UserId = z.infer<typeof UserIdSchema>;
+export type DepartureId = z.infer<typeof DepartureIdSchema>;
+export type OperatorId = z.infer<typeof OperatorIdSchema>;
+export type RouteId = z.infer<typeof RouteIdSchema>;
+export type PickupPointId = z.infer<typeof PickupPointIdSchema>;
+export type RevenueTwinEvaluationId = z.infer<typeof RevenueTwinEvaluationIdSchema>;
+export type RevenueTwinOfferId = z.infer<typeof RevenueTwinOfferIdSchema>;

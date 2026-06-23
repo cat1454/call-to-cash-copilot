@@ -77,7 +77,11 @@ test("accepts valid strict-schema LLM output and identifies its prompt version",
       warnings: []
     })
   });
-  const result = await createBookingExtractionService({ provider: "openai", deterministic: deterministicIncomplete(), openai: llm }).extract(input);
+  const result = await createBookingExtractionService({
+    provider: "openai",
+    deterministic: deterministicIncomplete(),
+    openai: llm
+  }).extract(input);
 
   assert.equal(result.outcome, "SUCCESS");
   assert.equal(result.fallbackUsed, false);
@@ -87,7 +91,11 @@ test("accepts valid strict-schema LLM output and identifies its prompt version",
 test("falls back when LLM output is invalid, unavailable, or from another transcript turn", async () => {
   for (const llm of [
     createLlmBookingExtractor({ request: async () => ({ paymentGate: "OPEN" }) }),
-    createLlmBookingExtractor({ request: async () => { throw new Error("offline"); } }),
+    createLlmBookingExtractor({
+      request: async () => {
+        throw new Error("offline");
+      }
+    }),
     createLlmBookingExtractor({
       request: async () => ({
         schemaVersion: "ctc.booking-extraction.v1",
@@ -103,10 +111,30 @@ test("falls back when LLM output is invalid, unavailable, or from another transc
       })
     })
   ]) {
-    const result = await createBookingExtractionService({ provider: "openai", deterministic: deterministicIncomplete(), openai: llm }).extract(input);
+    const result = await createBookingExtractionService({
+      provider: "openai",
+      deterministic: deterministicIncomplete(),
+      openai: llm
+    }).extract(input);
     assert.equal(result.fallbackUsed, true);
     assert.equal(result.candidate?.fields.origin?.value, "Da Nang");
   }
+});
+
+test("uses deterministic extraction only as a fallback in hybrid OpenAI mode", async () => {
+  const result = await createBookingExtractionService({
+    provider: "openai",
+    deterministic: deterministic(),
+    openai: createLlmBookingExtractor({
+      request: async () => {
+        throw new Error("offline");
+      }
+    })
+  }).extract(input);
+
+  assert.equal(result.outcome, "SUCCESS");
+  assert.equal(result.provider, "deterministic");
+  assert.equal(result.fallbackUsed, true);
 });
 
 test("preserves ambiguous and partial candidates without inventing booking facts", async () => {
@@ -124,7 +152,11 @@ test("preserves ambiguous and partial candidates without inventing booking facts
       warnings: ["departure time needs clarification"]
     })
   });
-  const result = await createBookingExtractionService({ provider: "openai", deterministic: deterministicIncomplete(), openai: llm }).extract(input);
+  const result = await createBookingExtractionService({
+    provider: "openai",
+    deterministic: deterministicIncomplete(),
+    openai: llm
+  }).extract(input);
 
   assert.equal(result.outcome, "AMBIGUOUS");
   assert.equal(result.fallbackUsed, false);
@@ -149,23 +181,40 @@ test("uses a server-only OpenAI structured-output request without making a real 
     timeoutMs: 1_500,
     fetcher: async (_url, init) => {
       request = init;
-      return new Response(JSON.stringify({
-        output_text: JSON.stringify({
-          schemaVersion: "ctc.booking-extraction.v1",
-          fields: {},
-          warnings: []
-        })
-      }), { status: 200 });
+      return new Response(
+        JSON.stringify({
+          output_text: JSON.stringify({
+            schemaVersion: "ctc.booking-extraction.v1",
+            fields: {},
+            warnings: []
+          })
+        }),
+        { status: 200 }
+      );
     }
   });
 
-  const response = await transport.request({ prompt: "safe prompt", sourceTurnId: input.sourceTurnId, locale: input.locale });
-  const payload = JSON.parse(String(request?.body)) as { model: string; text: { format: { strict: boolean } } };
+  const response = await transport.request({
+    prompt: "safe prompt",
+    sourceTurnId: input.sourceTurnId,
+    locale: input.locale
+  });
+  const payload = JSON.parse(String(request?.body)) as {
+    model: string;
+    text: { format: { strict: boolean } };
+  };
 
   assert.equal(payload.model, "gpt-5-mini");
   assert.equal(payload.text.format.strict, true);
-  assert.equal((request?.headers as Record<string, string>).Authorization, "Bearer server-only-test-key");
-  assert.deepEqual(response, { schemaVersion: "ctc.booking-extraction.v1", fields: {}, warnings: [] });
+  assert.equal(
+    (request?.headers as Record<string, string>).Authorization,
+    "Bearer server-only-test-key"
+  );
+  assert.deepEqual(response, {
+    schemaVersion: "ctc.booking-extraction.v1",
+    fields: {},
+    warnings: []
+  });
 });
 
 test("treats prompt-injection transcript text as untrusted content", async () => {

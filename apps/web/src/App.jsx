@@ -5,12 +5,14 @@ import AIDecisionPanel from "./features/simulation/components/AIDecisionPanel";
 import SaaSTelemetryPanel from "./features/simulation/components/SaaSTelemetryPanel";
 import SolanaLedgerCard from "./features/payment/components/SolanaLedgerCard";
 import DecisionTimeline from "./features/simulation/components/DecisionTimeline";
+import RevenueTwinJudgePanel from "./features/simulation/components/RevenueTwinJudgePanel";
 import useCallSimulation from "./features/simulation/hooks/useCallSimulation";
 import { WorkspaceLayout } from "./components/layout/WorkspaceLayout";
 import Hook from "./components/Hook";
 import { DEMO_MODE, getVoiceModeLabel } from "./config/runtime";
 import { getAIDecision, getReadinessScore } from "./features/simulation/helpers/appHelpers";
 import { useAgentReplyStatus } from "./features/simulation/hooks/useAgentReplyStatus.js";
+import { useRevenueTwinDashboard } from "./features/simulation/hooks/useRevenueTwinDashboard.js";
 
 export default function App() {
   const sim = useCallSimulation();
@@ -18,6 +20,7 @@ export default function App() {
     sim.transcript,
     sim.simStatus === "Cuộc gọi đang trực tiếp"
   );
+  const revenueTwin = useRevenueTwinDashboard(sim.apiClient);
 
   const scrollToSection = (id) => {
     document.getElementById(id)?.scrollIntoView({
@@ -184,6 +187,8 @@ export default function App() {
         bookingData={sim.bookingData}
         ledgerLogs={sim.ledgerLogs}
       />
+
+      <RevenueTwinJudgePanel dashboard={revenueTwin.dashboard} status={revenueTwin.status} />
 
       <div
         id="verification-proof"

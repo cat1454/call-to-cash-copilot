@@ -281,8 +281,11 @@ Do not expect the following commands or services to work until their pipeline ph
 | Solana Devnet provider, URL, automatic reference discovery, and server verification | **Phase 8 — done** |
 | Agora adapter and server-to-CAI probe                                               | **Phase 9 — done** |
 | Agora browser microphone, final transcript, and SSE live acceptance                 | **Phase 9 — done** |
-| Optional LLM extraction                                                             |           Phase 10 |
-| Redis, MinIO/S3, consent/media workflows                                            |           Phase 11 |
+| Strict-schema LLM extraction                                                        | **Phase 10 — done** |
+| Fleet Revenue Twin                                                                  | **Phase 11 — MVP implemented; isolated PostgreSQL verification passed; live Agora smoke pending** |
+| E2E, observability, accessibility, deployment                                       | **Phase 12 — partial / after Phase 11** |
+| Outcome labeling, evaluation, opt-in data                                            | **Phase 13 — not started** |
+| Redis, queue, object storage                                                        | **Phase 14 — deferred** |
 
 Do not create speculative Redis or object-storage configuration before its consumer phase.
 

@@ -120,6 +120,23 @@ The digit-by-digit form may contain the filler word `là` and terminal punctuati
 passenger-count change such as `từ ba người thành bốn người`, the replacement count after the
 change keyword is authoritative for the new draft; the earlier count remains transcript evidence.
 
+When that required contact label is present, the parser also accepts ASR-concatenated digit words
+such as `làkhông` and `mộthai`. It does not infer a phone number from a standalone digit sequence.
+For a labelled Vietnamese `chín trăm lẻ ...` contact expression, the parser normalizes the spoken
+hundreds group and restores the leading domestic `0` only when the resulting sequence has exactly
+nine digits.
+
+For the supported Đà Nẵng terminal pickup, the deterministic matcher accepts the common ASR
+substitution `bảy xe trung tâm Đà Nẵng` for `bến xe trung tâm Đà Nẵng`, including when the
+preceding prompt phrase is transcribed as `điểm đốn`. Once all operational
+fields are valid, the server reserves the existing temporary inventory hold and moves the booking
+to `AGREEMENT_READY`; it must still read the terms and obtain explicit confirmation before a
+Solana payment intent is created.
+
+For a trusted live Agora final turn, an explicit confirmation such as `tôi xác nhận` after the
+booking reaches `AGREEMENT_READY` locks the agreement and triggers the existing Solana payment
+intent flow. The same phrase before readiness, or from replay/browser input, cannot create payment.
+
 ### Optional fields
 
 | Field             | Why useful              | Rule                                                   |

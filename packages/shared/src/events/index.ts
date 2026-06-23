@@ -16,12 +16,17 @@ import {
   RiskReasonCodeSchema
 } from "../schemas/domain.js";
 import {
+  RevenueTwinEvaluationStatusSchema,
+  RevenueTwinReasonCodeSchema
+} from "../schemas/revenue-twin.js";
+import {
   AgreementIdSchema,
   BookingIdSchema,
   CallIdSchema,
   EventIdSchema,
   IsoTimestampSchema,
   MoneySchema,
+  NonNegativeIntegerSchema,
   PaymentIntentIdSchema,
   PositiveIntegerSchema,
   ReceiptIdSchema,
@@ -47,7 +52,12 @@ export const EventName = {
   PaymentConfirmed: "payment.confirmed",
   PaymentFailed: "payment.failed",
   ReceiptCreated: "receipt.created",
-  ReceiptVerified: "receipt.verified"
+  ReceiptVerified: "receipt.verified",
+  RevenueTwinEvaluated: "revenue_twin.evaluated",
+  RevenueTwinOfferAccepted: "revenue_twin.offer.accepted",
+  RevenueTwinOfferDeclined: "revenue_twin.offer.declined",
+  RevenueTwinOfferExpired: "revenue_twin.offer.expired",
+  RevenueTwinReevaluationRequired: "revenue_twin.reevaluation.required"
 } as const;
 
 export const EventNameSchema = z.enum(EventName);
@@ -233,6 +243,40 @@ const receiptVerifiedDataSchema = z
   })
   .strict();
 
+const revenueTwinEvaluatedDataSchema = z
+  .object({
+    evaluationId: z.string().regex(/^rtw_eval_[A-Za-z0-9][A-Za-z0-9_-]{5,127}$/u),
+    status: RevenueTwinEvaluationStatusSchema,
+    requestedDepartureId: z.string().regex(/^dep_[A-Za-z0-9][A-Za-z0-9_-]{5,127}$/u),
+    offerCount: NonNegativeIntegerSchema.max(3),
+    recoverablePassengerCount: NonNegativeIntegerSchema,
+    potentialNetRevenueRecoveredAmountMinor: NonNegativeIntegerSchema,
+    reasonCodes: z.array(RevenueTwinReasonCodeSchema),
+    evaluatedAt: IsoTimestampSchema
+  })
+  .strict();
+
+const revenueTwinOfferAcceptedDataSchema = z
+  .object({
+    evaluationId: z.string().regex(/^rtw_eval_[A-Za-z0-9][A-Za-z0-9_-]{5,127}$/u),
+    offerId: z.string().regex(/^rtw_offer_[A-Za-z0-9][A-Za-z0-9_-]{5,127}$/u),
+    selectedDepartureId: z.string().regex(/^dep_[A-Za-z0-9][A-Za-z0-9_-]{5,127}$/u),
+    inventoryHoldId: z.string().regex(/^hold_[A-Za-z0-9][A-Za-z0-9_-]{5,127}$/u),
+    finalFareAmountMinor: NonNegativeIntegerSchema,
+    discountAmountMinor: NonNegativeIntegerSchema,
+    acceptedAt: IsoTimestampSchema
+  })
+  .strict();
+
+const revenueTwinOfferLifecycleDataSchema = z
+  .object({
+    evaluationId: z.string().regex(/^rtw_eval_[A-Za-z0-9][A-Za-z0-9_-]{5,127}$/u),
+    offerId: z.string().regex(/^rtw_offer_[A-Za-z0-9][A-Za-z0-9_-]{5,127}$/u),
+    reasonCodes: z.array(RevenueTwinReasonCodeSchema),
+    occurredAt: IsoTimestampSchema
+  })
+  .strict();
+
 const createEventSchema = <T extends z.ZodType>(event: string, data: T) =>
   EventEnvelopeBaseSchema.extend({ event: z.literal(event), data });
 
@@ -295,6 +339,26 @@ export const ReceiptVerifiedEventSchema = createEventSchema(
   EventName.ReceiptVerified,
   receiptVerifiedDataSchema
 );
+export const RevenueTwinEvaluatedEventSchema = createEventSchema(
+  EventName.RevenueTwinEvaluated,
+  revenueTwinEvaluatedDataSchema
+);
+export const RevenueTwinOfferAcceptedEventSchema = createEventSchema(
+  EventName.RevenueTwinOfferAccepted,
+  revenueTwinOfferAcceptedDataSchema
+);
+export const RevenueTwinOfferDeclinedEventSchema = createEventSchema(
+  EventName.RevenueTwinOfferDeclined,
+  revenueTwinOfferLifecycleDataSchema
+);
+export const RevenueTwinOfferExpiredEventSchema = createEventSchema(
+  EventName.RevenueTwinOfferExpired,
+  revenueTwinOfferLifecycleDataSchema
+);
+export const RevenueTwinReevaluationRequiredEventSchema = createEventSchema(
+  EventName.RevenueTwinReevaluationRequired,
+  revenueTwinOfferLifecycleDataSchema
+);
 
 export const EventEnvelopeSchema = z.discriminatedUnion("event", [
   CallCreatedEventSchema,
@@ -313,7 +377,12 @@ export const EventEnvelopeSchema = z.discriminatedUnion("event", [
   PaymentConfirmedEventSchema,
   PaymentFailedEventSchema,
   ReceiptCreatedEventSchema,
-  ReceiptVerifiedEventSchema
+  ReceiptVerifiedEventSchema,
+  RevenueTwinEvaluatedEventSchema,
+  RevenueTwinOfferAcceptedEventSchema,
+  RevenueTwinOfferDeclinedEventSchema,
+  RevenueTwinOfferExpiredEventSchema,
+  RevenueTwinReevaluationRequiredEventSchema
 ]);
 
 export type EventEnvelope = z.infer<typeof EventEnvelopeSchema>;

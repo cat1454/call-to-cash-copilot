@@ -10,6 +10,12 @@ import {
 } from "../enums/index.js";
 import { ErrorCodeSchema } from "../errors/index.js";
 import {
+  AcceptRevenueTwinOfferCommandSchema,
+  AcceptRevenueTwinOfferResultSchema,
+  DeclineRevenueTwinOfferCommandSchema,
+  RevenueTwinEvaluationResultSchema
+} from "../schemas/revenue-twin.js";
+import {
   AgreementSchema,
   BookingStatusSchema,
   CallStatusSchema,
@@ -64,6 +70,20 @@ export const ApiErrorEnvelopeSchema = z
   .strict();
 
 export const ApiEnvelopeSchema = z.union([ApiSuccessEnvelopeSchema, ApiErrorEnvelopeSchema]);
+
+export const CreateRevenueTwinEvaluationResponseSchema = RevenueTwinEvaluationResultSchema;
+export const GetLatestRevenueTwinEvaluationResponseSchema =
+  RevenueTwinEvaluationResultSchema.nullable();
+export const AcceptRevenueTwinOfferRequestSchema = AcceptRevenueTwinOfferCommandSchema.pick({
+  evaluationId: true,
+  offerId: true,
+  idempotencyKey: true
+});
+export const AcceptRevenueTwinOfferResponseSchema = AcceptRevenueTwinOfferResultSchema;
+export const DeclineRevenueTwinOfferRequestSchema = DeclineRevenueTwinOfferCommandSchema.pick({
+  evaluationId: true,
+  offerId: true
+});
 
 export const createSuccessEnvelopeSchema = <T extends z.ZodType>(dataSchema: T) =>
   z
@@ -504,6 +524,8 @@ export const ReceiptVerifyResponseSchema = z
 
 export type CreateCallRequest = z.infer<typeof CreateCallRequestSchema>;
 export type CreateTranscriptTurnRequest = z.infer<typeof CreateTranscriptTurnRequestSchema>;
+export type AcceptRevenueTwinOfferRequest = z.infer<typeof AcceptRevenueTwinOfferRequestSchema>;
+export type DeclineRevenueTwinOfferRequest = z.infer<typeof DeclineRevenueTwinOfferRequestSchema>;
 export type TranscriptTurnSubmission = z.infer<typeof TranscriptTurnSubmissionSchema>;
 export type RiskAnalysisRequest = z.infer<typeof RiskAnalysisRequestSchema>;
 export type CreateBookingRequest = z.infer<typeof CreateBookingRequestSchema>;

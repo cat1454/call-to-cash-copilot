@@ -291,6 +291,10 @@ Persists a final transcript turn and triggers extraction/risk recomputation. It 
 - emits `transcript.turn.created`;
 - executes deterministic replay extraction/risk analysis synchronously for final turns in Phase 5;
 - emits `booking.updated`, `risk.score.updated`, and `risk.payment_gate.updated` after committed persistence.
+- A trusted final `AGORA` customer turn containing an explicit Vietnamese confirmation (for example
+  `tôi xác nhận`) may invoke the existing agreement-confirmation command only when the booking is
+  already `AGREEMENT_READY`. The normal agreement/payment events then drive the existing Solana
+  payment-intent flow; a replay or untrusted browser turn cannot invoke this automation.
 
 ---
 
@@ -893,3 +897,21 @@ The normal endpoint keeps the connection open, sends committed events after the 
 - [ ] old payment intent is rejected/cancelled after material agreement change;
 - [ ] only server-side verification can confirm payment;
 - [ ] receipt does not return raw PII, full transcript, or raw agreement JSON.
+
+---
+
+## 12. Phase 11 Revenue Twin runtime routes
+
+Phase 11 runtime routes resolve inventory, pricing, policy and provider state server-side. The browser may send only identifiers and the idempotency key documented below.
+
+| Endpoint                                                      | Request authority                                       | Required server behavior                                                                                |
+| ------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `POST /v1/calls/:callId/revenue-twin/evaluations`             | customer flexibility only when absent from server state | resolve departures, policy, capacity, pricing, and eligibility server-side                              |
+| `GET /v1/calls/:callId/revenue-twin/evaluations/latest`       | none                                                    | return safe latest evaluation or null                                                                   |
+| `POST /v1/calls/:callId/revenue-twin/offers/:offerId/accept`  | `evaluationId`, `offerId`, `idempotencyKey` only        | reload server offer and revalidate policy/inventory before existing hold flow                           |
+| `POST /v1/calls/:callId/revenue-twin/offers/:offerId/decline` | identifiers only                                        | record a safe decision without changing inventory                                                       |
+| `GET /v1/revenue-twin/dashboard`                              | none                                                    | return privacy-safe aggregate metrics; secured revenue is zero until authoritative payment confirmation |
+
+The browser must never provide departure, pricing, capacity, partner status, policy version, inventory version, or recovered-revenue authority. Success/error envelopes remain unchanged.
+
+A final `CUSTOMER` transcript turn may express a stored-offer selection. The server maps only unambiguous ordinal/time selections (or an affirmative with exactly one open offer) to the persisted offer, then reuses the identifier-only acceptance command. Ambiguous language is non-mutating; the browser/agent never supplies the selected offer, price, capacity, or hold.
