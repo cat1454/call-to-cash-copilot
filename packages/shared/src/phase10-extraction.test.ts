@@ -32,7 +32,10 @@ test("Phase 10 candidate rejects unknown and authority fields", () => {
     ).success,
     false
   );
-  assert.equal(BookingExtractionCandidateSchema.safeParse({ ...candidate(), price: 100_000 }).success, false);
+  assert.equal(
+    BookingExtractionCandidateSchema.safeParse({ ...candidate(), price: 100_000 }).success,
+    false
+  );
 });
 
 test("Phase 10 candidate rejects invalid confidence, empty evidence, and raw reasoning", () => {
@@ -61,7 +64,10 @@ test("Phase 10 candidate rejects invalid confidence, empty evidence, and raw rea
     ).success,
     false
   );
-  assert.equal(BookingExtractionCandidateSchema.safeParse({ ...candidate(), reasoning: "hidden" }).success, false);
+  assert.equal(
+    BookingExtractionCandidateSchema.safeParse({ ...candidate(), reasoning: "hidden" }).success,
+    false
+  );
   assert.equal(
     BookingExtractionCandidateSchema.safeParse(
       candidate({

@@ -151,7 +151,11 @@ export function readRuntimeConfig(
     mode: readEnum("AI_EXTRACTION_MODE", env.AI_EXTRACTION_MODE, AI_EXTRACTION_MODES, "hybrid"),
     model: env.OPENAI_MODEL?.trim() || "gpt-5-mini",
     apiKey: env.OPENAI_API_KEY?.trim() ?? "",
-    timeoutMs: readStrictPositiveInt("AI_EXTRACTION_TIMEOUT_MS", env.AI_EXTRACTION_TIMEOUT_MS, 1_500),
+    timeoutMs: readStrictPositiveInt(
+      "AI_EXTRACTION_TIMEOUT_MS",
+      env.AI_EXTRACTION_TIMEOUT_MS,
+      1_500
+    ),
     promptVersion: env.AI_EXTRACTION_PROMPT_VERSION?.trim() || "CTC-BOOKING-EXTRACTION-V1"
   };
   if (aiProvider === "openai" && aiExtraction.apiKey.length === 0) {

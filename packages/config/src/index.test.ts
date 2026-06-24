@@ -67,10 +67,7 @@ test("OpenAI extraction config is server-only and validates its bounded timeout"
 });
 
 test("OpenAI extraction requires a server-only key only when selected", () => {
-  assert.throws(
-    () => readRuntimeConfig({ AI_PROVIDER: "openai" }),
-    /OPENAI_API_KEY is required/
-  );
+  assert.throws(() => readRuntimeConfig({ AI_PROVIDER: "openai" }), /OPENAI_API_KEY is required/);
   assert.equal(readRuntimeConfig({}).aiExtraction.apiKey, "");
 });
 

@@ -42,6 +42,8 @@ export function createDependencies(
     ...(databaseClient === undefined ? {} : { databaseClient }),
     ...(ownedDatabaseClient === undefined ? {} : { ownedDatabaseClient }),
     ...(paymentProvider === undefined ? {} : { paymentProvider }),
-    ...(options.bookingExtractor === undefined ? {} : { bookingExtractor: options.bookingExtractor })
+    ...(options.bookingExtractor === undefined
+      ? {}
+      : { bookingExtractor: options.bookingExtractor })
   };
 }
