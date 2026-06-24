@@ -27,6 +27,7 @@ export const RouteIdSchema = createPublicIdSchema("route");
 export const PickupPointIdSchema = createPublicIdSchema("pickup");
 export const RevenueTwinEvaluationIdSchema = createPublicIdSchema("rtw_eval");
 export const RevenueTwinOfferIdSchema = createPublicIdSchema("rtw_offer");
+export const RevenueTwinWaitlistIdSchema = createPublicIdSchema("rtw_wait");
 export const IdempotencyKeySchema = z.string().min(8).max(256);
 
 export const IsoTimestampSchema = z
@@ -65,3 +66,4 @@ export type RouteId = z.infer<typeof RouteIdSchema>;
 export type PickupPointId = z.infer<typeof PickupPointIdSchema>;
 export type RevenueTwinEvaluationId = z.infer<typeof RevenueTwinEvaluationIdSchema>;
 export type RevenueTwinOfferId = z.infer<typeof RevenueTwinOfferIdSchema>;
+export type RevenueTwinWaitlistId = z.infer<typeof RevenueTwinWaitlistIdSchema>;

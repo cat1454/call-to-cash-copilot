@@ -1,3 +1,7 @@
+import type { DatabaseClient } from "@call-to-cash/db";
+
+import { createRevenueTwinHandlers } from "./revenue-twin.handlers.js";
+
 export type VoiceSelectableOffer = {
   offerId: string;
   scheduledAt: string;
@@ -5,6 +9,7 @@ export type VoiceSelectableOffer = {
 
 export type RevenueTwinVoiceSelection =
   | { kind: "ACCEPT"; offerId: string }
+  | { kind: "WAITLIST" }
   | { kind: "CLARIFY" }
   | { kind: "NONE" };
 
@@ -37,6 +42,7 @@ export function mayContainRevenueTwinVoiceSelection(content: string): boolean {
   const normalized = normalize(content);
   return (
     /\b(?:chot|chon) chuyen (?:dau tien|thu nhat)\b/u.test(normalized) ||
+    /\b(?:vao )?(?:danh sach cho|waitlist)\b/u.test(normalized) ||
     /\bchuyen nao cung duoc\b/u.test(normalized) ||
     /\b\d{1,2}\s*(?:gio|h)(?:\s*\d{1,2})?\b/u.test(normalized) ||
     /^(?:duoc|dong y|ok|okay)[.! ]*$/u.test(normalized)
@@ -49,7 +55,9 @@ export function resolveRevenueTwinVoiceSelection(
   offers: readonly VoiceSelectableOffer[]
 ): RevenueTwinVoiceSelection {
   const normalized = normalize(content);
-  if (offers.length === 0 || normalized.length === 0) return { kind: "NONE" };
+  if (normalized.length === 0) return { kind: "NONE" };
+  if (/\b(?:vao )?(?:danh sach cho|waitlist)\b/u.test(normalized)) return { kind: "WAITLIST" };
+  if (offers.length === 0) return { kind: "NONE" };
   if (/\bchuyen nao cung duoc\b/u.test(normalized)) return { kind: "CLARIFY" };
   if (/\b(?:chot|chon) chuyen (?:dau tien|thu nhat)\b/u.test(normalized)) {
     return { kind: "ACCEPT", offerId: offers[0]!.offerId };
@@ -71,10 +79,7 @@ export async function applyRevenueTwinVoiceSelection(
 ): Promise<RevenueTwinVoiceSelection> {
   const now = new Date();
   const evaluation = await client.revenueTwinEvaluation.findFirst({
-    where: {
-      callSession: { publicId: input.callId },
-      offers: { some: { status: "OPEN", expiresAt: { gt: now } } }
-    },
+    where: { callSession: { publicId: input.callId } },
     include: {
       offers: {
         where: { status: "OPEN", expiresAt: { gt: now } },
@@ -92,6 +97,18 @@ export async function applyRevenueTwinVoiceSelection(
       scheduledAt: offer.alternativeDeparture.departureAtUtc.toISOString()
     }))
   );
+  if (selection.kind === "WAITLIST") {
+    await createRevenueTwinHandlers(client).joinWaitlist(
+      input.callId,
+      {
+        callId: input.callId,
+        evaluationId: evaluation.publicId,
+        idempotencyKey: `rtw-wait-${input.turnId}`
+      },
+      input.requestId
+    );
+    return selection;
+  }
   if (selection.kind !== "ACCEPT") return selection;
   await createRevenueTwinHandlers(client).accept(
     input.callId,
@@ -106,6 +123,3 @@ export async function applyRevenueTwinVoiceSelection(
   );
   return selection;
 }
-import type { DatabaseClient } from "@call-to-cash/db";
-
-import { createRevenueTwinHandlers } from "./revenue-twin.handlers.js";

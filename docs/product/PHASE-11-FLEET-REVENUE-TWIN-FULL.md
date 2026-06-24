@@ -6,7 +6,7 @@
 
 > **Canonical handbook.** This document is the canonical implementation handbook for the entire Phase 11. It normalizes the approved roadmap and defines the product thesis, business value, architecture, authority boundaries, contracts, algorithms, implementation sequence, tests, individual Codex prompts, demo narrative, risks, and closure criteria. It is a build plan, not evidence that the remaining slices are implemented.
 
-> **Implementation status — 2026-06-23:** The Phase 11 MVP is **IMPLEMENTED / AUTOMATED VERIFICATION PASSED** against the isolated PostgreSQL test database. The shipping algorithm is **Scenario-Robust Revenue Rebalancing Optimizer**. Its judge-visible surfaces are Priority Allocation, Dynamic Incentive, and Overflow Routing; it remains a server-authoritative proposal layer and never bypasses inventory, agreement, payment, or privacy guards. A controlled Agora live-provider smoke remains an operational validation and is not claimed by demo-mode tests.
+> **Implementation status — 2026-06-23:** Phase 11 is **IMPLEMENTED / AUTOMATED VERIFICATION PASSED** against the isolated PostgreSQL test database. The shipping algorithm is **Scenario-Robust Revenue Rebalancing Optimizer**. Its judge-visible surfaces are Priority Allocation, Dynamic Incentive, and Overflow Routing. It applies scarce-primary / surplus-alternative policy through voluntary, expiring offers and an explicit no-hold waitlist; it never auto-reroutes a customer, revokes a hold, or bypasses inventory, agreement, payment, or privacy guards. A controlled Agora live-provider smoke remains an operational validation and is not claimed by demo-mode tests.
 
 ## Table of contents
 
@@ -28,21 +28,21 @@
 
 ### Approved roadmap
 
-| Phase                                                           | Status                             | Meaning                                                                                                  |
-| --------------------------------------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Phase 10 — Strict-schema LLM Extraction                         | **COMPLETE**                       | GPT-5 mini proposes strict-schema booking facts only; the domain remains authoritative.                  |
-| Phase 11 — Fleet Revenue Twin                                   | **MVP COMPLETE / AUTOMATED PASS**  | The server-authoritative revenue-recovery capability; live-provider smoke remains operational follow-up. |
-| 11.0 — Contract Normalization                                   | **COMPLETE**                       | Executable shared/domain contracts only.                                                                 |
-| 11.1 — Authoritative Fleet Demand and Departure Snapshot        | **COMPLETE**                       | DB-derived snapshot with active/expired hold accounting.                                                 |
-| 11.2 — Deterministic Overflow Recommendation Engine             | **COMPLETE**                       | Deterministic evaluation, filtering, ranking, and top-three offers.                                      |
-| 11.3 — Incentive Policy Engine                                  | **COMPLETE**                       | Server-owned bounded incentives.                                                                         |
-| 11.4 — Offer Persistence, Acceptance and Inventory Revalidation | **COMPLETE**                       | Transactional persistence, idempotency, revalidation, and existing hold authority.                       |
-| 11.5 — Voice Negotiation Runtime Directive                      | **COMPLETE (demo/API projection)** | Server-approved safe directive; live Agora smoke remains separate.                                       |
-| 11.6 — Revenue Recovery Dashboard                               | **COMPLETE**                       | Safe aggregates, occupancy, timeline, and potential-versus-secured separation.                           |
-| 11.7 — Multi-demand Simulation                                  | **COMPLETE**                       | Deterministic FCFS simulation modes and fixture-backed judge surface.                                    |
-| Phase 12 — E2E, Observability, Accessibility and Deployment     | **PARTIAL / follows Phase 11 MVP** | Broader hardening.                                                                                       |
-| Phase 13 — Outcome Labeling, Evaluation and Opt-in Data         | **NOT STARTED**                    | Later learning lane.                                                                                     |
-| Phase 14 — Redis, Queue and Object Storage                      | **DEFERRED**                       | Not required for Phase 11 MVP.                                                                           |
+| Phase                                                           | Status                             | Meaning                                                                                                               |
+| --------------------------------------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Phase 10 — Strict-schema LLM Extraction                         | **COMPLETE**                       | GPT-5 mini proposes strict-schema booking facts only; the domain remains authoritative.                               |
+| Phase 11 — Fleet Revenue Twin                                   | **COMPLETE / AUTOMATED PASS**      | Server-authoritative proactive rebalancing plus overflow recovery; live-provider smoke remains operational follow-up. |
+| 11.0 — Contract Normalization                                   | **COMPLETE**                       | Executable shared/domain contracts only.                                                                              |
+| 11.1 — Authoritative Fleet Demand and Departure Snapshot        | **COMPLETE**                       | DB-derived snapshot with active/expired hold accounting.                                                              |
+| 11.2 — Deterministic Overflow Recommendation Engine             | **COMPLETE**                       | Deterministic proactive/overflow evaluation, filtering, ranking, and top-three offers.                                |
+| 11.3 — Incentive Policy Engine                                  | **COMPLETE**                       | Server-owned bounded incentives and scarce-primary/surplus-alternative thresholds.                                    |
+| 11.4 — Offer Persistence, Acceptance and Inventory Revalidation | **COMPLETE**                       | Transactional persistence, idempotency, revalidation, and existing hold authority.                                    |
+| 11.5 — Voice Negotiation Runtime Directive                      | **COMPLETE (demo/API projection)** | Server-approved proactive/overflow/waitlist directive; live Agora smoke remains separate.                             |
+| 11.6 — Revenue Recovery Dashboard                               | **COMPLETE**                       | Safe aggregates, occupancy, timeline, and potential-versus-secured separation.                                        |
+| 11.7 — Multi-demand Simulation                                  | **COMPLETE**                       | Deterministic FCFS simulation modes and fixture-backed judge surface.                                                 |
+| Phase 12 — E2E, Observability, Accessibility and Deployment     | **PARTIAL / follows Phase 11 MVP** | Broader hardening.                                                                                                    |
+| Phase 13 — Outcome Labeling, Evaluation and Opt-in Data         | **NOT STARTED**                    | Later learning lane.                                                                                                  |
+| Phase 14 — Redis, Queue and Object Storage                      | **DEFERRED**                       | Not required for Phase 11 MVP.                                                                                        |
 
 Fleet Revenue Twin is **Phase 11**, never Phase 14. Domain schema identifiers stay phase-neutral: `ctc.revenue-twin.*`.
 
@@ -54,7 +54,7 @@ It did **not** add a database migration, runtime API route, Redis, queue, object
 
 ## 2. Product thesis and business value
 
-Fleet Revenue Twin is a **server-authoritative real-time demand orchestration layer that redirects overflow demand from full departures to valid underfilled alternatives, uses policy-controlled incentives, negotiates through voice, revalidates inventory transactionally, and measures recovered revenue.**
+Fleet Revenue Twin is a **server-authoritative real-time demand orchestration layer that protects scarce hot-departure capacity and redirects overflow demand to valid surplus alternatives, uses policy-controlled incentives, negotiates through voice, revalidates inventory transactionally, and measures recovered revenue.**
 
 It evolves the positioning from **Conversational Booking Assistant** to **Real-time Fleet Revenue Operating System**. It is not merely a chatbot: the conversation is an interface to an authoritative booking, inventory, agreement, and payment system.
 
@@ -95,13 +95,14 @@ Non-negotiable rules:
 3. Acceptance reloads the stored server-owned offer.
 4. Inventory is revalidated before hold creation.
 5. Policy is revalidated before discount becomes effective.
-6. Existing holds cannot be revoked.
+6. Holds belonging to another booking cannot be revoked. On an explicit accepted alternative, any active requested-departure hold belonging to that same booking is released and the new hold is created in one atomic transaction; if the new hold cannot be created, the release rolls back.
 7. Browser cannot submit authoritative price, discount, capacity, or revenue.
 8. LLM cannot create an offer.
 9. Voice agent cannot confirm booking or payment without server state.
 10. Potential revenue is not secured revenue.
 11. Revenue Twin cannot bypass agreement or payment gates.
 12. Solana verification remains server-authoritative.
+13. Scarce-primary rebalancing is always voluntary: it may propose a later departure but cannot auto-change a booking or reclaim a hold.
 
 ### Privacy and revenue vocabulary
 
@@ -170,14 +171,15 @@ The Phase 11.0 shared schemas are the source of truth; future slices extend them
 | `AcceptRevenueTwinOfferCommand` | Identifier-only `callId`, evaluation ID, offer ID, idempotency key.                                                                                                                                             |
 | `AcceptRevenueTwinOfferResult`  | `ACCEPTED` or `REQUIRES_REEVALUATION`, optional selected departure/hold ID, and safe next action.                                                                                                               |
 | `RevenueTwinVoiceDirective`     | `ctc.revenue-twin.voice-directive.v1`; server-approved projection referencing stored offer IDs and safe display facts/actions only.                                                                             |
+| `RevenueTwinWaitlistEntry`      | one idempotent `PENDING` entry per no-offer evaluation; requested departure and party size only, without a hold or payment authority.                                                                           |
 
-The public status values are `PRIMARY_AVAILABLE`, `OVERFLOW_OFFERS_AVAILABLE`, `NO_ELIGIBLE_ALTERNATIVE`, `GROUP_CAPACITY_UNAVAILABLE`, and `POLICY_DISABLED`. Current reason codes include primary/full/capacity, same-route/operator/verified-partner/pickup, time/incentive/capacity, policy, expiry, and stale-inventory reasons; use `RevenueTwinReasonCodeSchema`, not a parallel enum.
+The public status values are `PRIMARY_AVAILABLE`, `PROACTIVE_OFFERS_AVAILABLE`, `OVERFLOW_OFFERS_AVAILABLE`, `NO_ELIGIBLE_ALTERNATIVE`, `GROUP_CAPACITY_UNAVAILABLE`, `WAITLIST_RECOMMENDED`, and `POLICY_DISABLED`. A proactive offer is eligible only when the requested departure is at or below `scarcePrimaryAvailableSeats`, the customer is not fixed-time, and the alternative remains at or above `minimumAlternativeSurplusSeats` after the whole group. Current reason codes include primary/full/scarce, alternative surplus/capacity, same-route/operator/verified-partner/pickup, time/incentive/capacity, policy, expiry, and stale-inventory reasons; use `RevenueTwinReasonCodeSchema`, not a parallel enum.
 
 ## 6. Events, errors, and API behavior
 
 ### Events
 
-The registered version-1 event names are `RevenueTwinEvaluated` (`revenue_twin.evaluated`), `RevenueTwinOfferAccepted`, `RevenueTwinOfferDeclined`, `RevenueTwinOfferExpired`, and `RevenueTwinReevaluationRequired`. All use the existing strict SSE envelope: event ID, version, occurrence time, optional correlation ID, `callId`, nullable `bookingId`, sequence, and safe data.
+The registered version-1 event names are `RevenueTwinEvaluated` (`revenue_twin.evaluated`), `RevenueTwinOfferAccepted`, `RevenueTwinOfferDeclined`, `RevenueTwinOfferExpired`, `RevenueTwinReevaluationRequired`, and `RevenueTwinWaitlistJoined`. All use the existing strict SSE envelope: event ID, version, occurrence time, optional correlation ID, `callId`, nullable `bookingId`, sequence, and safe data.
 
 Safe data includes evaluation/offer/departure/hold identifiers, status/count, safe reason codes, integer fare/discount/potential-net amounts, and timestamp as applicable. It explicitly excludes raw transcript, raw phone, wallet secret, full payment signature, OpenAI prompt, OpenAI response, chain of thought, and customer wealth inference.
 

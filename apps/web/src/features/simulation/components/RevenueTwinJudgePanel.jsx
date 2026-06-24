@@ -87,8 +87,8 @@ export default function RevenueTwinJudgePanel({ dashboard = null, status = "demo
               Priority Allocation
             </h2>
             <p className="mt-1 text-xs leading-[18px] text-[#6b7280]">
-              FCFS keeps primary seats for earlier requests; overflow never revokes an existing
-              hold.
+              FCFS protects scarce hot-departure seats. A later departure is only a voluntary,
+              policy-bounded offer; it never revokes an existing hold.
             </p>
             <div className="mt-3 grid grid-cols-3 gap-2">
               <Metric label={isLive ? "Recoverable" : "07:00"} value={priority} />

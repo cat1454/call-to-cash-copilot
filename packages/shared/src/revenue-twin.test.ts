@@ -106,6 +106,9 @@ test("Revenue Twin policy, evaluation, and acceptance keep authority server-owne
     maxDiscountBasisPoints: 2000,
     minimumFinalFareAmountMinor: 600000,
     maximumAlternativeShiftMinutes: 120,
+    proactiveRebalancingEnabled: true,
+    scarcePrimaryAvailableSeats: 3,
+    minimumAlternativeSurplusSeats: 6,
     offerTtlSeconds: 300,
     allowedOperatorRelations: ["OWN_FLEET", "VERIFIED_PARTNER"],
     allowedReasonCodes: ["PRIMARY_DEPARTURE_FULL", "INCENTIVE_POLICY_APPLIED"]

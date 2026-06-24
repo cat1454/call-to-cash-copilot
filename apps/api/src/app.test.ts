@@ -129,6 +129,7 @@ async function seedFutureDeparture(resetDatabase = true) {
   if (resetDatabase) {
     await prisma.$transaction([
       prisma.revenueTwinOffer.deleteMany(),
+      prisma.revenueTwinWaitlistEntry.deleteMany(),
       prisma.revenueTwinEvaluation.deleteMany(),
       prisma.trustReceipt.deleteMany(),
       prisma.proofRecord.deleteMany(),
@@ -675,6 +676,173 @@ test(
   }
 );
 
+test(
+  "Revenue Twin proactively protects scarce primary capacity but moves nobody without consent",
+  { skip: phase5SkipReason() },
+  async () => {
+    await seedFutureDeparture();
+    const fixture = await seedRevenueTwinOverflow();
+    const prisma = createPrismaClient({ databaseUrl: databaseUrl! });
+    await prisma.tripDeparture.update({
+      where: { publicId: fixture.primaryDepartureId },
+      data: { capacity: 4 }
+    });
+    const booking = await prisma.booking.findFirstOrThrow({
+      where: { callSession: { publicId: fixture.callId } }
+    });
+    await prisma.inventoryHold.create({
+      data: {
+        publicId: `hold_rtw_customer_${uniqueSuffix()}`,
+        idempotencyKey: `hold-rtw-customer-${uniqueSuffix()}`,
+        bookingId: booking.id,
+        departureId: booking.tripDepartureId!,
+        quantity: 1,
+        status: "ACTIVE",
+        expiresAt: new Date("2030-06-20T16:00:00.000Z")
+      }
+    });
+    await prisma.$disconnect();
+    const app = buildApp(demoConfig);
+
+    const evaluationResponse = await app.inject({
+      method: "POST",
+      url: `/v1/calls/${fixture.callId}/revenue-twin/evaluations`
+    });
+    assert.equal(evaluationResponse.statusCode, 201, evaluationResponse.body);
+    const evaluation = evaluationResponse.json().data.evaluation;
+    assert.equal(evaluation.status, "PROACTIVE_OFFERS_AVAILABLE");
+    assert.equal(evaluation.offers.length, 1);
+    assert.equal(evaluation.offers[0].reasonCodes.includes("PRIMARY_CAPACITY_SCARCE"), true);
+    assert.equal(evaluation.offers[0].reasonCodes.includes("ALTERNATIVE_CAPACITY_SURPLUS"), true);
+    const latestResponse = await app.inject({
+      method: "GET",
+      url: `/v1/calls/${fixture.callId}/revenue-twin/evaluations/latest`
+    });
+    assert.equal(latestResponse.statusCode, 200, latestResponse.body);
+    assert.equal(latestResponse.json().data.directive.action, "PRESENT_OVERFLOW_OFFERS");
+
+    const beforeConsent = createPrismaClient({ databaseUrl: databaseUrl! });
+    assert.equal(
+      await beforeConsent.inventoryHold.count({
+        where: { departure: { publicId: fixture.alternativeDepartureId }, status: "ACTIVE" }
+      }),
+      0
+    );
+    const bookingBeforeConsent = await beforeConsent.booking.findFirstOrThrow({
+      where: { callSession: { publicId: fixture.callId } },
+      include: { tripDeparture: true }
+    });
+    assert.equal(bookingBeforeConsent.tripDeparture?.publicId, fixture.primaryDepartureId);
+    await beforeConsent.$disconnect();
+
+    const offer = evaluation.offers[0];
+    const idempotencyKey = `proactive-accept-${uniqueSuffix()}`;
+    const acceptance = await app.inject({
+      method: "POST",
+      url: `/v1/calls/${fixture.callId}/revenue-twin/offers/${offer.offerId}/accept`,
+      headers: { "Idempotency-Key": idempotencyKey },
+      payload: {
+        callId: fixture.callId,
+        evaluationId: evaluation.evaluationId,
+        offerId: offer.offerId,
+        idempotencyKey
+      }
+    });
+    assert.equal(acceptance.statusCode, 200, acceptance.body);
+    const afterAcceptance = createPrismaClient({ databaseUrl: databaseUrl! });
+    assert.equal(
+      await afterAcceptance.inventoryHold.count({
+        where: {
+          bookingId: booking.id,
+          departure: { publicId: fixture.primaryDepartureId },
+          status: "ACTIVE"
+        }
+      }),
+      0
+    );
+    assert.equal(
+      await afterAcceptance.inventoryHold.count({
+        where: {
+          bookingId: booking.id,
+          departure: { publicId: fixture.alternativeDepartureId },
+          status: "ACTIVE"
+        }
+      }),
+      1
+    );
+    const bookingAfterAcceptance = await afterAcceptance.booking.findUniqueOrThrow({
+      where: { id: booking.id },
+      include: { tripDeparture: true }
+    });
+    assert.equal(bookingAfterAcceptance.tripDeparture?.publicId, fixture.alternativeDepartureId);
+    await afterAcceptance.$disconnect();
+    await app.close();
+  }
+);
+
+test(
+  "an explicit final customer waitlist request persists without creating an inventory hold",
+  { skip: phase5SkipReason() },
+  async () => {
+    await seedFutureDeparture();
+    const fixture = await seedRevenueTwinOverflow();
+    const prisma = createPrismaClient({ databaseUrl: databaseUrl! });
+    await prisma.tripDeparture.update({
+      where: { publicId: fixture.alternativeDepartureId },
+      data: { operationalStatus: "CANCELLED" }
+    });
+    await prisma.$disconnect();
+    const app = buildApp(demoConfig);
+    const evaluationResponse = await app.inject({
+      method: "POST",
+      url: `/v1/calls/${fixture.callId}/revenue-twin/evaluations`
+    });
+    const evaluation = evaluationResponse.json().data.evaluation;
+    assert.equal(evaluation.status, "GROUP_CAPACITY_UNAVAILABLE");
+    const response = await app.inject({
+      method: "POST",
+      url: `/v1/calls/${fixture.callId}/transcript-turns`,
+      payload: {
+        turn: {
+          clientTurnId: `waitlist-${uniqueSuffix()}`,
+          sequenceNo: 1,
+          speaker: "CUSTOMER",
+          content: "Cho tôi vào danh sách chờ.",
+          language: "vi-VN",
+          isFinal: true,
+          source: "REPLAY"
+        }
+      }
+    });
+    assert.equal(response.statusCode, 202, response.body);
+    const verify = createPrismaClient({ databaseUrl: databaseUrl! });
+    assert.equal(
+      await verify.revenueTwinWaitlistEntry.count({
+        where: { callSession: { publicId: fixture.callId }, status: "PENDING" }
+      }),
+      1
+    );
+    assert.equal(
+      await verify.inventoryHold.count({
+        where: { departure: { publicId: fixture.alternativeDepartureId }, status: "ACTIVE" }
+      }),
+      0
+    );
+    assert.equal(
+      await verify.auditLog.count({
+        where: {
+          aggregateType: "CALL_STREAM",
+          aggregateId: fixture.callId,
+          action: "EVENT_REVENUE_TWIN_WAITLIST_JOINED"
+        }
+      }),
+      1
+    );
+    await verify.$disconnect();
+    await app.close();
+  }
+);
+
 test("GET / returns a safe API discovery envelope", async () => {
   const app = buildApp(demoConfig);
   const response = await app.inject({ method: "GET", url: "/" });
@@ -737,7 +905,8 @@ test(
         EventName.BookingCreated,
         EventName.BookingUpdated,
         EventName.RiskScoreUpdated,
-        EventName.RiskPaymentGateUpdated
+        EventName.RiskPaymentGateUpdated,
+        EventName.RevenueTwinEvaluated
       ]
     );
     assert.equal(events[1].data.content.includes("0912345678"), false);
@@ -758,7 +927,8 @@ test(
         EventName.BookingCreated,
         EventName.BookingUpdated,
         EventName.RiskScoreUpdated,
-        EventName.RiskPaymentGateUpdated
+        EventName.RiskPaymentGateUpdated,
+        EventName.RevenueTwinEvaluated
       ]
     );
 

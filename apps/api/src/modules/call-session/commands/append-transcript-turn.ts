@@ -23,6 +23,7 @@ import {
   applyRevenueTwinVoiceSelection,
   mayContainRevenueTwinVoiceSelection
 } from "../../revenue-twin/voice-selection.js";
+import { createRevenueTwinHandlers } from "../../revenue-twin/revenue-twin.handlers.js";
 import type { BookingDraftWriter } from "../../booking/index.js";
 import { ApiCommandError } from "../../../platform/http/api-command-error.js";
 import { appendEvent } from "../../../platform/events/event-log.js";
@@ -427,6 +428,20 @@ export async function appendTranscriptTurn(
   );
 
   if (!persisted.duplicate && input.turn.speaker === "CUSTOMER") {
+    if (!mayContainRevenueTwinVoiceSelection(input.turn.content)) {
+      try {
+        await createRevenueTwinHandlers(client).evaluate(input.callId, input.requestId);
+      } catch (error) {
+        if (
+          !(
+            error instanceof ApiCommandError &&
+            error.code === "REVENUE_TWIN_NO_ELIGIBLE_ALTERNATIVE"
+          )
+        ) {
+          throw error;
+        }
+      }
+    }
     await applyRevenueTwinVoiceSelection(client, {
       callId: input.callId,
       turnId: persisted.turn.publicId,

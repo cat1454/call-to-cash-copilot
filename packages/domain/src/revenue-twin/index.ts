@@ -206,7 +206,13 @@ export function evaluateRevenueTwin(
     potentialDiscountCostAmountMinor: 0,
     potentialNetRevenueRecoveredAmountMinor: 0
   };
-  if (primaryDeparture.availableSeats >= demand.passengerCount) {
+  const primaryCanServe = primaryDeparture.availableSeats >= demand.passengerCount;
+  const proactiveRebalance =
+    primaryCanServe &&
+    incentivePolicy.proactiveRebalancingEnabled &&
+    primaryDeparture.availableSeats <= incentivePolicy.scarcePrimaryAvailableSeats &&
+    demand.flexibility.timeConstraint !== "FIXED";
+  if (primaryCanServe && !proactiveRebalance) {
     return { ...base, status: "PRIMARY_AVAILABLE" as const, offers: [], impact: emptyImpact };
   }
   if (!incentivePolicy.enabled) {
@@ -223,7 +229,12 @@ export function evaluateRevenueTwin(
     .filter((departure) => {
       const fits = departure.availableSeats >= demand.passengerCount;
       groupCapacitySeen ||= fits;
-      return fits;
+      return (
+        fits &&
+        (!proactiveRebalance ||
+          departure.availableSeats - demand.passengerCount >=
+            incentivePolicy.minimumAlternativeSurplusSeats)
+      );
     })
     .map((departure) => ({
       departure,
@@ -287,6 +298,9 @@ export function evaluateRevenueTwin(
     reasonCodes: [
       "SAME_ROUTE",
       "ALTERNATIVE_HAS_GROUP_CAPACITY",
+      ...(proactiveRebalance
+        ? (["PRIMARY_CAPACITY_SCARCE", "ALTERNATIVE_CAPACITY_SURPLUS"] as const)
+        : []),
       ...candidate.incentive.reasonCodes
     ],
     expiresAt: new Date(
@@ -294,6 +308,9 @@ export function evaluateRevenueTwin(
     ).toISOString()
   }));
   if (offers.length === 0) {
+    if (proactiveRebalance) {
+      return { ...base, status: "PRIMARY_AVAILABLE" as const, offers, impact: emptyImpact };
+    }
     return {
       ...base,
       status: groupCapacitySeen
@@ -309,7 +326,9 @@ export function evaluateRevenueTwin(
   }
   return {
     ...base,
-    status: "OVERFLOW_OFFERS_AVAILABLE" as const,
+    status: proactiveRebalance
+      ? ("PROACTIVE_OFFERS_AVAILABLE" as const)
+      : ("OVERFLOW_OFFERS_AVAILABLE" as const),
     offers,
     impact: {
       recoverablePassengerCount: demand.passengerCount,

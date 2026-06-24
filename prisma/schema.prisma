@@ -113,6 +113,13 @@ enum RevenueTwinOfferStatus {
   REQUIRES_REEVALUATION
 }
 
+enum RevenueTwinWaitlistStatus {
+  PENDING
+  OFFERED
+  CANCELLED
+  EXPIRED
+}
+
 enum BookingStatus {
   DRAFT
   FIELDS_PARTIAL
@@ -284,7 +291,8 @@ model CallSession {
   bookingExtractions     BookingExtraction[]
   riskAssessments        RiskAssessment[]
   objectAssets           ObjectAsset[]
-  revenueTwinEvaluations RevenueTwinEvaluation[]
+    revenueTwinEvaluations RevenueTwinEvaluation[]
+    revenueTwinWaitlistEntries RevenueTwinWaitlistEntry[]
 
   @@index([customerId, createdAt])
   @@index([status, createdAt])
@@ -435,7 +443,8 @@ model Booking {
   proofRecords           ProofRecord[]
   trustReceipts          TrustReceipt[]
   objectAssets           ObjectAsset[]
-  revenueTwinEvaluations RevenueTwinEvaluation[]
+    revenueTwinEvaluations RevenueTwinEvaluation[]
+    revenueTwinWaitlistEntries RevenueTwinWaitlistEntry[]
 
   @@index([customerId, createdAt])
   @@index([status, departureAtUtc])
@@ -480,11 +489,33 @@ model RevenueTwinEvaluation {
   createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   callSession          CallSession        @relation(fields: [callSessionId], references: [id], onDelete: Cascade)
   booking              Booking?           @relation(fields: [bookingId], references: [id], onDelete: SetNull)
-  offers               RevenueTwinOffer[]
+    offers               RevenueTwinOffer[]
+    waitlistEntries      RevenueTwinWaitlistEntry[]
 
   @@index([callSessionId, createdAt])
   @@index([bookingId, createdAt])
   @@map("revenue_twin_evaluations")
+}
+
+model RevenueTwinWaitlistEntry {
+  id                   String                    @id @default(uuid()) @db.Uuid
+  publicId             String                    @unique @map("public_id")
+  callSessionId        String                    @map("call_session_id") @db.Uuid
+  bookingId            String?                   @map("booking_id") @db.Uuid
+  evaluationId         String                    @map("evaluation_id") @db.Uuid
+  requestedDepartureId String                    @map("requested_departure_id")
+  passengerCount       Int                       @map("passenger_count")
+  status               RevenueTwinWaitlistStatus @default(PENDING)
+  idempotencyKey       String                    @unique @map("idempotency_key")
+  createdAt            DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  callSession          CallSession               @relation(fields: [callSessionId], references: [id], onDelete: Cascade)
+  booking              Booking?                  @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  evaluation           RevenueTwinEvaluation     @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+
+  @@unique([callSessionId, evaluationId])
+  @@index([requestedDepartureId, status, createdAt])
+  @@map("revenue_twin_waitlist_entries")
 }
 
 model RevenueTwinOffer {

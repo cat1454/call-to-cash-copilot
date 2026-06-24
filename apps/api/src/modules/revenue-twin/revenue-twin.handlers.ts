@@ -9,6 +9,7 @@ import {
 import {
   EventName,
   type AcceptRevenueTwinOfferCommand,
+  type JoinRevenueTwinWaitlistCommand,
   RevenueTwinDashboardSchema,
   type RevenueTwinVoiceDirective
 } from "@call-to-cash/shared";
@@ -26,10 +27,20 @@ const POLICY = {
   maxDiscountBasisPoints: 2_000,
   minimumFinalFareAmountMinor: 100_000,
   maximumAlternativeShiftMinutes: 120,
+  proactiveRebalancingEnabled: true,
+  scarcePrimaryAvailableSeats: 3,
+  minimumAlternativeSurplusSeats: 6,
   offerTtlSeconds: 120,
   allowedOperatorRelations: ["OWN_FLEET"] as ("OWN_FLEET" | "VERIFIED_PARTNER")[],
-  allowedReasonCodes: ["PRIMARY_DEPARTURE_FULL", "INCENTIVE_POLICY_APPLIED"] as (
+  allowedReasonCodes: [
+    "PRIMARY_DEPARTURE_FULL",
+    "PRIMARY_CAPACITY_SCARCE",
+    "ALTERNATIVE_CAPACITY_SURPLUS",
+    "INCENTIVE_POLICY_APPLIED"
+  ] as (
     | "PRIMARY_DEPARTURE_FULL"
+    | "PRIMARY_CAPACITY_SCARCE"
+    | "ALTERNATIVE_CAPACITY_SURPLUS"
     | "INCENTIVE_POLICY_APPLIED"
   )[]
 };
@@ -49,6 +60,11 @@ type RevenueTwinHandlers = {
     callId: string,
     offerId: string,
     evaluationId: string,
+    requestId: string
+  ): Promise<Record<string, unknown>>;
+  joinWaitlist(
+    callId: string,
+    command: JoinRevenueTwinWaitlistCommand,
     requestId: string
   ): Promise<Record<string, unknown>>;
   dashboard(): Promise<Record<string, unknown>>;
@@ -162,7 +178,12 @@ function directive(
   if (safeOffers.length === 0)
     return {
       schemaVersion: "ctc.revenue-twin.voice-directive.v1",
-      action: status === "PRIMARY_AVAILABLE" ? "EXPLAIN_NO_ALTERNATIVE" : "ASK_TIME_FLEXIBILITY",
+      action:
+        status === "GROUP_CAPACITY_UNAVAILABLE" || status === "NO_ELIGIBLE_ALTERNATIVE"
+          ? "ASK_WAITLIST_CONSENT"
+          : status === "PRIMARY_AVAILABLE"
+            ? "EXPLAIN_NO_ALTERNATIVE"
+            : "ASK_TIME_FLEXIBILITY",
       callId,
       evaluationId: evaluation.publicId,
       offers: [],
@@ -439,6 +460,40 @@ export function createRevenueTwinHandlers(databaseClient?: DatabaseClient): Reve
                 nextAction: "REEVALUATE_OVERFLOW" as const
               };
             }
+            const priorHolds = await transaction.inventoryHold.findMany({
+              where: {
+                bookingId: offer.evaluation.booking.id,
+                departureId: { not: offer.alternativeDeparture.id },
+                status: "ACTIVE",
+                expiresAt: { gt: now }
+              },
+              select: { id: true, publicId: true, quantity: true, departureId: true }
+            });
+            if (priorHolds.length > 0) {
+              await transaction.inventoryHold.updateMany({
+                where: {
+                  id: { in: priorHolds.map((priorHold) => priorHold.id) },
+                  status: "ACTIVE"
+                },
+                data: { status: "RELEASED", releasedAt: now, updatedAt: now }
+              });
+              await transaction.auditLog.createMany({
+                data: priorHolds.map((priorHold) => ({
+                  actorType: "SYSTEM" as const,
+                  action: "INVENTORY_HOLD_RELEASED",
+                  aggregateType: "INVENTORY_HOLD",
+                  aggregateId: priorHold.publicId,
+                  requestId,
+                  afterState: { status: "RELEASED", quantity: priorHold.quantity },
+                  metadata: {
+                    bookingId: offer.evaluation.booking?.publicId ?? null,
+                    departureId: priorHold.departureId,
+                    reason: "REVENUE_TWIN_CUSTOMER_ACCEPTED_ALTERNATIVE"
+                  },
+                  createdAt: now
+                }))
+              });
+            }
             const hold = await reserveInventory(transaction, {
               publicId: opaque("hold"),
               idempotencyKey: `rtw-${command.idempotencyKey}`,
@@ -562,6 +617,95 @@ export function createRevenueTwinHandlers(databaseClient?: DatabaseClient): Reve
           occurredAt: now
         });
         return { callId, evaluationId, offerId, status: "DECLINED" };
+      });
+    },
+
+    async joinWaitlist(callId: string, command: JoinRevenueTwinWaitlistCommand, requestId: string) {
+      const client = requireClient(databaseClient);
+      const now = new Date();
+      return client.$transaction(async (transaction) => {
+        const evaluation = await transaction.revenueTwinEvaluation.findUnique({
+          where: { publicId: command.evaluationId },
+          include: { callSession: true, booking: true }
+        });
+        if (evaluation === null || evaluation.callSession.publicId !== callId) {
+          throw new ApiCommandError(
+            404,
+            "REVENUE_TWIN_EVALUATION_NOT_FOUND",
+            "Revenue Twin evaluation is not available for this call."
+          );
+        }
+        if (
+          ![
+            "GROUP_CAPACITY_UNAVAILABLE",
+            "NO_ELIGIBLE_ALTERNATIVE",
+            "WAITLIST_RECOMMENDED"
+          ].includes(evaluation.status)
+        ) {
+          throw new ApiCommandError(
+            409,
+            "REVENUE_TWIN_POLICY_REJECTED",
+            "Waitlist is available only when no suitable departure can be offered."
+          );
+        }
+        const existing = await transaction.revenueTwinWaitlistEntry.findUnique({
+          where: {
+            callSessionId_evaluationId: {
+              callSessionId: evaluation.callSessionId,
+              evaluationId: evaluation.id
+            }
+          }
+        });
+        if (existing !== null) {
+          return {
+            waitlistId: existing.publicId,
+            callId,
+            evaluationId: evaluation.publicId,
+            requestedDepartureId: existing.requestedDepartureId,
+            passengerCount: existing.passengerCount,
+            status: "PENDING" as const,
+            createdAt: existing.createdAt.toISOString()
+          };
+        }
+        const demand = evaluation.demandContext as { passengerCount?: unknown };
+        const entry = await transaction.revenueTwinWaitlistEntry.create({
+          data: {
+            publicId: opaque("rtw_wait"),
+            callSessionId: evaluation.callSessionId,
+            bookingId: evaluation.bookingId,
+            evaluationId: evaluation.id,
+            requestedDepartureId: evaluation.requestedDepartureId,
+            passengerCount:
+              typeof demand.passengerCount === "number" && demand.passengerCount > 0
+                ? demand.passengerCount
+                : 1,
+            idempotencyKey: command.idempotencyKey,
+            createdAt: now
+          }
+        });
+        await appendEvent(transaction, {
+          callId,
+          bookingId: evaluation.booking?.publicId ?? null,
+          event: EventName.RevenueTwinWaitlistJoined,
+          data: {
+            evaluationId: evaluation.publicId,
+            waitlistId: entry.publicId,
+            requestedDepartureId: entry.requestedDepartureId,
+            passengerCount: entry.passengerCount,
+            joinedAt: now.toISOString()
+          },
+          requestId,
+          occurredAt: now
+        });
+        return {
+          waitlistId: entry.publicId,
+          callId,
+          evaluationId: evaluation.publicId,
+          requestedDepartureId: entry.requestedDepartureId,
+          passengerCount: entry.passengerCount,
+          status: "PENDING" as const,
+          createdAt: entry.createdAt.toISOString()
+        };
       });
     },
 

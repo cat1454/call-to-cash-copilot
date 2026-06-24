@@ -14,11 +14,14 @@ import {
   PickupPointIdSchema,
   RevenueTwinEvaluationIdSchema,
   RevenueTwinOfferIdSchema,
+  RevenueTwinWaitlistIdSchema,
   IdempotencyKeySchema
 } from "./primitives.js";
 
 export const REVENUE_TWIN_REASON_CODE_VALUES = [
   "PRIMARY_DEPARTURE_FULL",
+  "PRIMARY_CAPACITY_SCARCE",
+  "ALTERNATIVE_CAPACITY_SURPLUS",
   "PRIMARY_CAPACITY_INSUFFICIENT",
   "ALTERNATIVE_WITHIN_FLEXIBILITY",
   "ALTERNATIVE_HAS_GROUP_CAPACITY",
@@ -110,6 +113,9 @@ export const RevenueTwinIncentivePolicySchema = z
     maxDiscountBasisPoints: NonNegativeIntegerSchema.max(10_000),
     minimumFinalFareAmountMinor: NonNegativeIntegerSchema,
     maximumAlternativeShiftMinutes: NonNegativeIntegerSchema.max(1440),
+    proactiveRebalancingEnabled: z.boolean(),
+    scarcePrimaryAvailableSeats: NonNegativeIntegerSchema.max(100),
+    minimumAlternativeSurplusSeats: NonNegativeIntegerSchema.max(10_000),
     offerTtlSeconds: PositiveIntegerSchema.max(86_400),
     allowedOperatorRelations: z.array(RevenueTwinOperatorRelationSchema).min(1),
     allowedReasonCodes: z.array(RevenueTwinReasonCodeSchema).min(1)
@@ -155,9 +161,11 @@ export const RevenueTwinOverflowOfferSchema = z
 
 export const RevenueTwinEvaluationStatusSchema = z.enum([
   "PRIMARY_AVAILABLE",
+  "PROACTIVE_OFFERS_AVAILABLE",
   "OVERFLOW_OFFERS_AVAILABLE",
   "NO_ELIGIBLE_ALTERNATIVE",
   "GROUP_CAPACITY_UNAVAILABLE",
+  "WAITLIST_RECOMMENDED",
   "POLICY_DISABLED"
 ]);
 
@@ -219,7 +227,8 @@ export const RevenueTwinVoiceDirectiveSchema = z
       "ASK_TIME_FLEXIBILITY",
       "CONFIRM_SELECTED_OFFER",
       "EXPLAIN_REEVALUATION",
-      "EXPLAIN_NO_ALTERNATIVE"
+      "EXPLAIN_NO_ALTERNATIVE",
+      "ASK_WAITLIST_CONSENT"
     ]),
     callId: CallIdSchema,
     evaluationId: RevenueTwinEvaluationIdSchema.optional(),
@@ -239,6 +248,26 @@ export const RevenueTwinVoiceDirectiveSchema = z
       .max(2),
     expiresAt: IsoTimestampSchema,
     message: z.string().min(1).max(600)
+  })
+  .strict();
+
+export const JoinRevenueTwinWaitlistCommandSchema = z
+  .object({
+    callId: CallIdSchema,
+    evaluationId: RevenueTwinEvaluationIdSchema,
+    idempotencyKey: IdempotencyKeySchema
+  })
+  .strict();
+
+export const RevenueTwinWaitlistEntrySchema = z
+  .object({
+    waitlistId: RevenueTwinWaitlistIdSchema,
+    callId: CallIdSchema,
+    evaluationId: RevenueTwinEvaluationIdSchema,
+    requestedDepartureId: DepartureIdSchema,
+    passengerCount: PositiveIntegerSchema.max(100),
+    status: z.literal("PENDING"),
+    createdAt: IsoTimestampSchema
   })
   .strict();
 
@@ -332,4 +361,6 @@ export type AcceptRevenueTwinOfferCommand = z.infer<typeof AcceptRevenueTwinOffe
 export type DeclineRevenueTwinOfferCommand = z.infer<typeof DeclineRevenueTwinOfferCommandSchema>;
 export type AcceptRevenueTwinOfferResult = z.infer<typeof AcceptRevenueTwinOfferResultSchema>;
 export type RevenueTwinVoiceDirective = z.infer<typeof RevenueTwinVoiceDirectiveSchema>;
+export type JoinRevenueTwinWaitlistCommand = z.infer<typeof JoinRevenueTwinWaitlistCommandSchema>;
+export type RevenueTwinWaitlistEntry = z.infer<typeof RevenueTwinWaitlistEntrySchema>;
 export type RevenueTwinDashboard = z.infer<typeof RevenueTwinDashboardSchema>;

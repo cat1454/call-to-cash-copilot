@@ -455,7 +455,7 @@ The completed implementation preserves these rules:
 
 ## 10. Phase 11 — Fleet Revenue Twin
 
-**Status:** MVP COMPLETE / automated verification passed. The optimizer is Scenario-Robust Revenue Rebalancing Optimizer; judge-visible surfaces are Priority Allocation, Dynamic Incentive, and Overflow Routing. Isolated PostgreSQL migration, API lifecycle, idempotency, dashboard privacy, and inventory concurrency validation passed. Controlled live-provider smoke remains an operational follow-up and is not represented as completed.
+**Status:** COMPLETE / automated verification passed. The Scenario-Robust Revenue Rebalancing Optimizer exposes Priority Allocation, Dynamic Incentive, and Overflow Routing. It protects scarce hot-departure capacity by offering a voluntary move only when the alternative retains policy-defined surplus; it never auto-reroutes a customer or revokes a hold. An explicit no-offer waitlist is durable but creates no hold. Isolated PostgreSQL migration, API lifecycle, idempotency, dashboard privacy, and inventory concurrency validation passed. Controlled live-provider smoke remains an operational follow-up and is not represented as completed.
 
 ```text
 11.0 — Contract Normalization

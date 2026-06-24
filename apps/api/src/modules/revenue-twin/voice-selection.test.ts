@@ -36,3 +36,9 @@ test("keeps ambiguous or no-preference customer language non-mutating", () => {
   });
   assert.deepEqual(resolveRevenueTwinVoiceSelection("Để tôi suy nghĩ.", offers), { kind: "NONE" });
 });
+
+test("maps an explicit waitlist request without selecting an offer", () => {
+  assert.deepEqual(resolveRevenueTwinVoiceSelection("Cho tôi vào danh sách chờ.", []), {
+    kind: "WAITLIST"
+  });
+});

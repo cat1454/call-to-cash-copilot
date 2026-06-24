@@ -432,6 +432,9 @@ test("Scenario-Robust Revenue Rebalancing Optimizer preserves FCFS priority and 
     maxDiscountBasisPoints: 2_000,
     minimumFinalFareAmountMinor: 170_000,
     maximumAlternativeShiftMinutes: 120,
+    proactiveRebalancingEnabled: true,
+    scarcePrimaryAvailableSeats: 3,
+    minimumAlternativeSurplusSeats: 6,
     offerTtlSeconds: 120,
     allowedOperatorRelations: ["OWN_FLEET", "VERIFIED_PARTNER"] as (
       | "OWN_FLEET"
@@ -474,6 +477,79 @@ test("Scenario-Robust Revenue Rebalancing Optimizer preserves FCFS priority and 
   const terms = calculateRevenueTwinIncentive(alternative, demand, policy, 60);
   assert.ok(terms);
   assert.equal(terms.finalFareAmountMinor, alternative.fareAmountMinor - terms.discountAmountMinor);
+});
+
+test("Scenario-Robust Revenue Rebalancing Optimizer proactively protects scarce hot-departure seats", () => {
+  const demand = {
+    schemaVersion: "ctc.revenue-twin.demand.v1" as const,
+    callId: "call_01JTEST0001",
+    routeId: "route_HN-SAPA",
+    requestedDepartureId: "dep_HN-SAPA-2200",
+    passengerCount: 1,
+    flexibility: { beforeMinutes: 0, afterMinutes: 90, timeConstraint: "PREFERRED" as const },
+    depositReadiness: "READY" as const,
+    groupPolicy: "KEEP_TOGETHER" as const,
+    requestedAt: now
+  };
+  const primary = {
+    schemaVersion: "ctc.revenue-twin.departure-snapshot.v1" as const,
+    departureId: demand.requestedDepartureId,
+    operatorId: "op_own_fleet",
+    routeId: demand.routeId,
+    scheduledAt: now,
+    capacity: 20,
+    availableSeats: 2,
+    fareAmountMinor: 200_000,
+    currency: "VND" as const,
+    pickupPointIds: ["pickup_catalogue_default"],
+    operatorRelation: "OWN_FLEET" as const,
+    inventoryVersion: 1,
+    observedAt: now
+  };
+  const alternative = {
+    ...primary,
+    departureId: "dep_HN-SAPA-2230",
+    scheduledAt: later,
+    availableSeats: 12,
+    inventoryVersion: 2
+  };
+  const policy = {
+    schemaVersion: "ctc.revenue-twin.incentive-policy.v1" as const,
+    policyId: "proactive-test",
+    policyVersion: "SRRRO-PROACTIVE-V1",
+    enabled: true,
+    maxDiscountAmountMinor: 30_000,
+    maxDiscountBasisPoints: 2_000,
+    minimumFinalFareAmountMinor: 100_000,
+    maximumAlternativeShiftMinutes: 120,
+    proactiveRebalancingEnabled: true,
+    scarcePrimaryAvailableSeats: 3,
+    minimumAlternativeSurplusSeats: 6,
+    offerTtlSeconds: 120,
+    allowedOperatorRelations: ["OWN_FLEET"] as ("OWN_FLEET" | "VERIFIED_PARTNER")[],
+    allowedReasonCodes: ["PRIMARY_CAPACITY_SCARCE", "ALTERNATIVE_CAPACITY_SURPLUS"] as (
+      | "PRIMARY_CAPACITY_SCARCE"
+      | "ALTERNATIVE_CAPACITY_SURPLUS"
+    )[]
+  };
+  const result = evaluateRevenueTwin(
+    {
+      demand,
+      primaryDeparture: primary,
+      alternativeDepartures: [alternative],
+      incentivePolicy: policy
+    },
+    {
+      evaluationId: "rtw_eval_01JTEST0002",
+      offerIdForRank: () => "rtw_offer_01JTEST0002",
+      now: new Date(now)
+    }
+  );
+
+  assert.equal(result.status, "PROACTIVE_OFFERS_AVAILABLE");
+  assert.equal(result.offers[0]?.alternativeDepartureId, alternative.departureId);
+  assert.equal(result.offers[0]?.reasonCodes.includes("PRIMARY_CAPACITY_SCARCE"), true);
+  assert.equal(result.offers[0]?.reasonCodes.includes("ALTERNATIVE_CAPACITY_SURPLUS"), true);
 });
 
 test("Revenue Twin demo simulation is seeded, FCFS, group-safe, and has no provider side effects", () => {

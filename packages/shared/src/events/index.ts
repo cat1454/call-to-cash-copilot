@@ -32,6 +32,7 @@ import {
   ReceiptIdSchema,
   RequestIdSchema,
   RiskAssessmentIdSchema,
+  RevenueTwinWaitlistIdSchema,
   TranscriptTurnIdSchema
 } from "../schemas/primitives.js";
 
@@ -57,7 +58,8 @@ export const EventName = {
   RevenueTwinOfferAccepted: "revenue_twin.offer.accepted",
   RevenueTwinOfferDeclined: "revenue_twin.offer.declined",
   RevenueTwinOfferExpired: "revenue_twin.offer.expired",
-  RevenueTwinReevaluationRequired: "revenue_twin.reevaluation.required"
+  RevenueTwinReevaluationRequired: "revenue_twin.reevaluation.required",
+  RevenueTwinWaitlistJoined: "revenue_twin.waitlist.joined"
 } as const;
 
 export const EventNameSchema = z.enum(EventName);
@@ -277,6 +279,16 @@ const revenueTwinOfferLifecycleDataSchema = z
   })
   .strict();
 
+const revenueTwinWaitlistJoinedDataSchema = z
+  .object({
+    evaluationId: z.string().regex(/^rtw_eval_[A-Za-z0-9][A-Za-z0-9_-]{5,127}$/u),
+    waitlistId: RevenueTwinWaitlistIdSchema,
+    requestedDepartureId: z.string().regex(/^dep_[A-Za-z0-9][A-Za-z0-9_-]{5,127}$/u),
+    passengerCount: PositiveIntegerSchema,
+    joinedAt: IsoTimestampSchema
+  })
+  .strict();
+
 const createEventSchema = <T extends z.ZodType>(event: string, data: T) =>
   EventEnvelopeBaseSchema.extend({ event: z.literal(event), data });
 
@@ -359,6 +371,10 @@ export const RevenueTwinReevaluationRequiredEventSchema = createEventSchema(
   EventName.RevenueTwinReevaluationRequired,
   revenueTwinOfferLifecycleDataSchema
 );
+export const RevenueTwinWaitlistJoinedEventSchema = createEventSchema(
+  EventName.RevenueTwinWaitlistJoined,
+  revenueTwinWaitlistJoinedDataSchema
+);
 
 export const EventEnvelopeSchema = z.discriminatedUnion("event", [
   CallCreatedEventSchema,
@@ -382,7 +398,8 @@ export const EventEnvelopeSchema = z.discriminatedUnion("event", [
   RevenueTwinOfferAcceptedEventSchema,
   RevenueTwinOfferDeclinedEventSchema,
   RevenueTwinOfferExpiredEventSchema,
-  RevenueTwinReevaluationRequiredEventSchema
+  RevenueTwinReevaluationRequiredEventSchema,
+  RevenueTwinWaitlistJoinedEventSchema
 ]);
 
 export type EventEnvelope = z.infer<typeof EventEnvelopeSchema>;
