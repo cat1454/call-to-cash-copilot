@@ -19,7 +19,9 @@ export function registerVoiceSessionRoutes(
   app: FastifyInstance,
   dependencies: ApiDependencies
 ): void {
-  const handlers = createVoiceSessionHandlers(dependencies.config, dependencies.databaseClient);
+  const handlers = createVoiceSessionHandlers(dependencies.config, dependencies.databaseClient, {
+    logger: app.log
+  });
   app.post("/v1/voice-sessions", async (request, reply) => {
     const body = parseWithSchema(CreateVoiceSessionRequestSchema, request.body);
     return reply.code(201).send(
