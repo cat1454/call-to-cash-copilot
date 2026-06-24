@@ -46,3 +46,32 @@ test("fails closed when the isolated relay cannot accept a start command", async
     /Live transcript relay is unavailable/
   );
 });
+
+test("stops the isolated relay without an empty JSON body or content-type", async () => {
+  let sent: { url: string; init?: RequestInit | undefined } | undefined;
+  const client = new AgoraLiveTranscriptRelayClient(
+    { url: "http://127.0.0.1:3011", controlSecret: "control-secret" },
+    async (url, init) => {
+      sent = { url: String(url), init };
+      return new Response(null, { status: 204 });
+    }
+  );
+
+  await client.stop("call_123456");
+
+  const headers = new Headers(sent?.init?.headers);
+  assert.equal(sent?.url, "http://127.0.0.1:3011/v1/relay/sessions/call_123456");
+  assert.equal(sent?.init?.method, "DELETE");
+  assert.equal(headers.get("content-type"), null);
+  assert.equal(sent?.init && "body" in sent.init, false);
+  assert.match(String(headers.get("x-ctc-relay-signature")), /^sha256=/);
+});
+
+test("treats relay stop 404 as idempotent cleanup", async () => {
+  const client = new AgoraLiveTranscriptRelayClient(
+    { url: "http://127.0.0.1:3011", controlSecret: "control-secret" },
+    async () => new Response(null, { status: 404 })
+  );
+
+  await client.stop("call_123456");
+});

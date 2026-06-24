@@ -82,6 +82,33 @@ function requireClient(client?: DatabaseClient): DatabaseClient {
   return client;
 }
 
+function hasFindMany(delegate: unknown): boolean {
+  return (
+    typeof delegate === "object" &&
+    delegate !== null &&
+    "findMany" in delegate &&
+    typeof (delegate as { findMany?: unknown }).findMany === "function"
+  );
+}
+
+function requireRevenueTwinDelegates(client: DatabaseClient): void {
+  const record = client as unknown as Record<string, unknown>;
+  const missing = [
+    hasFindMany(record.revenueTwinEvaluation) ? null : "revenueTwinEvaluation",
+    hasFindMany(record.revenueTwinOffer) ? null : "revenueTwinOffer"
+  ].filter((value): value is string => value !== null);
+
+  if (missing.length === 0) return;
+
+  throw new ApiCommandError(
+    503,
+    "DATABASE_UNAVAILABLE",
+    "Revenue Twin database delegates are unavailable. Regenerate and rebuild the Prisma client.",
+    { missingDelegates: missing },
+    true
+  );
+}
+
 async function snapshotDeparture(
   client: DatabaseClient | Prisma.TransactionClient,
   departure: {
@@ -711,6 +738,7 @@ export function createRevenueTwinHandlers(databaseClient?: DatabaseClient): Reve
 
     async dashboard() {
       const client = requireClient(databaseClient);
+      requireRevenueTwinDelegates(client);
       const [evaluations, offers] = await Promise.all([
         client.revenueTwinEvaluation.findMany({
           select: { publicId: true, createdAt: true, impact: true }
