@@ -52,7 +52,10 @@ export default function PhoneScreen({
   timelineSteps,
   ledgerLogs,
   paymentGate,
-  voiceMode
+  voiceMode,
+  demoReady,
+  markPaymentWalletOpened,
+  agreementConfirmation
 }) {
   const renderCallView = () => (
     <PhoneCallView
@@ -66,6 +69,12 @@ export default function PhoneScreen({
       isSimulating={isSimulating}
       simStatus={simStatus}
       bookingData={bookingData}
+      demoReady={demoReady}
+      agreementConfirmationRequired={agreementConfirmation.required}
+      agreementEditRequested={agreementConfirmation.editRequested}
+      webConfirmationPending={agreementConfirmation.pending}
+      confirmAgreementFromWeb={agreementConfirmation.confirm}
+      requestAgreementEdit={agreementConfirmation.requestEdit}
     />
   );
 
@@ -172,6 +181,7 @@ export default function PhoneScreen({
           btnPhonePayDisabled={btnPhonePayDisabled}
           btnPhonePayBg={btnPhonePayBg}
           btnPhonePayText={btnPhonePayText}
+          markPaymentWalletOpened={markPaymentWalletOpened}
         />
 
         <footer className="flex w-full min-w-0 shrink-0 gap-2 border-t border-[#e5e7eb] bg-white p-4">
@@ -248,6 +258,7 @@ export default function PhoneScreen({
               btnPhonePayDisabled={btnPhonePayDisabled}
               btnPhonePayBg={btnPhonePayBg}
               btnPhonePayText={btnPhonePayText}
+              markPaymentWalletOpened={markPaymentWalletOpened}
             />
 
             {/* Bottom safe-area so screen content does not collide with home indicator */}

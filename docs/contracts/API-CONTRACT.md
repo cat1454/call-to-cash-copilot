@@ -539,6 +539,19 @@ Idempotency-Key: confirm-bk_01J-v1-<uuid>
 }
 ```
 
+For the customer confirmation card, the same endpoint accepts the current
+agreement version with `method: "WEB"` and visible acknowledgement text:
+
+```json
+{
+  "agreementVersion": 1,
+  "confirmation": {
+    "method": "WEB",
+    "text": "Xác nhận điều khoản và mở thanh toán"
+  }
+}
+```
+
 #### Response
 
 ```json

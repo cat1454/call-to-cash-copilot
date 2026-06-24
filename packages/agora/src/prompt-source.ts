@@ -20,8 +20,13 @@ export function loadCtcAgoraV1Prompt(): string {
 
 export function withCtcAgoraV1Prompt(properties: Record<string, unknown>): Record<string, unknown> {
   const llm = objectOrEmpty(properties.llm);
+  const asr = objectOrEmpty(properties.asr);
   return {
     ...properties,
+    // The product currently supports Vietnamese booking calls only. Keep this
+    // server-side default even when a deployed pipeline property only contains
+    // its identifier, so ASR does not fall back to the provider's locale guess.
+    asr: { ...asr, language: "vi-VN" },
     llm: {
       ...llm,
       system_messages: [{ role: "system", content: loadCtcAgoraV1Prompt() }]

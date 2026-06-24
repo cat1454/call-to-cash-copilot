@@ -34,7 +34,7 @@ export default function App() {
     scrollToSection("simulation-workspace");
 
     // Không reset hoặc làm gián đoạn demo đang chạy.
-    if (sim.simStatus === "Sẵn sàng" && !sim.isSimulating) {
+    if (sim.demoReady && sim.simStatus === "Sẵn sàng" && !sim.isSimulating) {
       setTimeout(() => {
         sim.startSimulation();
       }, 420);
@@ -80,9 +80,15 @@ export default function App() {
             {getVoiceModeLabel(sim.voiceMode)}
           </span>
 
-          <div className="flex min-h-6 items-center gap-1.5 rounded-full border border-[#a7f3d0] bg-[#ecfdf5] px-2.5 py-1 text-xs leading-4 font-medium text-[#065f46]">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#10b981]" />
-            <span>{getVoiceModeLabel(sim.voiceMode)}</span>
+          <div
+            className={`flex min-h-6 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs leading-4 font-medium ${
+              sim.demoReady
+                ? "border-[#a7f3d0] bg-[#ecfdf5] text-[#065f46]"
+                : "border-amber-200 bg-amber-50 text-amber-900"
+            }`}
+          >
+            <span className={`h-1.5 w-1.5 rounded-full ${sim.demoReady ? "animate-pulse bg-[#10b981]" : "bg-amber-500"}`} />
+            <span>{sim.demoReady ? "Demo authoritative sẵn sàng" : "Demo đang bị khóa"}</span>
           </div>
 
           <div className="flex min-h-6 items-center gap-1.5 rounded-full border border-[#a7f3d0] bg-[#ecfdf5] px-2.5 py-1 text-xs leading-4 font-medium text-[#065f46]">
@@ -90,7 +96,9 @@ export default function App() {
             <span>
               {sim.paymentIntent?.provider === "solana_devnet"
                 ? "Solana: Devnet demo"
-                : DEMO_MODE
+                : !sim.demoReady
+                  ? "Payment: chờ API"
+                  : DEMO_MODE
                   ? "Payment: Deterministic Mock"
                   : "Payment: Server verified"}
             </span>
@@ -131,6 +139,9 @@ export default function App() {
         continueInReplayMode={sim.continueInReplayMode}
         endVoiceSession={sim.endVoiceSession}
         postCallTranscriptSync={sim.postCallTranscriptSync}
+        demoReady={sim.demoReady}
+        demoReadiness={sim.demoReadiness}
+        retryDemoReadiness={sim.retryDemoReadiness}
       />
 
       <AIDecisionPanel decision={decision} scores={sim.scores} />
@@ -172,6 +183,9 @@ export default function App() {
       ledgerLogs={sim.ledgerLogs}
       paymentGate={sim.paymentGate}
       voiceMode={sim.voiceMode}
+      demoReady={sim.demoReady}
+      markPaymentWalletOpened={sim.markPaymentWalletOpened}
+      agreementConfirmation={sim.agreementConfirmation}
     />
   );
 

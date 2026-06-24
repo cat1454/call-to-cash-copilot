@@ -6,7 +6,7 @@ import { REFUND_POLICY } from "../../../data/refundPolicy";
 import { cn } from "../../../lib/cn";
 import { SolanaPayQR } from "./SolanaPayQR";
 
-function SolanaDevnetSection({ providerPayment }) {
+function SolanaDevnetSection({ providerPayment, onWalletOpened }) {
   const [copied, setCopied] = useState(false);
   const solanaPayUrl = providerPayment?.solanaPayUrl ?? "";
 
@@ -41,6 +41,7 @@ function SolanaDevnetSection({ providerPayment }) {
         <a
           href={solanaPayUrl || undefined}
           aria-disabled={!solanaPayUrl}
+          onClick={onWalletOpened}
           className={cn(
             "hidden min-h-11 items-center justify-center gap-2 rounded-xl bg-[#059669] px-4 text-sm font-semibold text-white",
             "active:scale-[0.96] transition-transform duration-150 motion-reduce:transition-none",
@@ -62,6 +63,9 @@ function SolanaDevnetSection({ providerPayment }) {
             </div>
           )}
         </div>
+        <Button className="mt-3 w-full" size="sm" variant="secondary" onClick={onWalletOpened}>
+          Tôi đã mở ví / quét QR
+        </Button>
 
         <details className="mt-3 text-xs text-[#6b7280]">
           <summary className="min-h-11 cursor-pointer content-center text-center font-medium">
@@ -97,7 +101,7 @@ function SolanaDevnetSection({ providerPayment }) {
         />
         <div>
           <strong className="block font-semibold">Tự động chờ xác nhận</strong>
-          <span className="leading-[18px]">Bạn không cần sao chép mã giao dịch.</span>
+          <span className="leading-[18px]">Sau khi mở ví, hệ thống sẽ kiểm tra Devnet theo nhịp an toàn.</span>
         </div>
       </section>
     </div>
@@ -112,7 +116,8 @@ export default function PhonePaymentDrawer({
   simulateWalletPayment,
   btnPhonePayDisabled,
   btnPhonePayBg,
-  btnPhonePayText
+  btnPhonePayText,
+  markPaymentWalletOpened
 }) {
   const isSolanaDevnet = paymentIntent?.provider === "solana_devnet";
   const providerPayment = paymentIntent?.providerPayment;
@@ -144,7 +149,7 @@ export default function PhonePaymentDrawer({
         </div>
 
         {isSolanaDevnet ? (
-          <SolanaDevnetSection providerPayment={providerPayment} />
+          <SolanaDevnetSection providerPayment={providerPayment} onWalletOpened={markPaymentWalletOpened} />
         ) : (
           <p className="rounded-xl border border-[#e5e7eb] bg-[#f9fafb] p-3 text-center text-xs leading-[18px] text-[#6b7280]">
             Máy chủ sẽ xác minh số tiền, người nhận và mã tham chiếu.

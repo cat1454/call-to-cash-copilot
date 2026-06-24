@@ -11,26 +11,27 @@ import {
   DEFAULT_PAYMENT_TIMER,
   DEFAULT_PHONE_STATUS
 } from "../simulationDefaults";
+import { inactiveAgreementConfirmation } from "./agreementConfirmation.js";
 import {
   issueBoardingPass,
   resetSimulationState,
   runWalletPaymentSequence,
-  startDialogueSimulation,
   tamperAgreement,
-  triggerPhonePaySheet
 } from "../simulationActions";
 import { useCallDurationTimer } from "./useCallDurationTimer";
 import { useReservationCountdown } from "./useReservationCountdown";
 import { useTimeoutRegistry } from "./useTimeoutRegistry";
 import { useViewportMode } from "./useViewportMode";
 import { useApiMode } from "./useApiMode";
+import { usePaymentIntentCountdown } from "./usePaymentIntentCountdown";
 import useServerSimulation from "./useServerSimulation";
 import { VOICE_PROVIDER } from "../../../config/runtime";
 import { useLiveVoiceSession } from "../../voice/useLiveVoiceSession";
 
 export default function useCallSimulation() {
   const isMobile = useViewportMode();
-  const { apiMode, apiBaseUrl, apiClient, isProbing } = useApiMode();
+  const { apiMode, apiBaseUrl, apiClient, isProbing, demoReady, demoReadiness, retryDemoReadiness } =
+    useApiMode();
   const [currentScenarioIdx, setCurrentScenarioIdx] = useState(0);
   const [voiceMode, setVoiceMode] = useState(VOICE_PROVIDER);
 
@@ -109,10 +110,19 @@ export default function useCallSimulation() {
     currentScenarioIdx,
     scenarios
   );
+  const paymentCountdown = usePaymentIntentCountdown(
+    server.paymentIntent?.expiresAt,
+    apiMode && server.showPaymentDrawer
+  );
   const liveVoice = useLiveVoiceSession(
     apiMode && voiceMode === "agora" ? apiClient : null,
     (call) => server.connectLiveCall(call)
   );
+  const effectiveDemoReady = demoReady && server.streamStatus !== "error";
+  const effectiveDemoReadiness =
+    server.streamStatus === "error"
+      ? { status: "unreachable", message: "Kết nối realtime đã mất. Demo đã được khóa để bảo toàn trạng thái." }
+      : demoReadiness;
 
   useEffect(() => {
     if (!apiMode || !server.showBoardingPass) return;
@@ -124,24 +134,12 @@ export default function useCallSimulation() {
   const mockReset = () => resetSimulationState(mockSetters, clearTimeouts);
   const mockIssueReceipt = (currentBookingData) =>
     issueBoardingPass(currentBookingData, mockSetters);
-  const mockTriggerPayment = (depositAmount) => triggerPhonePaySheet(depositAmount, mockSetters);
   const mockSimulateWalletPayment = () => {
     runWalletPaymentSequence({
       bookingData,
       issueReceipt: mockIssueReceipt,
       scheduleTimeout,
       setters: mockSetters
-    });
-  };
-  const mockStartSimulation = () => {
-    startDialogueSimulation({
-      bookingData,
-      currentScenarioIdx,
-      isSimulating,
-      scenarios,
-      scheduleTimeout,
-      setters: mockSetters,
-      triggerPayment: mockTriggerPayment
     });
   };
   const mockHandleTamper = () => tamperAgreement(bookingData, mockSetters);
@@ -154,7 +152,12 @@ export default function useCallSimulation() {
       return;
     }
     setCurrentScenarioIdx(idx);
-    if (apiMode) server.resetSimulation();
+    // Named scenarios are deterministic replay fixtures.  Selecting one must
+    // not leave the next Start action pointed at the ambient Agora mode.
+    if (apiMode) {
+      setVoiceMode("replay");
+      server.resetSimulation();
+    }
     else mockReset();
   };
 
@@ -182,6 +185,9 @@ export default function useCallSimulation() {
       apiMode,
       apiClient,
       isProbing,
+      demoReady: effectiveDemoReady,
+      demoReadiness: effectiveDemoReadiness,
+      retryDemoReadiness,
       streamStatus: server.streamStatus,
       paymentGate: server.paymentGate,
       isMobile,
@@ -199,7 +205,7 @@ export default function useCallSimulation() {
       showBoardingPass: server.showBoardingPass,
       showPaymentDrawer: server.showPaymentDrawer,
       paymentIntent: server.paymentIntent,
-      drawerTimerText: DEFAULT_PAYMENT_TIMER,
+      drawerTimerText: paymentCountdown,
       btnPhonePayText: server.paymentActionPending
         ? "Đang xác minh thanh toán..."
         : DEFAULT_PAYMENT_BUTTON,
@@ -221,7 +227,9 @@ export default function useCallSimulation() {
         server.resetSimulation();
       },
       simulateWalletPayment: server.simulateWalletPayment,
+      markPaymentWalletOpened: server.markPaymentWalletOpened,
       tamperAgreement: server.tamperAgreement,
+      agreementConfirmation: server.agreementConfirmation,
       serverCallId: server.callId,
       serverBookingId: server.bookingId,
       serverReceiptId: server.receiptId,
@@ -241,6 +249,9 @@ export default function useCallSimulation() {
     apiMode,
     apiClient: null,
     isProbing,
+    demoReady,
+    demoReadiness,
+    retryDemoReadiness,
     streamStatus: isProbing ? "connecting" : "demo",
     paymentGate: null,
     isMobile,
@@ -272,16 +283,17 @@ export default function useCallSimulation() {
     timelineSteps,
     ledgerLogs,
     selectScenario,
-    startSimulation: mockStartSimulation,
+    startSimulation: () => {},
     resetSimulation: mockReset,
     simulateWalletPayment: mockSimulateWalletPayment,
+    markPaymentWalletOpened: () => {},
     tamperAgreement: mockHandleTamper,
+    agreementConfirmation: inactiveAgreementConfirmation,
     voiceConnectionState: null,
     voiceMode: "replay",
     stopLiveVoice: () => {},
     postCallTranscriptSync: "IDLE",
     retryLiveVoice: () => {},
-    continueInReplayMode: () => {},
-    endVoiceSession: () => {}
+    continueInReplayMode: () => {}, endVoiceSession: () => {}
   };
 }

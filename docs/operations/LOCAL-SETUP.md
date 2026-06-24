@@ -138,6 +138,8 @@ Only `VITE_*` values may be exposed to the browser. Never put provider certifica
 
 Set `PAYMENT_PROVIDER=solana_devnet` only when a public Devnet recipient is configured. Set both `VOICE_PROVIDER=agora` and `VITE_VOICE_PROVIDER=agora` only when the server-only Agora values are configured. Missing/invalid provider configuration leaves process liveness intact but the selected live flow fails closed. No private key is accepted. Redis, object-storage, and LLM variables remain deferred until their first implemented consumer.
 
+For the Vietnamese booking flow, the server always adds `asr.language = "vi-VN"` to the Agora join properties. `AGORA_CAI_PROPERTIES_JSON` may therefore contain only the required `pipeline_id`; do not add prompt text or any browser-visible setting to it. Restart the API before starting a new live call after changing any Agora configuration.
+
 When `VOICE_PROVIDER=agora`, the isolated RTM relay is also required. Give `AGORA_RTM_RELAY_CONTROL_SECRET` a new random server-only value (distinct from `AGORA_PROVIDER_EVENT_SECRET` and `AGORA_NCS_WEBHOOK_SECRET`), keep its URL private to the API deployment network, and choose a relay UID different from the agent and browser UIDs. The relay process needs the same `AGORA_APP_ID`, `AGORA_PROVIDER_EVENT_SECRET`, `AGORA_RTM_RELAY_CONTROL_SECRET`, `AGORA_RTM_RELAY_UID`, plus these local-only settings:
 
 ```env
@@ -196,6 +198,8 @@ After both processes are running, verify the complete local configuration withou
 pnpm demo:preflight
 ```
 
+`demo:preflight` is a hard readiness gate: it requires the configured API `/ready`, the web origin, PostgreSQL, and the RTM relay when `VOICE_PROVIDER=agora`. Do not begin the authoritative demo when it fails; the web UI also disables call start and shows a retry CTA instead of falling back to local fixtures. It checks `http://localhost:5173` by default; set the optional server-only `DEMO_WEB_URL` when a different web origin must be checked.
+
 Current defaults:
 
 ```text
@@ -233,6 +237,14 @@ GET  /v1/receipts/:receiptId/verify
 Booking confirmation and both mock payment commands require `Idempotency-Key`. The normal events endpoint is long-lived; append `?snapshot=true` only for a finite diagnostic/recovery replay.
 
 For an optional real Devnet transaction, follow [SOLANA-DEVNET-SMOKE-TEST.md](./SOLANA-DEVNET-SMOKE-TEST.md). Do not claim a live Devnet result from fixture-backed unit/integration tests.
+
+For the cold-start Scenario 4 rehearsal, run:
+
+```bash
+pnpm demo:smoke:cold
+```
+
+It requires Docker Desktop to be available and the configured API, web, and Agora relay ports to be free; this prevents an older process from satisfying a health check on behalf of the service the rehearsal should start. It then starts PostgreSQL, applies migrations/seeds, starts API/web/(relay for Agora), reruns preflight, submits the stored Scenario 4 transcript through the live API, locks its agreement, and asserts that the server returns the privacy-safe Solana Devnet payment payload used by the drawer. It stops only the processes it started; it creates one synthetic demo booking and payment intent but does not open a wallet, sign, or send a chain transaction.
 
 Open the web URL and verify:
 
@@ -298,7 +310,9 @@ Do not create speculative Redis or object-storage configuration before its consu
 | PostgreSQL container port is unavailable  | another process uses `55432`                       | set `POSTGRES_PORT` and update `DATABASE_URL` consistently        |
 | Prisma cannot connect                     | container is unhealthy or `DATABASE_URL` differs   | run `docker compose ps` and `pnpm db:migrate:status`              |
 | PostgreSQL 18 reports an old data path    | Compose volume mounted at the pre-v18 path         | keep the committed mount at `/var/lib/postgresql`                 |
-| Web still shows fixture-owned state       | API mode probe failed or VITE_API_BASE_URL not set | check console.warn from useApiMode; verify API is running on 3001 |
+| Web shows the readiness lock              | API `/ready` failed or VITE_API_BASE_URL not set   | start the API, correct config, run `pnpm demo:preflight`, then use the UI retry CTA |
+| Cold smoke reports an occupied API/web/relay port | an earlier local demo process is still listening | stop that scoped demo process, then rerun `pnpm demo:smoke:cold` |
+| Cold smoke cannot start PostgreSQL | Docker Desktop engine is unavailable to the current user | start Docker Desktop from the owning desktop account, then rerun `pnpm demo:smoke:cold` |
 | `dist` import is missing during typecheck | package dependency was not built                   | run the root command so Turbo follows `^build` dependencies       |
 | UI claims live provider status            | stale browser assets/cache                         | rebuild, unregister stale service worker if needed, and reload    |
 

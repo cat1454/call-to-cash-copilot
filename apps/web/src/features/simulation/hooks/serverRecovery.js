@@ -15,6 +15,21 @@ export const recoveryEvents = new Set([
   EventName.CallEnded
 ]);
 
+/**
+ * SSE deliberately carries only a compact, privacy-safe projection.  Reload
+ * the server read models after a state-changing event so the customer summary
+ * never has to reconstruct booking fields from event fragments.
+ */
+export function recoveryHintsForEvent(eventName, envelope) {
+  if (!recoveryEvents.has(eventName)) return null;
+  const data = envelope?.data ?? {};
+  return {
+    ...(typeof envelope?.bookingId === "string" ? { bookingId: envelope.bookingId } : {}),
+    ...(typeof data.paymentIntentId === "string" ? { paymentIntentId: data.paymentIntentId } : {}),
+    ...(typeof data.receiptId === "string" ? { receiptId: data.receiptId } : {})
+  };
+}
+
 export function isDefinitivePaymentMismatch(error) {
   return [
     "PAYMENT_AMOUNT_MISMATCH",

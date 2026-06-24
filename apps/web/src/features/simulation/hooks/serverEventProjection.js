@@ -4,12 +4,18 @@ import {
   projectTranscriptTurnForDisplay,
   sanitizePublicText
 } from "./transcriptDisplayProjection.js";
+import {
+  formatDepartureDate,
+  formatDepartureTime,
+  formatVnd
+} from "./bookingDisplayFormatters.js";
 
 export { projectTranscriptTurnForDisplay } from "./transcriptDisplayProjection.js";
 
 export const emptyBooking = {
   bookingId: "",
   route: "",
+  date: "",
   time: "",
   seats: "",
   phone: "",
@@ -17,47 +23,29 @@ export const emptyBooking = {
   deposit: ""
 };
 
-function formatMoney(value) {
-  if (!Number.isInteger(value)) return "";
-  return new Intl.NumberFormat("vi-VN", {
-    style: "currency",
-    currency: "VND",
-    maximumFractionDigits: 0
-  }).format(value);
-}
-
-function formatDeparture(value) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("vi-VN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "Asia/Ho_Chi_Minh"
-  }).format(date);
-}
-
 export function projectBookingForDisplay(booking, receipt) {
   if (receipt?.booking) {
     return {
       bookingId: receipt.booking.bookingId,
       route: sanitizePublicText(receipt.booking.route),
-      time: formatDeparture(receipt.booking.departureAt),
+      date: formatDepartureDate(receipt.booking.departureAt),
+      time: formatDepartureTime(receipt.booking.departureAt),
       seats: receipt.booking.passengerCount ? `${receipt.booking.passengerCount} khách` : "",
       phone: sanitizePublicText(receipt.booking.contactPhoneMasked),
-      price: formatMoney(booking?.fareTotalVnd),
-      deposit: formatMoney(receipt.deposit?.amount?.minor)
+      price: formatVnd(booking?.fareTotalVnd),
+      deposit: formatVnd(receipt.deposit?.amount?.minor)
     };
   }
   if (!booking) return { ...emptyBooking };
   return {
     bookingId: booking.bookingId ?? "",
     route: [booking.routeFrom, booking.routeTo].filter(Boolean).join(" → "),
-    time: formatDeparture(booking.departureAt),
+    date: formatDepartureDate(booking.departureAt),
+    time: formatDepartureTime(booking.departureAt),
     seats: booking.passengerCount ? `${booking.passengerCount} khách` : "",
     phone: sanitizePublicText(booking.contactPhoneMasked),
-    price: formatMoney(booking.fareTotalVnd),
-    deposit: formatMoney(booking.depositAmountVnd)
+    price: formatVnd(booking.fareTotalVnd),
+    deposit: formatVnd(booking.depositAmountVnd)
   };
 }
 

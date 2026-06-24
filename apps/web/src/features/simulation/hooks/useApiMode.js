@@ -25,6 +25,18 @@ import { API_BASE_URL } from "../../../config/runtime.js";
 import { createApiClient } from "../../../lib/apiClient.js";
 
 const PROBE_TIMEOUT_MS = 3000;
+const READINESS_RECHECK_MS = 10_000;
+
+export function isDemoReadyPayload(payload) {
+  return payload?.status === "ready";
+}
+
+export function getDemoReadinessMessage(status) {
+  if (status === "unconfigured") return "Chưa cấu hình API cho demo có xác thực máy chủ.";
+  if (status === "unreachable") return "Không thể kết nối API. Demo đã được khóa để tránh chạy dữ liệu cục bộ.";
+  if (status === "checking") return "Đang kiểm tra API trước khi bắt đầu demo...";
+  return "API chưa sẵn sàng. Hãy chạy demo preflight rồi thử lại.";
+}
 
 /**
  * @typedef {Object} ApiModeState
@@ -40,20 +52,25 @@ const PROBE_TIMEOUT_MS = 3000;
 export function useApiMode() {
   const [apiMode, setApiMode] = useState(false);
   const [isProbing, setIsProbing] = useState(API_BASE_URL !== null);
+  const [readinessStatus, setReadinessStatus] = useState(
+    API_BASE_URL === null ? "unconfigured" : "checking"
+  );
 
   const probe = useCallback(async () => {
     if (API_BASE_URL === null) {
       setIsProbing(false);
+      setReadinessStatus("unconfigured");
       return;
     }
 
     setIsProbing(true);
+    setReadinessStatus("checking");
 
     const abortController = new AbortController();
     const timeout = setTimeout(() => abortController.abort(), PROBE_TIMEOUT_MS);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/health`, {
+      const response = await fetch(`${API_BASE_URL}/ready`, {
         method: "GET",
         headers: { Accept: "application/json" },
         signal: abortController.signal
@@ -61,8 +78,9 @@ export function useApiMode() {
 
       if (response.ok) {
         const body = await response.json();
-        if (body?.data?.status === "ok") {
+        if (isDemoReadyPayload(body?.data)) {
           setApiMode(true);
+          setReadinessStatus("ready");
           return;
         }
       }
@@ -72,6 +90,7 @@ export function useApiMode() {
         { status: response.status }
       );
       setApiMode(false);
+      setReadinessStatus("not_ready");
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
         console.warn(
@@ -81,6 +100,7 @@ export function useApiMode() {
         console.warn("[useApiMode] API health probe failed. Falling back to mock simulation.", err);
       }
       setApiMode(false);
+      setReadinessStatus("unreachable");
     } finally {
       clearTimeout(timeout);
       setIsProbing(false);
@@ -91,6 +111,12 @@ export function useApiMode() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void probe();
+  }, [probe]);
+
+  useEffect(() => {
+    if (API_BASE_URL === null) return undefined;
+    const timer = setInterval(() => void probe(), READINESS_RECHECK_MS);
+    return () => clearInterval(timer);
   }, [probe]);
 
   // Re-probe when tab becomes visible (recovery after backend restart).
@@ -112,5 +138,13 @@ export function useApiMode() {
     [apiMode]
   );
 
-  return { apiMode, apiBaseUrl: apiMode ? API_BASE_URL : null, isProbing, apiClient };
+  return {
+    apiMode,
+    apiBaseUrl: apiMode ? API_BASE_URL : null,
+    isProbing,
+    apiClient,
+    demoReady: readinessStatus === "ready",
+    demoReadiness: { status: readinessStatus, message: getDemoReadinessMessage(readinessStatus) },
+    retryDemoReadiness: probe
+  };
 }

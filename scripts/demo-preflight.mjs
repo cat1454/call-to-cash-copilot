@@ -171,6 +171,25 @@ async function checkApi(apiBaseUrl) {
   }
 }
 
+export async function checkWeb(webUrl, fetchFn = fetch) {
+  if (!webUrl) return result("FAIL", "Web demo", "DEMO_WEB_URL is missing");
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 3_000);
+  try {
+    const response = await fetchFn(webUrl.replace(/\/$/u, ""), {
+      headers: { Accept: "text/html" },
+      signal: controller.signal
+    });
+    return response.ok
+      ? result("PASS", "Web demo", "reachable")
+      : result("FAIL", "Web demo", `not ready (HTTP ${response.status})`);
+  } catch {
+    return result("FAIL", "Web demo", "unreachable");
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function checkLiveRelay(relayUrl) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 3_000);
@@ -200,7 +219,8 @@ export async function runPreflight() {
       ? [await checkLiveRelay(serverEnv.AGORA_RTM_RELAY_URL || "http://127.0.0.1:3011")]
       : []),
     await checkDatabase(serverEnv.DATABASE_URL),
-    await checkApi(webEnv.VITE_API_BASE_URL || serverEnv.VITE_API_BASE_URL)
+    await checkApi(webEnv.VITE_API_BASE_URL || serverEnv.VITE_API_BASE_URL),
+    await checkWeb(serverEnv.DEMO_WEB_URL || "http://localhost:5173")
   ];
 
   console.log("Call-to-Cash demo preflight (secret-safe)");

@@ -1,7 +1,14 @@
 import { useEffect } from "react";
 
-export function scheduleSolanaPaymentPoll(verifyPayment, timers = globalThis) {
-  const timer = timers.setTimeout(() => void verifyPayment(), 3_000);
+const INITIAL_DELAY_MS = 3_000;
+const MAX_DELAY_MS = 30_000;
+
+export function getSolanaPollDelayMs(attempt) {
+  return Math.min(INITIAL_DELAY_MS * 2 ** Math.max(0, attempt), MAX_DELAY_MS);
+}
+
+export function scheduleSolanaPaymentPoll(verifyPayment, attempt = 0, timers = globalThis) {
+  const timer = timers.setTimeout(() => void verifyPayment(), getSolanaPollDelayMs(attempt));
   return () => timers.clearTimeout(timer);
 }
 
@@ -10,15 +17,18 @@ export function useSolanaPaymentPolling(state, verifyPayment) {
     if (
       state.paymentIntent?.provider !== "solana_devnet" ||
       !state.showPaymentDrawer ||
+      !state.paymentWalletOpened ||
       state.paymentActionPending
     ) {
       return;
     }
 
-    return scheduleSolanaPaymentPoll(verifyPayment);
+    return scheduleSolanaPaymentPoll(verifyPayment, state.paymentPollAttempt);
   }, [
     state.paymentActionPending,
+    state.paymentPollAttempt,
     state.paymentIntent?.provider,
+    state.paymentWalletOpened,
     state.showPaymentDrawer,
     verifyPayment
   ]);

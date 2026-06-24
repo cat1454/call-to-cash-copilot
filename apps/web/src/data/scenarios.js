@@ -1,4 +1,4 @@
-import { REFUND_POLICY } from "./refundPolicy";
+import { REFUND_POLICY } from "./refundPolicy.js";
 
 export const scenarios = [
   // Scenario 1: Normal Booking

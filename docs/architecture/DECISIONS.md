@@ -203,6 +203,12 @@ extraction first and invokes OpenAI only for incomplete or ambiguous results; ti
 unavailable, or invalid output falls back to deterministic extraction. No `OPENAI_*` or
 `AI_EXTRACTION_*` variable may be exposed through `VITE_*`.
 
+In hybrid mode, a valid high-confidence OpenAI candidate may supplement an absent deterministic
+draft field only after server validation: route values must exactly match one scheduled catalogue
+route, pickup values must normalize to a supported location, and passenger count remains schema
+bounded. Contact details, price, inventory, payment, confirmation, risk, proof, and receipt facts
+remain deterministic/server-owned; an LLM candidate cannot set them.
+
 ### Required AI output contract
 
 ```json

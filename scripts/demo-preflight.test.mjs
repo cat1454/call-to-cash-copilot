@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   browserSecretNames,
+  checkWeb,
   evaluateProviderConfig,
   isSolanaPublicKey,
   parseEnv,
@@ -76,4 +77,13 @@ test("preflight gives Vite's local browser environment precedence", () => {
 test("Solana public-key validation accepts exactly 32 decoded bytes", () => {
   assert.equal(isSolanaPublicKey("11111111111111111111111111111111"), true);
   assert.equal(isSolanaPublicKey("not-a-key"), false);
+});
+
+test("preflight fails closed when the web demo port is unavailable", async () => {
+  const unreachable = await checkWeb("http://localhost:5173", async () => {
+    throw new Error("refused");
+  });
+  const ready = await checkWeb("http://localhost:5173", async () => ({ ok: true, status: 200 }));
+  assert.deepEqual(unreachable, { level: "FAIL", label: "Web demo", detail: "unreachable" });
+  assert.deepEqual(ready, { level: "PASS", label: "Web demo", detail: "reachable" });
 });
