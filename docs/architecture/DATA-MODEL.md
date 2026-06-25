@@ -285,10 +285,17 @@ The following tables are the minimum production-shaped schema. A hackathon may i
 
 **Demo schedule input:** Phase 10.5 keeps the database model unchanged and imports the
 Excel-editable CSV fixture `prisma/fixtures/trip-schedule-demo.csv` into `trip_departures` during
-the idempotent seed. The CSV is catalogue input for route, local date/time, capacity, fare, deposit,
-policy, and demo pickup policy. Runtime availability for Revenue Twin remains derived from
-`trip_departures` plus `inventory_holds`; do not encode "available seats" directly in the schedule
-CSV.
+the idempotent seed. The strict CSV uses ISO `serviceDate`, `HH:mm` `localTime`, IANA timezone,
+physical `routeCode`, time-specific `serviceCode`, operator relation, policy versions, pickup
+point codes, capacity, fare, deposit rule, and status. Supporting fixtures
+`pickup-point-demo.csv`, `trip-inventory-demo.csv`, `revenue-twin-demand-demo.csv`, and
+`revenue-twin-policy-demo.csv` provide deterministic parser and Revenue Twin rehearsal metadata
+without changing the current DB schema. Runtime availability remains derived from
+`trip_departures` plus `inventory_holds`; do not encode authoritative "available seats" directly in
+the schedule CSV.
+When the Phase 11 runtime needs pickup compatibility, the API adapter maps fixture pickup codes
+(`HUE_TERMINAL`) into shared runtime IDs (`pickup_HUE_TERMINAL`) and applies them as server-derived
+constraints. This does not add a new pickup table or migration in this slice.
 
 ---
 

@@ -12,6 +12,7 @@ import {
   mergeValidatedCandidateFacts,
   nextAgreementVersion,
   retainCorroboratedCandidateFacts,
+  resolveScheduleFromFacts,
   shouldExtractBookingFacts
 } from "./append-transcript-turn.js";
 import { acceptProviderTranscriptEvent } from "./accept-provider-transcript-event.js";
@@ -37,6 +38,140 @@ test("voice confirmation uses the next agreement version after a booking change"
   assert.equal(nextAgreementVersion([]), 1);
   assert.equal(nextAgreementVersion([{ version: 1 }]), 2);
   assert.equal(nextAgreementVersion([{ version: 4 }, { version: 3 }]), 5);
+});
+
+test("schedule resolver only assigns a departure for a single scheduled catalogue match", () => {
+  const departures = [
+    {
+      publicId: "dep_demo_hue_nha_20300620_0700_own",
+      routeFrom: "Hue",
+      routeTo: "Nha Trang",
+      departureAtUtc: new Date("2030-06-20T00:00:00.000Z"),
+      operationalStatus: "SCHEDULED",
+      pickupPointCodes: ["HUE_TERMINAL"]
+    },
+    {
+      publicId: "dep_demo_hue_nha_20300620_0730_own",
+      routeFrom: "Hue",
+      routeTo: "Nha Trang",
+      departureAtUtc: new Date("2030-06-20T00:30:00.000Z"),
+      operationalStatus: "SCHEDULED",
+      pickupPointCodes: ["HUE_CENTER"]
+    },
+    {
+      publicId: "dep_demo_hue_nha_20300620_0745_cancelled",
+      routeFrom: "Hue",
+      routeTo: "Nha Trang",
+      departureAtUtc: new Date("2030-06-20T00:45:00.000Z"),
+      operationalStatus: "CANCELLED",
+      pickupPointCodes: ["HUE_TERMINAL"]
+    }
+  ];
+
+  assert.deepEqual(
+    resolveScheduleFromFacts(
+      {
+        routeFrom: "Hue",
+        routeTo: "Nha Trang",
+        departureServiceDate: "2030-06-20",
+        departureLocalTime: "07:00",
+        pickupPointCode: "HUE_TERMINAL"
+      },
+      departures
+    ),
+    {
+      status: "MATCHED",
+      departureId: "dep_demo_hue_nha_20300620_0700_own",
+      reasons: []
+    }
+  );
+  assert.deepEqual(
+    resolveScheduleFromFacts(
+      {
+        routeFrom: "Hue",
+        routeTo: "Nha Trang",
+        departureServiceDate: "2030-06-20",
+        departureLocalTime: "07:00",
+        pickupPointCode: "HUE_CENTER"
+      },
+      departures
+    ),
+    { status: "NO_MATCH", reasons: ["PICKUP_NOT_SUPPORTED"] }
+  );
+  assert.deepEqual(
+    resolveScheduleFromFacts(
+      {
+        routeFrom: "Hue",
+        routeTo: "Nha Trang",
+        departureServiceDate: "2030-06-20",
+        departureLocalTime: "07:45"
+      },
+      departures
+    ),
+    { status: "NO_MATCH", reasons: ["DEPARTURE_CANCELLED"] }
+  );
+  assert.deepEqual(
+    resolveScheduleFromFacts(
+      {
+        routeFrom: "Hue",
+        routeTo: "Nha Trang",
+        departureServiceDate: "2030-06-20",
+        departureLocalTime: "08:00"
+      },
+      departures
+    ),
+    { status: "NO_MATCH", reasons: ["DEPARTURE_NOT_FOUND"] }
+  );
+});
+
+test("schedule resolver asks for clarification when route, date, time, or exact departure is ambiguous", () => {
+  const duplicateTime = [
+    {
+      publicId: "dep_demo_hue_nha_a",
+      routeFrom: "Hue",
+      routeTo: "Nha Trang",
+      departureAtUtc: new Date("2030-06-20T00:00:00.000Z"),
+      operationalStatus: "SCHEDULED"
+    },
+    {
+      publicId: "dep_demo_hue_nha_b",
+      routeFrom: "Hue",
+      routeTo: "Nha Trang",
+      departureAtUtc: new Date("2030-06-20T00:00:00.000Z"),
+      operationalStatus: "SCHEDULED"
+    }
+  ];
+
+  assert.deepEqual(resolveScheduleFromFacts({}, duplicateTime), {
+    status: "NEEDS_CLARIFICATION",
+    reasons: ["MISSING_ROUTE"]
+  });
+  assert.deepEqual(
+    resolveScheduleFromFacts({ routeFrom: "Hue", routeTo: "Nha Trang" }, duplicateTime),
+    {
+      status: "NEEDS_CLARIFICATION",
+      reasons: ["MISSING_DATE"]
+    }
+  );
+  assert.deepEqual(
+    resolveScheduleFromFacts(
+      { routeFrom: "Hue", routeTo: "Nha Trang", departureServiceDate: "2030-06-20" },
+      duplicateTime
+    ),
+    { status: "NEEDS_CLARIFICATION", reasons: ["MISSING_TIME"] }
+  );
+  assert.deepEqual(
+    resolveScheduleFromFacts(
+      {
+        routeFrom: "Hue",
+        routeTo: "Nha Trang",
+        departureServiceDate: "2030-06-20",
+        departureLocalTime: "07:00"
+      },
+      duplicateTime
+    ),
+    { status: "NEEDS_CLARIFICATION", reasons: ["AMBIGUOUS_TIME"] }
+  );
 });
 
 test("deterministic Phase 10 candidates carry source-turn evidence and masked contact only", () => {

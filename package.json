@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "packageManager": "pnpm@11.1.1+sha512.d1fdf5f73c617b64fa1a56a81c3c8dfe0e966e33a6010aa256b517ae77be21d93e05affc0de1a83b0e4f29d569f68b446ae8f068cd7247c0bb3df0fb4d7bdf9a",
+  "packageManager": "pnpm@10.34.4",
   "engines": {
     "node": "^20.19.0 || ^22.12.0 || >=24.0.0"
   },
@@ -24,7 +24,7 @@
     "db:migrate:status": "pnpm --filter @call-to-cash/db migrate:status",
     "db:seed": "pnpm --filter @call-to-cash/db seed",
     "db:studio": "pnpm --filter @call-to-cash/db studio",
-    "prebuild": "pnpm install --frozen-lockfile",
+    "prebuild": "node scripts/prebuild-install.mjs",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",

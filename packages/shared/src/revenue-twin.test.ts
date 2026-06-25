@@ -23,6 +23,7 @@ const demandContext = {
   callId: "call_01JTEST0001",
   routeId: "route_HN-SAPA-001",
   requestedDepartureId: "dep_HN-SAPA-2200",
+  pickupPointId: "pickup_MY-DINH",
   passengerCount: 3,
   flexibility: { beforeMinutes: 0, afterMinutes: 60, timeConstraint: "PREFERRED" },
   depositReadiness: "READY",

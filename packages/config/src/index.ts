@@ -140,10 +140,11 @@ export function readRuntimeConfig(
   env: Readonly<Record<string, string | undefined>> = process.env
 ): RuntimeConfig {
   const recipientPublicKey = env.SOLANA_RECIPIENT_PUBLIC_KEY?.trim() ?? "";
-  const { llm: _legacyCustomLlm, ...agoraAgentProperties } = readJsonObject(
+  const agoraAgentProperties = readJsonObject(
     "AGORA_CAI_PROPERTIES_JSON",
     env.AGORA_CAI_PROPERTIES_JSON
   );
+  delete agoraAgentProperties.llm;
   const solanaCluster = readEnum(
     "SOLANA_CLUSTER",
     env.SOLANA_CLUSTER,

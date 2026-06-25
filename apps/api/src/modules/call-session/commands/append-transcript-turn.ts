@@ -13,7 +13,8 @@ import {
   BookingExtractionCandidateSchema,
   CallStatus,
   EventName,
-  type BookingExtractionCandidate
+  type BookingExtractionCandidate,
+  type ScheduleResolution
 } from "@call-to-cash/shared";
 import { transitionCall, type StateTransitionResult } from "@call-to-cash/domain";
 
@@ -261,6 +262,85 @@ function localDepartureParts(value: Date) {
   };
 }
 
+function localServiceDate(parts: ReturnType<typeof localDepartureParts>): string {
+  return `${parts.year.toString().padStart(4, "0")}-${parts.month.toString().padStart(2, "0")}-${parts.day.toString().padStart(2, "0")}`;
+}
+
+function localServiceTime(parts: ReturnType<typeof localDepartureParts>): string {
+  return `${parts.hour.toString().padStart(2, "0")}:${parts.minute.toString().padStart(2, "0")}`;
+}
+
+export function resolveScheduleFromFacts(
+  facts: {
+    routeFrom?: string;
+    routeTo?: string;
+    departureServiceDate?: string;
+    departureDay?: number;
+    departureMonth?: number;
+    departureLocalTime?: string;
+    pickupPointCode?: string;
+  },
+  departures: ReadonlyArray<{
+    publicId: string;
+    routeFrom: string;
+    routeTo: string;
+    departureAtUtc: Date;
+    operationalStatus?: string;
+    pickupPointCodes?: readonly string[];
+  }>
+): ScheduleResolution {
+  if (facts.routeFrom === undefined || facts.routeTo === undefined) {
+    return { status: "NEEDS_CLARIFICATION", reasons: ["MISSING_ROUTE"] };
+  }
+  const routeMatches = departures.filter(
+    (departure) => departure.routeFrom === facts.routeFrom && departure.routeTo === facts.routeTo
+  );
+  if (routeMatches.length === 0) return { status: "NO_MATCH", reasons: ["ROUTE_NOT_FOUND"] };
+  if (
+    facts.departureServiceDate === undefined &&
+    (facts.departureDay === undefined || facts.departureMonth === undefined)
+  ) {
+    return { status: "NEEDS_CLARIFICATION", reasons: ["MISSING_DATE"] };
+  }
+  if (facts.departureLocalTime === undefined) {
+    return { status: "NEEDS_CLARIFICATION", reasons: ["MISSING_TIME"] };
+  }
+
+  const datedMatches = routeMatches.filter((departure) => {
+    const parts = localDepartureParts(departure.departureAtUtc);
+    if (facts.departureServiceDate !== undefined) {
+      return localServiceDate(parts) === facts.departureServiceDate;
+    }
+    return parts.day === facts.departureDay && parts.month === facts.departureMonth;
+  });
+  if (datedMatches.length === 0) return { status: "NO_MATCH", reasons: ["SERVICE_DATE_NOT_FOUND"] };
+
+  const timeMatches = datedMatches.filter(
+    (departure) =>
+      localServiceTime(localDepartureParts(departure.departureAtUtc)) === facts.departureLocalTime
+  );
+  if (timeMatches.length === 0) return { status: "NO_MATCH", reasons: ["DEPARTURE_NOT_FOUND"] };
+  if (timeMatches.some((departure) => departure.operationalStatus === "CANCELLED")) {
+    return { status: "NO_MATCH", reasons: ["DEPARTURE_CANCELLED"] };
+  }
+  const scheduledMatches = timeMatches.filter(
+    (departure) =>
+      departure.operationalStatus === undefined || departure.operationalStatus === "SCHEDULED"
+  );
+  if (scheduledMatches.length > 1)
+    return { status: "NEEDS_CLARIFICATION", reasons: ["AMBIGUOUS_TIME"] };
+  const departure = scheduledMatches[0];
+  if (departure === undefined) return { status: "NO_MATCH", reasons: ["DEPARTURE_NOT_FOUND"] };
+  if (
+    facts.pickupPointCode !== undefined &&
+    departure.pickupPointCodes !== undefined &&
+    !departure.pickupPointCodes.includes(facts.pickupPointCode)
+  ) {
+    return { status: "NO_MATCH", reasons: ["PICKUP_NOT_SUPPORTED"] };
+  }
+  return { status: "MATCHED", departureId: departure.publicId, reasons: [] };
+}
+
 function canonicalRouteValue(
   value: string | undefined,
   departures: ReadonlyArray<{ routeFrom: string; routeTo: string }>,
@@ -504,7 +584,7 @@ export async function appendTranscriptTurn(
       const departures = extractsBookingFacts
         ? await transaction.tripDeparture.findMany({
             where: { operationalStatus: "SCHEDULED", departureAtUtc: { gt: now } },
-            select: { routeFrom: true, routeTo: true, departureAtUtc: true }
+            select: { routeCode: true, routeFrom: true, routeTo: true, departureAtUtc: true }
           })
         : [];
       const facts = extractsBookingFacts

@@ -20,4 +20,3 @@ try {
   app.log.error(error);
   process.exitCode = 1;
 }
- 

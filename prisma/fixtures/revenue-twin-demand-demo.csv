@@ -1,0 +1,5 @@
+requestId,routeCode,serviceDate,preferredTime,passengerCount,flexBeforeMinutes,flexAfterMinutes,pickupPointCode,depositReadiness,expectedStatus,expectedTopOfferServiceCode
+rtw_req_hue_anchor,HUE-NHA,2030-06-20,07:00,3,0,30,HUE_TERMINAL,READY,OVERFLOW_OFFERS_AVAILABLE,HUE-NHA-0730
+rtw_req_hue_primary_available,HUE-NHA,2030-06-21,07:30,2,0,30,HUE_TERMINAL,READY,PRIMARY_AVAILABLE,
+rtw_req_hue_no_fit,HUE-NHA,2030-06-20,07:00,25,0,30,HUE_TERMINAL,READY,GROUP_CAPACITY_UNAVAILABLE,
+rtw_req_cto_partner_ok,CTO-DLI,2030-06-20,06:30,4,0,60,CTO_TERMINAL,UNKNOWN,OVERFLOW_OFFERS_AVAILABLE,CTO-DLI-0730

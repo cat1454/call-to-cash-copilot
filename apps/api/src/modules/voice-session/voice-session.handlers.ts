@@ -65,6 +65,38 @@ type VoiceSessionLogger = {
 
 type VoiceStartStage = "preflight" | "relay_start" | "agora_join" | "relay_bind" | "connected";
 
+type VoiceSessionDependencies = {
+  logger?: VoiceSessionLogger;
+  runtimeStore?: Map<string, VoiceSessionRuntime>;
+  generateCustomerUid?: () => number;
+  generateRequestSuffix?: () => string;
+  agentClient?: Pick<AgoraConversationAgentClient, "start" | "stop">;
+  liveRelayClient?: Pick<AgoraLiveTranscriptRelayClient, "start" | "stop">;
+};
+
+function isLogger(
+  value: VoiceSessionDependencies | VoiceSessionLogger | undefined
+): value is VoiceSessionLogger {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "info" in value &&
+    typeof value.info === "function" &&
+    "warn" in value &&
+    typeof value.warn === "function"
+  );
+}
+
+function validateAgoraUidPlan(config: RuntimeConfig, customerUid: number): void {
+  const planned = [customerUid, config.agora.agentUid, config.agora.liveRelay.uid];
+  if (
+    planned.some((uid) => !Number.isInteger(uid) || uid < 1 || uid > 4_294_967_295) ||
+    new Set(planned).size !== planned.length
+  ) {
+    throw new ApiCommandError(422, "AGORA_CHANNEL_UNAVAILABLE", "Agora UID plan is invalid.");
+  }
+}
+
 function pipelineFingerprint(properties: Record<string, unknown>): string | undefined {
   const pipelineId = properties.pipeline_id;
   if (typeof pipelineId !== "string" || pipelineId.length === 0) return undefined;
@@ -82,27 +114,38 @@ function voiceStartFailureDiagnostics(error: unknown): Record<string, unknown> {
   if (error instanceof ApiCommandError) {
     return { failureCode: error.code, apiStatus: error.statusCode, retryable: error.retryable };
   }
-  return { failureCode: "UNEXPECTED", errorName: error instanceof Error ? error.name : typeof error };
+  return {
+    failureCode: "UNEXPECTED",
+    errorName: error instanceof Error ? error.name : typeof error
+  };
 }
 
 export function createVoiceSessionHandlers(
   config: RuntimeConfig,
   databaseClient?: DatabaseClient,
-  logger?: VoiceSessionLogger
+  dependenciesOrLogger?: VoiceSessionDependencies | VoiceSessionLogger
 ) {
+  const dependencies = isLogger(dependenciesOrLogger)
+    ? { logger: dependenciesOrLogger }
+    : (dependenciesOrLogger ?? {});
+  const logger = dependencies.logger;
   const database = () => requireDatabase(databaseClient);
-  const runtime = new Map<string, VoiceSessionRuntime>();
-  const agentClient = new AgoraConversationAgentClient({
-    appId: config.agora.appId,
-    customerId: config.agora.customerId,
-    customerSecret: config.agora.customerSecret,
-    baseUrl: config.agora.baseUrl,
-    properties: config.agora.agentProperties,
-  });
-  const liveRelayClient = new AgoraLiveTranscriptRelayClient({
-    url: config.agora.liveRelay.url,
-    controlSecret: config.agora.liveRelay.controlSecret
-  });
+  const runtime = dependencies.runtimeStore ?? new Map<string, VoiceSessionRuntime>();
+  const agentClient =
+    dependencies.agentClient ??
+    new AgoraConversationAgentClient({
+      appId: config.agora.appId,
+      customerId: config.agora.customerId,
+      customerSecret: config.agora.customerSecret,
+      baseUrl: config.agora.baseUrl,
+      properties: config.agora.agentProperties
+    });
+  const liveRelayClient =
+    dependencies.liveRelayClient ??
+    new AgoraLiveTranscriptRelayClient({
+      url: config.agora.liveRelay.url,
+      controlSecret: config.agora.liveRelay.controlSecret
+    });
 
   async function lookup(callId: string) {
     const call = await database().callSession.findUnique({
@@ -294,18 +337,33 @@ export function createVoiceSessionHandlers(
           uid: config.agora.liveRelay.uid
         });
 
-        // 1. Start relay FIRST with a placeholder sessionId so it's ready to catch the first greeting
+        // Start relay first with a placeholder sessionId so it is ready to catch the first greeting.
         stage = "relay_start";
-        logger?.info({ event: "voice_session.start.stage", ...logBase, stage }, "Live voice start stage");
-        await liveRelayClient.start({
-          callId: call.publicId,
-          channelName: call.channelName,
-          sessionId: "PENDING_AGENT", // We don't have agentId yet
-          agentUid: config.agora.agentUid,
-          token: relayToken
-        });
+        logger?.info(
+          { event: "voice_session.start.stage", ...logBase, stage },
+          "Live voice start stage"
+        );
+        try {
+          await liveRelayClient.start({
+            callId: call.publicId,
+            channelName: call.channelName,
+            sessionId: "PENDING_AGENT",
+            agentUid: config.agora.agentUid,
+            token: relayToken
+          });
+        } catch (error) {
+          logger?.warn(
+            {
+              event: "voice_session.start.stage",
+              ...logBase,
+              stage: "relay-start-pending-agent",
+              ...voiceStartFailureDiagnostics(error)
+            },
+            "Live voice start stage failed"
+          );
+          throw error;
+        }
 
-        // 2. Start the Agora AI Agent
         let agent: { agentId: string; name: string } | undefined;
         let relayStarted = true;
         try {
@@ -336,22 +394,47 @@ export function createVoiceSessionHandlers(
             token: relayToken
           });
         } catch (error) {
-          logStartupStage(
-            "warn",
-            agent?.agentId ? "relay-bind-agent-session" : "agora-agent-start",
-            startupContext,
-            error
+          logger?.warn(
+            {
+              event: "voice_session.start.stage",
+              ...logBase,
+              stage: agent?.agentId ? "relay-bind-agent-session" : "agora-agent-start",
+              ...voiceStartFailureDiagnostics(error)
+            },
+            "Live voice start stage failed"
           );
           if (agent?.agentId) {
-            logStartupStage("info", "agent-cleanup", startupContext);
+            logger?.info(
+              { event: "voice_session.start.stage", ...logBase, stage: "agent-cleanup" },
+              "Live voice cleanup stage"
+            );
             await agentClient.stop(agent.agentId).catch((cleanupError: unknown) => {
-              logStartupStage("warn", "agent-cleanup", startupContext, cleanupError);
+              logger?.warn(
+                {
+                  event: "voice_session.start.stage",
+                  ...logBase,
+                  stage: "agent-cleanup",
+                  ...voiceStartFailureDiagnostics(cleanupError)
+                },
+                "Live voice cleanup stage failed"
+              );
             });
           }
           if (relayStarted) {
-            logStartupStage("info", "relay-cleanup", startupContext);
+            logger?.info(
+              { event: "voice_session.start.stage", ...logBase, stage: "relay-cleanup" },
+              "Live voice cleanup stage"
+            );
             await liveRelayClient.stop(call.publicId).catch((cleanupError: unknown) => {
-              logStartupStage("warn", "relay-cleanup", startupContext, cleanupError);
+              logger?.warn(
+                {
+                  event: "voice_session.start.stage",
+                  ...logBase,
+                  stage: "relay-cleanup",
+                  ...voiceStartFailureDiagnostics(cleanupError)
+                },
+                "Live voice cleanup stage failed"
+              );
             });
             relayStarted = false;
           }
@@ -376,7 +459,10 @@ export function createVoiceSessionHandlers(
         };
         runtime.set(call.publicId, connected);
         stage = "connected";
-        logger?.info({ event: "voice_session.start.stage", ...logBase, stage }, "Live voice connected");
+        logger?.info(
+          { event: "voice_session.start.stage", ...logBase, stage },
+          "Live voice connected"
+        );
         return presentVoiceSession({
           callId: call.publicId,
           channelName: call.channelName,
@@ -387,7 +473,12 @@ export function createVoiceSessionHandlers(
       } catch (error) {
         runtime.set(call.publicId, { status: "FAILED", customerUid });
         logger?.warn(
-          { event: "voice_session.start.failed", ...logBase, stage, ...voiceStartFailureDiagnostics(error) },
+          {
+            event: "voice_session.start.failed",
+            ...logBase,
+            stage,
+            ...voiceStartFailureDiagnostics(error)
+          },
           "Live voice start failed"
         );
         return mapAgoraError(error);

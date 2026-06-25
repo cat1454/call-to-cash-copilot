@@ -1,6 +1,7 @@
+import { createHmac } from "node:crypto";
+
 import { config as loadEnv } from "dotenv";
 import { readRuntimeConfig } from "@call-to-cash/config";
-import { createHmac } from "crypto";
 
 loadEnv({ path: "d:/call-to-cash-copilot/.env" });
 const config = readRuntimeConfig();
@@ -13,7 +14,9 @@ const payload = {
   token: "fake-token"
 };
 
-const signature = `sha256=${createHmac("sha256", config.agora.liveRelay.controlSecret).update(JSON.stringify(payload)).digest("hex")}`;
+const signature = `sha256=${createHmac("sha256", config.agora.liveRelay.controlSecret)
+  .update(JSON.stringify(payload))
+  .digest("hex")}`;
 
 fetch("http://127.0.0.1:3011/v1/relay/sessions", {
   method: "POST",
@@ -22,4 +25,4 @@ fetch("http://127.0.0.1:3011/v1/relay/sessions", {
     "x-ctc-relay-signature": signature
   },
   body: JSON.stringify(payload)
-}).then(r => r.text().then(t => console.log(r.status, t)));
+}).then((response) => response.text().then((text) => console.log(response.status, text)));

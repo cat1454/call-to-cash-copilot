@@ -479,6 +479,80 @@ test("Scenario-Robust Revenue Rebalancing Optimizer preserves FCFS priority and 
   assert.equal(terms.finalFareAmountMinor, alternative.fareAmountMinor - terms.discountAmountMinor);
 });
 
+test("Revenue Twin rejects same-route alternatives that do not support the requested pickup", () => {
+  const demand = {
+    schemaVersion: "ctc.revenue-twin.demand.v1" as const,
+    callId: "call_01JTEST0001",
+    routeId: "route_HUE-NHA",
+    requestedDepartureId: "dep_hue_nha_0700",
+    pickupPointId: "pickup_HUE_TERMINAL",
+    passengerCount: 3,
+    flexibility: { beforeMinutes: 0, afterMinutes: 60, timeConstraint: "PREFERRED" as const },
+    depositReadiness: "READY" as const,
+    groupPolicy: "KEEP_TOGETHER" as const,
+    requestedAt: now
+  };
+  const primary = {
+    schemaVersion: "ctc.revenue-twin.departure-snapshot.v1" as const,
+    departureId: demand.requestedDepartureId,
+    operatorId: "op_own_fleet",
+    routeId: demand.routeId,
+    scheduledAt: now,
+    capacity: 20,
+    availableSeats: 2,
+    fareAmountMinor: 420_000,
+    currency: "VND" as const,
+    pickupPointIds: ["pickup_HUE_TERMINAL"],
+    operatorRelation: "OWN_FLEET" as const,
+    inventoryVersion: 1,
+    observedAt: now
+  };
+  const mismatch = {
+    ...primary,
+    departureId: "dep_hue_nha_0730_wrong_pickup",
+    scheduledAt: later,
+    availableSeats: 12,
+    pickupPointIds: ["pickup_HUE_CENTER"],
+    inventoryVersion: 2
+  };
+  const policy = {
+    schemaVersion: "ctc.revenue-twin.incentive-policy.v1" as const,
+    policyId: "pickup-filter-test",
+    policyVersion: "SRRRO-V1",
+    enabled: true,
+    maxDiscountAmountMinor: 30_000,
+    maxDiscountBasisPoints: 2_000,
+    minimumFinalFareAmountMinor: 100_000,
+    maximumAlternativeShiftMinutes: 120,
+    proactiveRebalancingEnabled: true,
+    scarcePrimaryAvailableSeats: 3,
+    minimumAlternativeSurplusSeats: 6,
+    offerTtlSeconds: 120,
+    allowedOperatorRelations: ["OWN_FLEET"] as ("OWN_FLEET" | "VERIFIED_PARTNER")[],
+    allowedReasonCodes: ["PRIMARY_DEPARTURE_FULL", "INCENTIVE_POLICY_APPLIED"] as (
+      | "PRIMARY_DEPARTURE_FULL"
+      | "INCENTIVE_POLICY_APPLIED"
+    )[]
+  };
+
+  const result = evaluateRevenueTwin(
+    {
+      demand,
+      primaryDeparture: primary,
+      alternativeDepartures: [mismatch],
+      incentivePolicy: policy
+    },
+    {
+      evaluationId: "rtw_eval_pickup_filter",
+      offerIdForRank: () => "rtw_offer_pickup_filter",
+      now: new Date(now)
+    }
+  );
+
+  assert.equal(result.status, "NO_ELIGIBLE_ALTERNATIVE");
+  assert.deepEqual(result.offers, []);
+});
+
 test("Scenario-Robust Revenue Rebalancing Optimizer proactively protects scarce hot-departure seats", () => {
   const demand = {
     schemaVersion: "ctc.revenue-twin.demand.v1" as const,

@@ -1,9 +1,33 @@
 # Call-to-Cash Risk Copilot — Current State
 
-> **Last refreshed:** 2026-06-24 (Asia/Bangkok)
+> **Last refreshed:** 2026-06-25 (Asia/Bangkok)
 > **Current implementation branch:** `codex/revenueTwin`
 > **Purpose:** state the current product maturity, the Phase 9 closure boundary, Phase 10 strict-schema extraction closure, and the active Phase 11 roadmap.
 > **Current status:** Phase 9 core scope, Phase 10, and Phase 11 MVP are implemented. The 2026-06-24 transcript-to-summary hardening is verified in the local cold-start smoke; historical notes below remain as trace evidence where explicitly dated.
+
+## Current update — 2026-06-25
+
+The Phase 10.5 schedule catalogue foundation has been hardened for Phase 11 rehearsal:
+
+- `prisma/fixtures/trip-schedule-demo.csv` now uses strict `serviceDate`, `localTime`, `timezone`,
+  physical `routeCode`, time-specific `serviceCode`, pickup codes, operator relation, policy
+  versions, and status.
+- Supporting fixtures now separate pickup aliases, inventory scenario counts, Revenue Twin demand
+  expectations, and Revenue Twin incentive policy knobs.
+- The schedule fixture contains 96 `SCHEDULED` departures and 24 `CANCELLED` negative controls
+  across four routes and six future service dates.
+- The importer validates exact headers, duplicate public IDs, duplicate natural keys, ISO dates,
+  `HH:mm` times, timezone, enums, pickup references, policy references, capacity, fare, and deposit
+  rules before mapping rows into the existing `trip_departures` schema.
+- Shared/API schedule resolution now distinguishes `MATCHED`, `NEEDS_CLARIFICATION`, and `NO_MATCH`;
+  only `MATCHED` carries a departure ID, and cancelled or pickup-incompatible departures remain
+  non-bookable.
+- Latest focused evidence is recorded in
+  `docs/testing/phase-10-5-schedule-catalogue-hardening.tdd.md`. Local DB-backed API verification
+  passed against the disposable PostgreSQL URL; root format, lint, typecheck, test, and build gates
+  pass as of this refresh. The root build uses a guarded prebuild script that avoids nested pnpm
+  reinstall loops when dependencies are already present. Live Agora claims still require a
+  controlled provider session and are not upgraded by this fixture proof.
 
 ## Current update — 2026-06-24
 

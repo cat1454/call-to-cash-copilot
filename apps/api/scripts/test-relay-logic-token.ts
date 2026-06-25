@@ -21,7 +21,7 @@ async function run() {
       channelName: "test-channel",
       sessionId: "test-session",
       agentUid: 9001,
-      token: token
+      token
     });
     console.log("Relay logic started successfully with REAL token!");
   } catch (err) {
@@ -30,4 +30,5 @@ async function run() {
     await relay.close();
   }
 }
+
 run().catch(console.error);

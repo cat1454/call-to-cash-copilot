@@ -194,8 +194,7 @@ test("voice start surfaces pending relay failure before provider agent calls", a
   assert.equal(relayStops, 0);
   assert.equal(
     entries.some(
-      (entry) =>
-        entry.level === "warn" && entry.payload.stage === "relay-start-pending-agent"
+      (entry) => entry.level === "warn" && entry.payload.stage === "relay-start-pending-agent"
     ),
     true
   );

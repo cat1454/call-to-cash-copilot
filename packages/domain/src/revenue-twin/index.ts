@@ -245,6 +245,11 @@ export function evaluateRevenueTwin(
         Math.abs(timeShiftMinutes) <= incentivePolicy.maximumAlternativeShiftMinutes
     )
     .filter(({ timeShiftMinutes }) => withinFlexibility(timeShiftMinutes, demand))
+    .filter(
+      ({ departure }) =>
+        demand.pickupPointId === undefined ||
+        departure.pickupPointIds.includes(demand.pickupPointId)
+    )
     .map(({ departure, timeShiftMinutes }) => ({
       departure,
       timeShiftMinutes,

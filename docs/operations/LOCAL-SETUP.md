@@ -187,8 +187,10 @@ Migration policy:
 
 The seed is idempotent and creates `usr_provider_demo`, the original deterministic demo
 departures, and the Phase 10.5 Excel-editable schedule fixture from
-`prisma/fixtures/trip-schedule-demo.csv`. That fixture covers 25-30 May demo departures with
-multiple daily slots per route for catalogue-backed parser and Revenue Twin rehearsal data.
+`prisma/fixtures/trip-schedule-demo.csv`. The strict schedule fixture covers four demo routes
+across six future service dates with 96 scheduled departures and cancelled negative controls.
+Supporting pickup, inventory, demand, and Revenue Twin policy fixtures live in the same directory
+for catalogue-backed parser and Revenue Twin rehearsal data.
 
 ## 6. Run the applications
 

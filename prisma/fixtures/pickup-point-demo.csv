@@ -1,0 +1,9 @@
+pickupPointCode,routeFromCode,canonicalName,aliases
+HUE_TERMINAL,HUE,Ben xe phia Nam Hue,ben xe hue|ben xe phia nam hue|hue terminal|bến xe huế|bến xe phía nam huế
+HUE_CENTER,HUE,Trung tam Hue,trung tam hue|tp hue|thanh pho hue|trung tâm huế
+CTO_TERMINAL,CTO,Ben xe Can Tho,ben xe can tho|can tho terminal|bến xe cần thơ
+CTO_CENTER,CTO,Trung tam Can Tho,trung tam can tho|ninh kieu|trung tâm cần thơ
+DAD_TERMINAL,DAD,Ben xe Trung tam Da Nang,ben xe da nang|ben xe trung tam da nang|da nang terminal|bến xe đà nẵng
+DAD_CENTER,DAD,Trung tam Da Nang,trung tam da nang|hai chau|trung tâm đà nẵng
+HAN_MY_DINH,HAN,Ben xe My Dinh,my dinh|ben xe my dinh|mỹ đình|bến xe mỹ đình
+HAN_CENTER,HAN,Trung tam Ha Noi,trung tam ha noi|pho co|trung tâm hà nội

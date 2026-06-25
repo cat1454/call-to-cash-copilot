@@ -789,6 +789,27 @@ LLM can be disabled with `AI_PROVIDER=deterministic`, and all acceptance tests s
 
 Build the fleet-level demand, departure, offer, and revenue-recovery capability on top of the existing server-authoritative booking, inventory, agreement, and payment boundaries.
 
+Phase 10.5 schedule catalogue hardening feeds this phase through the existing database authority:
+
+```text
+trip-schedule-demo.csv
+  → strict fixture importer
+  → PostgreSQL trip_departures
+trip-inventory-demo.csv
+  → demo bookings + CONSUMED / ACTIVE inventory_holds
+  → derived available seats
+Revenue Twin
+  → routeCode candidate query
+  → deterministic filtering/ranking
+  → persisted offer
+  → inventory revalidation and transactional hold on acceptance
+```
+
+`routeCode` is the physical route, `serviceCode` is the departure/service variant, and cancelled
+catalogue rows are kept as negative controls but are not eligible alternatives. Browser and LLM
+input cannot provide capacity, fare, discount, operator relation, policy version, inventory
+version, or recovered revenue.
+
 ## Delivery lanes
 
 ```text

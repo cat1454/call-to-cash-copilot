@@ -1,13 +1,25 @@
 import { createPrismaClient } from "../packages/db/src/client.js";
-import { loadTripScheduleRows } from "./schedule-fixture.js";
+import {
+  applyDemoCatalogueFixtures,
+  loadPickupPointRows,
+  loadRevenueTwinPolicyRows,
+  loadTripInventoryRows,
+  loadTripScheduleRows
+} from "./schedule-fixture.js";
 import { fileURLToPath } from "node:url";
 
 const databaseUrl =
   process.env.DATABASE_URL ??
   "postgresql://call_to_cash:call_to_cash@127.0.0.1:55432/call_to_cash?schema=public";
 const prisma = createPrismaClient({ databaseUrl });
-const scheduleRows = loadTripScheduleRows(
-  fileURLToPath(new URL("./fixtures/trip-schedule-demo.csv", import.meta.url))
+const fixtureUrl = (relativePath: string) => fileURLToPath(new URL(relativePath, import.meta.url));
+const scheduleRows = loadTripScheduleRows(fixtureUrl("./fixtures/trip-schedule-demo.csv"), {
+  pickupRows: loadPickupPointRows(fixtureUrl("./fixtures/pickup-point-demo.csv")),
+  policyRows: loadRevenueTwinPolicyRows(fixtureUrl("./fixtures/revenue-twin-policy-demo.csv"))
+});
+const inventoryRows = loadTripInventoryRows(
+  fixtureUrl("./fixtures/trip-inventory-demo.csv"),
+  scheduleRows
 );
 
 function nextVietnamOccurrence(month: number, day: number, hour: number, minute: number): Date {
@@ -101,40 +113,7 @@ try {
     }
   });
 
-  for (const row of scheduleRows) {
-    await prisma.tripDeparture.upsert({
-      where: { publicId: row.publicId },
-      update: {
-        routeCode: row.routeCode,
-        routeFrom: row.routeFrom,
-        routeTo: row.routeTo,
-        departureAtUtc: row.departureAtUtc,
-        departureTimezone: row.departureTimezone,
-        capacity: row.capacity,
-        operationalStatus: row.operationalStatus,
-        currency: row.currency,
-        farePerSeatMinor: row.farePerSeatMinor,
-        depositAmountMinor: row.depositAmountMinor,
-        pricePolicyVersion: row.pricePolicyVersion,
-        refundPolicyVersion: row.refundPolicyVersion
-      },
-      create: {
-        publicId: row.publicId,
-        routeCode: row.routeCode,
-        routeFrom: row.routeFrom,
-        routeTo: row.routeTo,
-        departureAtUtc: row.departureAtUtc,
-        departureTimezone: row.departureTimezone,
-        capacity: row.capacity,
-        operationalStatus: row.operationalStatus,
-        currency: row.currency,
-        farePerSeatMinor: row.farePerSeatMinor,
-        depositAmountMinor: row.depositAmountMinor,
-        pricePolicyVersion: row.pricePolicyVersion,
-        refundPolicyVersion: row.refundPolicyVersion
-      }
-    });
-  }
+  await applyDemoCatalogueFixtures(prisma, { scheduleRows, inventoryRows });
 } finally {
   await prisma.$disconnect();
 }

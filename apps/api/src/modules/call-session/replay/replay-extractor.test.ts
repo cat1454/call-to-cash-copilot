@@ -19,11 +19,13 @@ const departures = [
 
 const catalogueDepartures = [
   {
+    routeCode: "CTO-DLI",
     routeFrom: "Can Tho",
     routeTo: "Da Lat",
     departureAtUtc: new Date("2027-05-25T00:30:00.000Z")
   },
   {
+    routeCode: "HUE-NHA",
     routeFrom: "Hue",
     routeTo: "Nha Trang",
     departureAtUtc: new Date("2027-05-26T02:00:00.000Z")
@@ -111,6 +113,20 @@ test("extracts destination-before-origin phrasing only when the catalogue route 
   assert.equal(facts.routeFrom, "Can Tho");
   assert.equal(facts.routeTo, "Da Lat");
   assert.equal(facts.passengerCount, 3);
+});
+
+test("extracts route-coded pickup aliases from the catalogue metadata", () => {
+  const facts = extractReplayFacts(
+    "Toi muon di Hue den Nha Trang ngay 20/6 luc 07:00 cho 3 nguoi, don o ben xe phia nam Hue.",
+    {
+      departures: catalogueDepartures,
+      now: new Date("2027-05-01T00:00:00.000Z")
+    }
+  );
+
+  assert.equal(facts.routeFrom, "Hue");
+  assert.equal(facts.routeTo, "Nha Trang");
+  assert.equal(facts.pickupPoint, "Ben xe phia Nam Hue");
 });
 
 test("prefers the replacement passenger count after Vietnamese change keywords", () => {

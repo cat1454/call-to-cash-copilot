@@ -31,7 +31,10 @@ const POLICY = {
   scarcePrimaryAvailableSeats: 3,
   minimumAlternativeSurplusSeats: 6,
   offerTtlSeconds: 120,
-  allowedOperatorRelations: ["OWN_FLEET"] as ("OWN_FLEET" | "VERIFIED_PARTNER")[],
+  allowedOperatorRelations: ["OWN_FLEET", "VERIFIED_PARTNER"] as (
+    | "OWN_FLEET"
+    | "VERIFIED_PARTNER"
+  )[],
   allowedReasonCodes: [
     "PRIMARY_DEPARTURE_FULL",
     "PRIMARY_CAPACITY_SCARCE",
@@ -109,6 +112,55 @@ function requireRevenueTwinDelegates(client: DatabaseClient): void {
   );
 }
 
+function catalogueMetadataForDeparture(departure: { publicId: string; routeCode: string }) {
+  const routePickups: Record<string, string[]> = {
+    "HUE-NHA": ["pickup_HUE_TERMINAL", "pickup_HUE_CENTER"],
+    "CTO-DLI": ["pickup_CTO_TERMINAL", "pickup_CTO_CENTER"],
+    "DAD-BNA": ["pickup_DAD_TERMINAL", "pickup_DAD_CENTER"],
+    "HAN-SAP": ["pickup_HAN_MY_DINH", "pickup_HAN_CENTER"]
+  };
+  const operatorRelation = departure.publicId.includes("_partner")
+    ? ("VERIFIED_PARTNER" as const)
+    : ("OWN_FLEET" as const);
+  return {
+    operatorId: operatorRelation === "VERIFIED_PARTNER" ? "op_verified_partner" : "op_own_fleet",
+    operatorRelation,
+    pickupPointIds: routePickups[departure.routeCode] ?? ["pickup_catalogue_default"]
+  };
+}
+
+function pickupPointIdForBooking(
+  routeCode: string,
+  pickupPointDisplay: string | null
+): string | undefined {
+  if (pickupPointDisplay === null) return undefined;
+  const normalized = pickupPointDisplay
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase();
+  const routeAliases: Record<string, Array<{ id: string; aliases: string[] }>> = {
+    "HUE-NHA": [
+      { id: "pickup_HUE_TERMINAL", aliases: ["ben xe hue", "ben xe phia nam hue", "hue terminal"] },
+      { id: "pickup_HUE_CENTER", aliases: ["trung tam hue", "hue center"] }
+    ],
+    "CTO-DLI": [
+      { id: "pickup_CTO_TERMINAL", aliases: ["ben xe can tho", "can tho terminal"] },
+      { id: "pickup_CTO_CENTER", aliases: ["trung tam can tho", "can tho center"] }
+    ],
+    "DAD-BNA": [
+      { id: "pickup_DAD_TERMINAL", aliases: ["ben xe da nang", "da nang terminal"] },
+      { id: "pickup_DAD_CENTER", aliases: ["trung tam da nang", "da nang center"] }
+    ],
+    "HAN-SAP": [
+      { id: "pickup_HAN_MY_DINH", aliases: ["my dinh", "ben xe my dinh"] },
+      { id: "pickup_HAN_CENTER", aliases: ["trung tam ha noi", "ha noi center"] }
+    ]
+  };
+  return routeAliases[routeCode]?.find((entry) =>
+    entry.aliases.some((alias) => normalized.includes(alias))
+  )?.id;
+}
+
 async function snapshotDeparture(
   client: DatabaseClient | Prisma.TransactionClient,
   departure: {
@@ -122,6 +174,7 @@ async function snapshotDeparture(
   },
   now: Date
 ) {
+  const catalogueMetadata = catalogueMetadataForDeparture(departure);
   const occupied = await client.inventoryHold.aggregate({
     where: {
       departureId: departure.id,
@@ -132,15 +185,15 @@ async function snapshotDeparture(
   return {
     schemaVersion: "ctc.revenue-twin.departure-snapshot.v1" as const,
     departureId: departure.publicId,
-    operatorId: "op_own_fleet",
+    operatorId: catalogueMetadata.operatorId,
     routeId: `route_${departure.routeCode}`,
     scheduledAt: departure.departureAtUtc.toISOString(),
     capacity: departure.capacity,
     availableSeats: Math.max(0, departure.capacity - (occupied._sum.quantity ?? 0)),
     fareAmountMinor: departure.farePerSeatMinor,
     currency: "VND" as const,
-    pickupPointIds: ["pickup_catalogue_default"],
-    operatorRelation: "OWN_FLEET" as const,
+    pickupPointIds: catalogueMetadata.pickupPointIds,
+    operatorRelation: catalogueMetadata.operatorRelation,
     inventoryVersion: departure.version,
     observedAt: now.toISOString()
   };
@@ -263,8 +316,12 @@ export function createRevenueTwinHandlers(databaseClient?: DatabaseClient): Reve
             bookingId: booking.publicId,
             routeId: primary.routeId,
             requestedDepartureId: primary.departureId,
+            pickupPointId: pickupPointIdForBooking(
+              booking.tripDeparture.routeCode,
+              booking.pickupPointDisplay
+            ),
             passengerCount: booking.passengerCount,
-            flexibility: { beforeMinutes: 0, afterMinutes: 120, timeConstraint: "PREFERRED" },
+            flexibility: { beforeMinutes: 0, afterMinutes: 30, timeConstraint: "PREFERRED" },
             depositReadiness: "UNKNOWN",
             groupPolicy: "KEEP_TOGETHER",
             requestedAt: now.toISOString()
@@ -433,7 +490,7 @@ export function createRevenueTwinHandlers(databaseClient?: DatabaseClient): Reve
                 offerId: offer.publicId,
                 evaluationId: offer.evaluation.publicId,
                 alternativeDepartureId: offer.alternativeDeparture.publicId,
-                operatorRelation: offer.operatorRelation as "OWN_FLEET",
+                operatorRelation: offer.operatorRelation as "OWN_FLEET" | "VERIFIED_PARTNER",
                 rank: offer.rank,
                 scheduledAt: offer.scheduledAt.toISOString(),
                 timeShiftMinutes: offer.timeShiftMinutes,

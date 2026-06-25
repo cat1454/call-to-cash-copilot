@@ -236,6 +236,20 @@ interface RevenueTwinDepartureSnapshotRepository {
 
 Implementation: trace existing `TripDeparture`/inventory repository semantics; add a DB repository mapper; resolve verified partner status only from authoritative catalogue data; expose through a service used by later slices, not browser input; add safe repository tests. Focused tests cover active/expired/confirmed accounting, bounds, VND, pickup/relation mapping, stable version, and PII absence. DB-backed tests must create realistic departure/hold/reservation rows and compare snapshot availability with the locked hold authority.
 
+Phase 10.5 catalogue hardening adds deterministic fixture metadata for Phase 11 rehearsal:
+`trip-schedule-demo.csv` holds physical routes, service variants, operator relation, status, fare,
+deposit, and pickup codes; `pickup-point-demo.csv` holds aliases; `trip-inventory-demo.csv` holds
+scenario counts; `revenue-twin-demand-demo.csv` holds expected demand outcomes; and
+`revenue-twin-policy-demo.csv` holds policy knobs. Runtime offers still read authoritative
+`trip_departures` plus `inventory_holds`; browser and LLM input cannot supply capacity, fare,
+discount, operator relation, inventory version, or policy.
+
+The runtime demand context may include a server-derived `pickupPointId` after the booking pickup is
+validated. CSV pickup codes such as `HUE_TERMINAL` remain operator-editable catalogue codes; the API
+adapter maps them to shared runtime identifiers such as `pickup_HUE_TERMINAL` before the deterministic
+Revenue Twin filter runs. If present, the pickup identifier is a constraint: same-route alternatives
+that do not list that pickup are rejected before ranking.
+
 Acceptance: one authoritative snapshot is reproducible from known DB rows; no candidate is accepted from browser capacity/fare; test data proves expiration handling and bounds. Explicitly out of scope: ranking, incentives, offer creation, inventory mutation, voice directives, dashboard, provider calls, and Redis.
 
 #### Codex prompt — 11.1
@@ -248,7 +262,7 @@ Implement only Phase 11.1 in Call-to-Cash Risk Copilot. Read AGENTS.md and the p
 
 Input/output: `demand context + primary snapshot + candidate snapshots → RevenueTwinEvaluationResult`. A primary with capacity produces `PRIMARY_AVAILABLE`; otherwise return `OVERFLOW_OFFERS_AVAILABLE`, `NO_ELIGIBLE_ALTERNATIVE`, `GROUP_CAPACITY_UNAVAILABLE`, or `POLICY_DISABLED` truthfully.
 
-Apply candidate filters in this exact order: (1) same route; (2) allowed and verified operator; (3) complete group fits; (4) inside customer flexibility; (5) pickup compatibility; (6) schedule eligibility; (7) valid fare; (8) fresh snapshot; (9) not requested departure. MVP group policy is `KEEP_TOGETHER`.
+Apply candidate filters in this exact order: (1) same route; (2) allowed and verified operator; (3) complete group fits; (4) inside customer flexibility; (5) pickup compatibility when the server has a validated pickup; (6) schedule eligibility; (7) valid fare; (8) fresh snapshot; (9) not requested departure. MVP group policy is `KEEP_TOGETHER`.
 
 Rank lexicographically: (1) `OWN_FLEET` before `VERIFIED_PARTNER`; (2) lower absolute time shift; (3) lower required discount; (4) higher remaining capacity; (5) higher potential net recovered revenue; (6) earlier schedule; (7) stable departure ID. This is a deterministic multi-criteria comparator, not an LLM ranker. Filter is `O(n)`, sort is `O(n log n)`, and top three selection is `O(1)` after sort.
 

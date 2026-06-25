@@ -23,9 +23,7 @@ type RelayRequestOptions = {
 };
 
 function signature(secret: string, payload: unknown): string {
-  return `sha256=${createHmac("sha256", secret)
-    .update(JSON.stringify(payload))
-    .digest("hex")}`;
+  return `sha256=${createHmac("sha256", secret).update(JSON.stringify(payload)).digest("hex")}`;
 }
 
 export class AgoraLiveTranscriptRelayClient {
@@ -67,7 +65,7 @@ export class AgoraLiveTranscriptRelayClient {
           // DELETE has no body; sending Content-Type: application/json without
           // a body causes Fastify to reject the request with a parse error.
           ...(method === "POST" ? { "content-type": "application/json" } : {}),
-          "x-ctc-relay-signature": signature(this.config.controlSecret, payload)
+          "x-ctc-relay-signature": signature(this.config.controlSecret, signaturePayload)
         },
         ...(hasBody ? { body: JSON.stringify(body) } : {}),
         signal: AbortSignal.timeout(10_000)
@@ -87,11 +85,7 @@ export class AgoraLiveTranscriptRelayClient {
           providerDetail
         );
       }
-    } catch (error) {
-      if (error instanceof AgoraAdapterError) {
-        throw error;
-      }
-
+    } catch {
       throw new AgoraAdapterError(
         "AGORA_CHANNEL_UNAVAILABLE",
         "Live transcript relay is unavailable.",

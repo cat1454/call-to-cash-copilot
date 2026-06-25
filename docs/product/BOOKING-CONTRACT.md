@@ -106,10 +106,14 @@ Route, departure date, and departure time may arrive in separate final customer 
 server retains the already accepted route while matching a later date/time turn against the
 scheduled catalogue; it does not require the customer to repeat every prior field in one sentence.
 
-Phase 10.5 adds an Excel-editable schedule fixture at `prisma/fixtures/trip-schedule-demo.csv`.
-The CSV is demo catalogue input for route/date/time/capacity/fare/deposit/pickup policy; the
-seed imports its rows into `trip_departures`. The parser and optional LLM extractor may only
-select a route/departure/pickup that resolves to that scheduled catalogue or to the existing
+Phase 10.5 adds Excel-editable catalogue fixtures under `prisma/fixtures/`. The canonical
+schedule input is `trip-schedule-demo.csv` with `serviceDate`, `localTime`, `timezone`,
+physical `routeCode`, time-specific `serviceCode`, pickup codes, fare, deposit rule, policy
+versions, operator relation, and status. Supporting fixtures define pickup aliases, inventory
+scenario counts, Revenue Twin demand examples, and incentive policy knobs. The seed imports
+validated schedule rows into `trip_departures`; the supporting fixture columns remain catalogue
+metadata for parser, tests, and Revenue Twin rehearsal. The parser and optional LLM extractor may
+only select a route/departure/pickup that resolves to that scheduled catalogue or to the existing
 database catalogue. They must not invent a route, departure time, fare, deposit, or pickup point
 that is absent from the catalogue.
 
@@ -156,10 +160,21 @@ fields are valid, the server reserves the existing temporary inventory hold and 
 to `AGREEMENT_READY`; it must still read the terms and obtain explicit confirmation before a
 Solana payment intent is created.
 
-For catalogue demo rows, supported pickup values come from the CSV `pickupPoints` column where
-available, with route-origin terminal fallbacks such as `Ben xe <origin>` for deterministic local
-demo coverage. Pickup matching remains a validation step only; precise pickup stays off-chain and
-is displayed only through the existing safe booking projection.
+For catalogue demo rows, supported pickup values come from `pickup-point-demo.csv` and the
+schedule row's `pickupPointCodes`, with route-origin terminal fallbacks such as `Ben xe <origin>`
+for deterministic local demo coverage. Pickup matching remains a validation step only; precise
+pickup stays off-chain and is displayed only through the existing safe booking projection.
+
+When a booking pickup has been validated, the server may project it into Phase 11 as a runtime
+`pickupPointId` constraint such as `pickup_HUE_TERMINAL`. The operator-editable fixture keeps short
+codes like `HUE_TERMINAL`; the API adapter performs the shared-contract mapping. Browser and LLM
+payloads cannot provide authoritative pickup compatibility for Revenue Twin offers.
+
+Schedule resolution distinguishes `MATCHED`, `NEEDS_CLARIFICATION`, and `NO_MATCH`. Only
+`MATCHED` may carry a `departureId`; clarification/no-match results keep the booking departure
+unset and report safe reason codes such as `MISSING_ROUTE`, `AMBIGUOUS_TIME`,
+`DEPARTURE_CANCELLED`, or `PICKUP_NOT_SUPPORTED`. A matched schedule still does not imply
+inventory availability.
 
 For a trusted live Agora final turn, an explicit confirmation such as `tôi xác nhận` after the
 booking reaches `AGREEMENT_READY` locks the agreement and triggers the existing Solana payment

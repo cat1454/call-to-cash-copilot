@@ -23,13 +23,13 @@ The MVP is a modular monolith. Do not split the system into microservices merely
 
 ## 2. Environment matrix
 
-| Environment | Primary use | Data | Agora | Solana | Recording |
-|---|---|---|---|---|---|
-| Local | individual development | synthetic | optional | mock/devnet | MinIO only |
-| Preview | pull-request review | synthetic | optional | mock/devnet | off by default |
-| Staging | end-to-end rehearsal | controlled demo data | enabled when needed | devnet | private S3 if consent flow tested |
-| Demo | live hackathon presentation | synthetic/demo data | enabled | devnet or controlled mock | only if required |
-| Production | real customers | consented real data | enabled | approved configuration | private S3 with retention |
+| Environment | Primary use                 | Data                 | Agora               | Solana                    | Recording                         |
+| ----------- | --------------------------- | -------------------- | ------------------- | ------------------------- | --------------------------------- |
+| Local       | individual development      | synthetic            | optional            | mock/devnet               | MinIO only                        |
+| Preview     | pull-request review         | synthetic            | optional            | mock/devnet               | off by default                    |
+| Staging     | end-to-end rehearsal        | controlled demo data | enabled when needed | devnet                    | private S3 if consent flow tested |
+| Demo        | live hackathon presentation | synthetic/demo data  | enabled             | devnet or controlled mock | only if required                  |
+| Production  | real customers              | consented real data  | enabled             | approved configuration    | private S3 with retention         |
 
 ### Hard rules
 
@@ -60,24 +60,24 @@ Internet
 
 ### Components
 
-| Component | Deployment requirement |
-|---|---|
-| `apps/web` | static/SSR compatible host; `NEXT_PUBLIC_*` only for non-secret config |
-| `apps/api` | container/node host with environment secrets; supports long-lived SSE connections |
+| Component        | Deployment requirement                                                                                                                    |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/web`       | static/SSR compatible host; `NEXT_PUBLIC_*` only for non-secret config                                                                    |
+| `apps/api`       | container/node host with environment secrets; supports long-lived SSE connections                                                         |
 | `apps/rtm-relay` | private-only headless-browser container; starts/stops per-call RTM subscriptions only from signed API control commands; no public ingress |
-| worker | same codebase, separate process/command recommended for queues and retries |
-| PostgreSQL | managed or persistent database with backups and migration access |
-| Redis | managed Redis with authentication, TLS where supported, persistence appropriate to queue needs |
-| S3 | private bucket, encryption, lifecycle, scoped IAM identity |
-| Agora | server-held App Certificate; webhook endpoint verification |
-| Solana | RPC endpoint and server-held signing/verification configuration |
+| worker           | same codebase, separate process/command recommended for queues and retries                                                                |
+| PostgreSQL       | managed or persistent database with backups and migration access                                                                          |
+| Redis            | managed Redis with authentication, TLS where supported, persistence appropriate to queue needs                                            |
+| S3               | private bucket, encryption, lifecycle, scoped IAM identity                                                                                |
+| Agora            | server-held App Certificate; webhook endpoint verification                                                                                |
+| Solana           | RPC endpoint and server-held signing/verification configuration                                                                           |
 
 ### Node.js build runtime
 
 - The deploy baseline is Node.js `20.20.2`; the supported engine range also permits compatible Node.js 22 and 24+ releases.
 - Corepack must resolve the root `packageManager` pin, currently pnpm `10.34.4`.
 - Do not upgrade the deployment to pnpm 11 while the build image remains on Node.js 20 because pnpm 11 requires Node.js 22+ and imports `node:sqlite`.
-- Deployment providers should install with `pnpm install --frozen-lockfile`. If a provider is fixed to `npm install` followed by `npm run build`, the root `prebuild` lifecycle bootstraps the pinned pnpm workspace before Turbo runs; removing that lifecycle would leave package-local dependencies such as `zod` unavailable.
+- Deployment providers should install with `pnpm install --frozen-lockfile`. If a provider is fixed to `npm install` followed by `npm run build`, the root `prebuild` lifecycle runs `node scripts/prebuild-install.mjs`: it no-ops when pnpm's `node_modules/.modules.yaml` is already present, otherwise it bootstraps the pinned workspace with `corepack pnpm install --frozen-lockfile --config.confirmModulesPurge=false` before Turbo runs. Removing that lifecycle would leave package-local dependencies such as `zod` unavailable on npm-only providers.
 
 ---
 
@@ -148,11 +148,11 @@ receipts/{environment}/{bookingId}/{trustReceiptId}.json
 
 ### Required lifecycle concept
 
-| Prefix | Action |
-|---|---|
-| `raw/` | expire according to recording consent/retention policy |
-| `derived/` | expire/pseudonymize according to evaluation policy |
-| `receipts/` | retain according to booking/dispute policy |
+| Prefix      | Action                                                 |
+| ----------- | ------------------------------------------------------ |
+| `raw/`      | expire according to recording consent/retention policy |
+| `derived/`  | expire/pseudonymize according to evaluation policy     |
+| `receipts/` | retain according to booking/dispute policy             |
 
 ### IAM minimum permissions
 
@@ -326,14 +326,14 @@ S3 upload/download error rate
 
 ### Suggested alerts
 
-| Alert | Severity | Initial action |
-|---|---|---|
-| payment recipient/reference mismatch spike | Critical | disable new payment intents; investigate |
-| proof mismatch | Critical | stop automatic receipt confirmation; manual review |
-| payment verification backlog | High | scale/check worker and RPC; preserve pending state |
-| DB unavailable | Critical | fail safe; do not create payment intents |
-| Agora/webhook failures | High | switch to replay/manual fallback |
-| S3 access denied/exposure signal | High/Critical | disable recording; rotate credentials |
+| Alert                                      | Severity      | Initial action                                     |
+| ------------------------------------------ | ------------- | -------------------------------------------------- |
+| payment recipient/reference mismatch spike | Critical      | disable new payment intents; investigate           |
+| proof mismatch                             | Critical      | stop automatic receipt confirmation; manual review |
+| payment verification backlog               | High          | scale/check worker and RPC; preserve pending state |
+| DB unavailable                             | Critical      | fail safe; do not create payment intents           |
+| Agora/webhook failures                     | High          | switch to replay/manual fallback                   |
+| S3 access denied/exposure signal           | High/Critical | disable recording; rotate credentials              |
 
 ---
 

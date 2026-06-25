@@ -3,6 +3,7 @@ import type { ExtractedFacts } from "../types.js";
 import { normalizeForSearch } from "./replay-normalizer.js";
 
 type DepartureCandidate = {
+  routeCode?: string;
   routeFrom: string;
   routeTo: string;
   departureAtUtc: Date;
@@ -196,10 +197,18 @@ function extractSpokenPhone(normalized: string): string | undefined {
   return /^0\d{8,10}$/u.test(phone) ? phone : undefined;
 }
 
+const ROUTE_PICKUP_POINTS: Record<string, string[]> = {
+  "HUE-NHA": ["Ben xe phia Nam Hue", "Trung tam Hue"],
+  "CTO-DLI": ["Ben xe Can Tho", "Trung tam Can Tho"],
+  "DAD-BNA": ["Ben xe Trung tam Da Nang", "Trung tam Da Nang"],
+  "HAN-SAP": ["Ben xe My Dinh", "Trung tam Ha Noi"]
+};
+
 function supportedPickupPoints(departures: readonly DepartureCandidate[]): string[] {
   const points = new Set(["My Dinh", "Ben xe Trung tam Da Nang"]);
   for (const departure of departures) {
     for (const point of departure.pickupPoints ?? []) points.add(point);
+    for (const point of ROUTE_PICKUP_POINTS[departure.routeCode ?? ""] ?? []) points.add(point);
     points.add(`Ben xe ${departure.routeFrom}`);
     points.add(`Ben xe trung tam ${departure.routeFrom}`);
   }

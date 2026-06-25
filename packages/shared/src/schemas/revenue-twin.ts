@@ -73,6 +73,7 @@ export const RevenueTwinDemandContextSchema = z
     sourceTurnId: TranscriptTurnIdSchema.optional(),
     routeId: RouteIdSchema,
     requestedDepartureId: DepartureIdSchema,
+    pickupPointId: PickupPointIdSchema.optional(),
     passengerCount: PositiveIntegerSchema.max(100),
     flexibility: flexibilitySchema,
     depositReadiness: RevenueTwinDepositReadinessSchema,

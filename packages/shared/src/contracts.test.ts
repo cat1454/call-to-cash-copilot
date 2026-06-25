@@ -21,6 +21,7 @@ import {
   ProofRecordSchema,
   ReceiptSummarySchema,
   RiskAnalysisRequestSchema,
+  ScheduleResolutionSchema,
   TranscriptTurnSubmissionSchema,
   VerifyPaymentRequestSchema,
   VerifySolanaPaymentRequestSchema
@@ -120,6 +121,39 @@ test("API envelopes are serializable and distinguish safe success from safe erro
     ApiErrorEnvelopeSchema.safeParse({
       success: false,
       error: { code: "NOT_A_DOCUMENTED_ERROR", message: "no", retryable: false }
+    }).success,
+    false
+  );
+});
+
+test("schedule resolution contract distinguishes matched, clarification, and no-match results", () => {
+  assert.equal(
+    ScheduleResolutionSchema.safeParse({
+      status: "MATCHED",
+      departureId: "dep_demo_hue_nha_20300620_0700_own",
+      reasons: []
+    }).success,
+    true
+  );
+  assert.equal(
+    ScheduleResolutionSchema.safeParse({
+      status: "NEEDS_CLARIFICATION",
+      reasons: ["AMBIGUOUS_TIME"]
+    }).success,
+    true
+  );
+  assert.equal(
+    ScheduleResolutionSchema.safeParse({
+      status: "NO_MATCH",
+      reasons: ["DEPARTURE_CANCELLED"]
+    }).success,
+    true
+  );
+  assert.equal(
+    ScheduleResolutionSchema.safeParse({
+      status: "NO_MATCH",
+      departureId: "dep_demo_hue_nha_20300620_0745_cancelled",
+      reasons: ["DEPARTURE_CANCELLED"]
     }).success,
     false
   );
