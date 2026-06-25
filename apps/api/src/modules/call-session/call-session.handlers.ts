@@ -61,7 +61,14 @@ export function createCallSessionHandlers(
       return endCallSession(requireDatabaseClient(databaseClient), { callId, reason, requestId });
     },
     appendTurn(input) {
-      return appendTranscriptTurn(requireDatabaseClient(databaseClient), input, undefined, aiProvider, bookingExtractor, aiExtraction);
+      return appendTranscriptTurn(
+        requireDatabaseClient(databaseClient),
+        input,
+        undefined,
+        aiProvider,
+        bookingExtractor,
+        aiExtraction
+      );
     },
     getRisk(callId) {
       return getCallRisk(requireDatabaseClient(databaseClient), callId);

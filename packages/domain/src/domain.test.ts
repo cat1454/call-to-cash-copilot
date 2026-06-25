@@ -13,7 +13,8 @@ import {
   ReceiptStatus,
   type Agreement,
   type BookingDraft,
-  type BookingExtraction
+  type BookingExtraction,
+  type RevenueTwinOverflowOffer
 } from "@call-to-cash/shared";
 
 import {
@@ -31,6 +32,12 @@ import {
   transitionCall,
   transitionPaymentIntent,
   transitionReceipt,
+  validateRevenueTwinOfferAcceptance,
+  allocatePriorityFcfs,
+  calculateRevenueTwinIncentive,
+  createRevenueTwinDemoFixture,
+  evaluateRevenueTwin,
+  runRevenueTwinSimulation,
   validateBookingFields
 } from "./index.js";
 
@@ -133,7 +140,7 @@ test("booking field validation identifies missing terms without converting ordin
   );
 });
 
-test("required policy acceptance, confirmation, and active inventory each prevent payment opening", () => {
+test("required policy acceptance prepares confirmation without opening payment", () => {
   const policyValidation = validateBookingFields({
     booking: {
       ...validBooking(),
@@ -148,8 +155,14 @@ test("required policy acceptance, confirmation, and active inventory each preven
   });
 
   assert.equal(
-    evaluatePaymentGate({ ...passingGateInput(), blockingReasons: policyValidation.reasonCodes }),
-    PaymentGateStatus.Locked
+    evaluatePaymentGate({
+      ...passingGateInput(),
+      blockingReasons: policyValidation.reasonCodes,
+      explicitConfirmation: false,
+      agreementLocked: false,
+      paymentReadiness: 20
+    }),
+    PaymentGateStatus.ReadyForConfirmation
   );
   assert.equal(
     evaluatePaymentGate({ ...passingGateInput(), inventoryHoldActive: false }),
@@ -325,4 +338,287 @@ test("inventory activity is server-time based and canonical agreement output is 
   assert.equal(canonical, serializeCanonicalAgreement(reordered));
   assert.equal(canonical.includes("0912***678"), false);
   assert.equal(canonical.includes("2026-06-20T15:30:00.000Z"), true);
+});
+
+test("Revenue Twin acceptance contract requires a fresh, unexpired offer without creating a hold", () => {
+  const offer: RevenueTwinOverflowOffer = {
+    schemaVersion: "ctc.revenue-twin.offer.v1",
+    offerId: "rtw_offer_01JTEST0001",
+    evaluationId: "rtw_eval_01JTEST0001",
+    alternativeDepartureId: "dep_HN-SAPA-2300",
+    operatorRelation: "OWN_FLEET",
+    rank: 1,
+    scheduledAt: later,
+    timeShiftMinutes: 60,
+    passengerCount: 3,
+    availableSeatsAtEvaluation: 8,
+    inventoryVersionAtEvaluation: 4,
+    originalFareAmountMinor: 900000,
+    discountAmountMinor: 100000,
+    finalFareAmountMinor: 800000,
+    reasonCodes: ["PRIMARY_DEPARTURE_FULL"],
+    expiresAt: later
+  };
+
+  assert.deepEqual(
+    validateRevenueTwinOfferAcceptance({
+      offer,
+      now,
+      currentInventoryVersion: 4,
+      policyVersion: "v1",
+      evaluatedPolicyVersion: "v1"
+    }),
+    { allowed: true }
+  );
+  assert.deepEqual(
+    validateRevenueTwinOfferAcceptance({
+      offer,
+      now,
+      currentInventoryVersion: 5,
+      policyVersion: "v1",
+      evaluatedPolicyVersion: "v1"
+    }),
+    { allowed: false, reason: "STALE_INVENTORY_SNAPSHOT" }
+  );
+});
+
+test("Scenario-Robust Revenue Rebalancing Optimizer preserves FCFS priority and returns bounded overflow offers", () => {
+  const allocated = allocatePriorityFcfs(5, [
+    { id: "first", passengerCount: 3 },
+    { id: "second", passengerCount: 3 },
+    { id: "third", passengerCount: 2 }
+  ]);
+  assert.deepEqual(
+    allocated.primary.map((item) => item.id),
+    ["first", "third"]
+  );
+  assert.deepEqual(
+    allocated.overflow.map((item) => item.id),
+    ["second"]
+  );
+
+  const demand = {
+    schemaVersion: "ctc.revenue-twin.demand.v1" as const,
+    callId: "call_01JTEST0001",
+    routeId: "route_HN-SAPA-001",
+    requestedDepartureId: "dep_HN-SAPA-2200",
+    passengerCount: 3,
+    flexibility: { beforeMinutes: 0, afterMinutes: 120, timeConstraint: "PREFERRED" as const },
+    depositReadiness: "READY" as const,
+    groupPolicy: "KEEP_TOGETHER" as const,
+    requestedAt: now
+  };
+  const primary = {
+    schemaVersion: "ctc.revenue-twin.departure-snapshot.v1" as const,
+    departureId: "dep_HN-SAPA-2200",
+    operatorId: "op_OWN-001",
+    routeId: demand.routeId,
+    scheduledAt: now,
+    capacity: 20,
+    availableSeats: 0,
+    fareAmountMinor: 200_000,
+    currency: "VND" as const,
+    pickupPointIds: ["pickup_MY-DINH"],
+    operatorRelation: "OWN_FLEET" as const,
+    inventoryVersion: 1,
+    observedAt: now
+  };
+  const policy = {
+    schemaVersion: "ctc.revenue-twin.incentive-policy.v1" as const,
+    policyId: "rtw-default",
+    policyVersion: "v1",
+    enabled: true,
+    maxDiscountAmountMinor: 30_000,
+    maxDiscountBasisPoints: 2_000,
+    minimumFinalFareAmountMinor: 170_000,
+    maximumAlternativeShiftMinutes: 120,
+    proactiveRebalancingEnabled: true,
+    scarcePrimaryAvailableSeats: 3,
+    minimumAlternativeSurplusSeats: 6,
+    offerTtlSeconds: 120,
+    allowedOperatorRelations: ["OWN_FLEET", "VERIFIED_PARTNER"] as (
+      | "OWN_FLEET"
+      | "VERIFIED_PARTNER"
+    )[],
+    allowedReasonCodes: ["PRIMARY_DEPARTURE_FULL", "INCENTIVE_POLICY_APPLIED"] as (
+      | "PRIMARY_DEPARTURE_FULL"
+      | "INCENTIVE_POLICY_APPLIED"
+    )[]
+  };
+  const alternative = {
+    ...primary,
+    departureId: "dep_HN-SAPA-2230",
+    scheduledAt: later,
+    availableSeats: 12,
+    inventoryVersion: 2
+  };
+  const result = evaluateRevenueTwin(
+    {
+      demand,
+      primaryDeparture: primary,
+      alternativeDepartures: [alternative],
+      incentivePolicy: policy
+    },
+    {
+      evaluationId: "rtw_eval_01JTEST0001",
+      offerIdForRank: (rank) => `rtw_offer_01JTEST000${rank}`,
+      now: new Date(now)
+    }
+  );
+  assert.equal(result.status, "OVERFLOW_OFFERS_AVAILABLE");
+  assert.equal(result.offers.length, 1);
+  const firstOffer = result.offers[0];
+  assert.ok(firstOffer);
+  assert.equal(firstOffer.finalFareAmountMinor >= policy.minimumFinalFareAmountMinor, true);
+  assert.equal(
+    result.impact.potentialNetRevenueRecoveredAmountMinor,
+    firstOffer.finalFareAmountMinor * demand.passengerCount
+  );
+  const terms = calculateRevenueTwinIncentive(alternative, demand, policy, 60);
+  assert.ok(terms);
+  assert.equal(terms.finalFareAmountMinor, alternative.fareAmountMinor - terms.discountAmountMinor);
+});
+
+test("Scenario-Robust Revenue Rebalancing Optimizer proactively protects scarce hot-departure seats", () => {
+  const demand = {
+    schemaVersion: "ctc.revenue-twin.demand.v1" as const,
+    callId: "call_01JTEST0001",
+    routeId: "route_HN-SAPA",
+    requestedDepartureId: "dep_HN-SAPA-2200",
+    passengerCount: 1,
+    flexibility: { beforeMinutes: 0, afterMinutes: 90, timeConstraint: "PREFERRED" as const },
+    depositReadiness: "READY" as const,
+    groupPolicy: "KEEP_TOGETHER" as const,
+    requestedAt: now
+  };
+  const primary = {
+    schemaVersion: "ctc.revenue-twin.departure-snapshot.v1" as const,
+    departureId: demand.requestedDepartureId,
+    operatorId: "op_own_fleet",
+    routeId: demand.routeId,
+    scheduledAt: now,
+    capacity: 20,
+    availableSeats: 2,
+    fareAmountMinor: 200_000,
+    currency: "VND" as const,
+    pickupPointIds: ["pickup_catalogue_default"],
+    operatorRelation: "OWN_FLEET" as const,
+    inventoryVersion: 1,
+    observedAt: now
+  };
+  const alternative = {
+    ...primary,
+    departureId: "dep_HN-SAPA-2230",
+    scheduledAt: later,
+    availableSeats: 12,
+    inventoryVersion: 2
+  };
+  const policy = {
+    schemaVersion: "ctc.revenue-twin.incentive-policy.v1" as const,
+    policyId: "proactive-test",
+    policyVersion: "SRRRO-PROACTIVE-V1",
+    enabled: true,
+    maxDiscountAmountMinor: 30_000,
+    maxDiscountBasisPoints: 2_000,
+    minimumFinalFareAmountMinor: 100_000,
+    maximumAlternativeShiftMinutes: 120,
+    proactiveRebalancingEnabled: true,
+    scarcePrimaryAvailableSeats: 3,
+    minimumAlternativeSurplusSeats: 6,
+    offerTtlSeconds: 120,
+    allowedOperatorRelations: ["OWN_FLEET"] as ("OWN_FLEET" | "VERIFIED_PARTNER")[],
+    allowedReasonCodes: ["PRIMARY_CAPACITY_SCARCE", "ALTERNATIVE_CAPACITY_SURPLUS"] as (
+      | "PRIMARY_CAPACITY_SCARCE"
+      | "ALTERNATIVE_CAPACITY_SURPLUS"
+    )[]
+  };
+  const result = evaluateRevenueTwin(
+    {
+      demand,
+      primaryDeparture: primary,
+      alternativeDepartures: [alternative],
+      incentivePolicy: policy
+    },
+    {
+      evaluationId: "rtw_eval_01JTEST0002",
+      offerIdForRank: () => "rtw_offer_01JTEST0002",
+      now: new Date(now)
+    }
+  );
+
+  assert.equal(result.status, "PROACTIVE_OFFERS_AVAILABLE");
+  assert.equal(result.offers[0]?.alternativeDepartureId, alternative.departureId);
+  assert.equal(result.offers[0]?.reasonCodes.includes("PRIMARY_CAPACITY_SCARCE"), true);
+  assert.equal(result.offers[0]?.reasonCodes.includes("ALTERNATIVE_CAPACITY_SURPLUS"), true);
+});
+
+test("Revenue Twin demo simulation is seeded, FCFS, group-safe, and has no provider side effects", () => {
+  const fixture = createRevenueTwinDemoFixture();
+  const input = {
+    mode: "DEMO_FIXTURE" as const,
+    seed: 42,
+    primaryAvailableSeats: fixture.primaryDeparture.availableSeats,
+    alternativeAvailableSeats: fixture.alternativeDepartures.map(
+      (departure) => departure.availableSeats
+    ),
+    requests: fixture.requests
+  };
+  const first = runRevenueTwinSimulation(input);
+  const replay = runRevenueTwinSimulation(input);
+  assert.deepEqual(first, replay);
+  assert.deepEqual(fixture.primaryDeparture, {
+    scheduledAt: "07:00",
+    capacity: 20,
+    availableSeats: 5
+  });
+  assert.deepEqual(
+    fixture.alternativeDepartures.map((departure) => departure.scheduledAt),
+    ["07:30", "08:00"]
+  );
+  assert.equal(first.metrics.primaryAllocatedPassengerCount, 5);
+  assert.equal(first.metrics.requestCount, 10);
+  assert.equal(first.decisions.filter((decision) => decision.allocation === "PRIMARY").length, 5);
+  assert.equal(
+    first.metrics.remainingAlternativeSeats.every((seats) => seats >= 0),
+    true
+  );
+});
+
+test("Revenue Twin priority allocation follows request time rather than caller array order", () => {
+  const result = runRevenueTwinSimulation({
+    mode: "DRY_RUN",
+    seed: 1,
+    primaryAvailableSeats: 2,
+    alternativeAvailableSeats: [],
+    requests: [
+      {
+        requestId: "late",
+        passengerCount: 2,
+        requestedAt: "2030-01-01T10:02:00.000Z",
+        timeConstraint: "PREFERRED",
+        depositReadiness: "READY"
+      },
+      {
+        requestId: "first",
+        passengerCount: 1,
+        requestedAt: "2030-01-01T10:00:00.000Z",
+        timeConstraint: "PREFERRED",
+        depositReadiness: "READY"
+      },
+      {
+        requestId: "second",
+        passengerCount: 1,
+        requestedAt: "2030-01-01T10:01:00.000Z",
+        timeConstraint: "PREFERRED",
+        depositReadiness: "READY"
+      }
+    ]
+  });
+
+  assert.deepEqual(
+    result.decisions
+      .filter((decision) => decision.allocation === "PRIMARY")
+      .map((decision) => decision.requestId),
+    ["first", "second"]
+  );
 });

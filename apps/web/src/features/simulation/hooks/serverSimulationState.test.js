@@ -4,7 +4,7 @@ import { describe, test } from "node:test";
 import { EventName } from "@call-to-cash/shared";
 
 import { buildVerificationPayload } from "./serverPayment.js";
-import { scheduleSolanaPaymentPoll } from "./useSolanaPaymentPolling.js";
+import { getSolanaPollDelayMs, scheduleSolanaPaymentPoll } from "./useSolanaPaymentPolling.js";
 
 import {
   ACTION,
@@ -22,7 +22,7 @@ test("Solana verification sends only the server-owned payment intent ID", () => 
   );
 });
 
-test("Solana polling schedules one verification after three seconds and can be cancelled", () => {
+test("Solana polling uses bounded backoff and can be cancelled", () => {
   const scheduledDelays = [];
   const clearedTimers = [];
   let verificationCount = 0;
@@ -39,12 +39,14 @@ test("Solana polling schedules one verification after three seconds and can be c
 
   const cancel = scheduleSolanaPaymentPoll(() => {
     verificationCount += 1;
-  }, timers);
+  }, 2, timers);
   cancel();
 
-  assert.deepEqual(scheduledDelays, [3_000]);
+  assert.deepEqual(scheduledDelays, [12_000]);
   assert.equal(verificationCount, 1);
   assert.deepEqual(clearedTimers, [17]);
+  assert.equal(getSolanaPollDelayMs(0), 3_000);
+  assert.equal(getSolanaPollDelayMs(5), 30_000);
 });
 
 function envelope(event, data, sequence = 1, overrides = {}) {
@@ -113,10 +115,28 @@ describe("server simulation event projection", () => {
     });
 
     assert.equal(projected.bookingId, "bk_public01");
+    assert.equal(projected.date, "22/06/2026");
+    assert.equal(projected.time, "22:30");
     assert.equal(projected.phone, "0912***678");
     assert.equal(projected.price, "1.050.000 ₫");
     assert.equal(JSON.stringify(projected).includes("0912345678"), false);
     assert.equal(JSON.stringify(projected).includes("private agreement"), false);
+
+    const receiptProjected = projectBookingForDisplay(
+      { fareTotalVnd: 1_050_000 },
+      {
+        booking: {
+          bookingId: "bk_public01",
+          route: "Ha Noi → Sa Pa",
+          departureAt: "2026-06-22T15:30:00.000Z",
+          passengerCount: 3,
+          contactPhoneMasked: "0912***678"
+        },
+        deposit: { amount: { minor: 300_000 } }
+      }
+    );
+    assert.equal(receiptProjected.date, projected.date);
+    assert.equal(receiptProjected.time, projected.time);
   });
 
   test("REST recovery stores only whitelisted booking and receipt projections", () => {

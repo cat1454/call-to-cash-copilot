@@ -19,11 +19,17 @@ import { transitionCall, type StateTransitionResult } from "@call-to-cash/domain
 
 import { bookingDraftWriter, recomputeBookingRiskAndEvents } from "../../booking/index.js";
 import { confirmBooking } from "../../booking/commands/confirm-booking.js";
+import {
+  applyRevenueTwinVoiceSelection,
+  mayContainRevenueTwinVoiceSelection
+} from "../../revenue-twin/voice-selection.js";
+import { createRevenueTwinHandlers } from "../../revenue-twin/revenue-twin.handlers.js";
 import type { BookingDraftWriter } from "../../booking/index.js";
 import { ApiCommandError } from "../../../platform/http/api-command-error.js";
 import { appendEvent } from "../../../platform/events/event-log.js";
 import { formatTranscriptForDisplay, maskPhone, redactContent } from "../call-session.presenter.js";
 import { extractReplayFacts } from "../replay/replay-extractor.js";
+import { normalizeForSearch } from "../replay/replay-normalizer.js";
 import type { AppendTranscriptTurnInput, CallStatusValue, ServiceData } from "../types.js";
 
 function opaqueId(prefix: string): string {
@@ -60,9 +66,7 @@ export function deterministicCandidateFromFacts(
     schemaVersion: "ctc.booking-extraction.v1",
     fields: {
       ...(facts.routeFrom === undefined ? {} : { origin: present(facts.routeFrom, sourceTurnId) }),
-      ...(facts.routeTo === undefined
-        ? {}
-        : { destination: present(facts.routeTo, sourceTurnId) }),
+      ...(facts.routeTo === undefined ? {} : { destination: present(facts.routeTo, sourceTurnId) }),
       ...(facts.departureLocalTime === undefined
         ? {}
         : { departureTime: present(facts.departureLocalTime, sourceTurnId) }),
@@ -80,7 +84,9 @@ export function deterministicCandidateFromFacts(
   };
 }
 
-function fieldConfidence(candidate: BookingExtractionCandidate | undefined): Record<string, number> {
+function fieldConfidence(
+  candidate: BookingExtractionCandidate | undefined
+): Record<string, number> {
   const fields = candidate?.fields;
   const entries = [
     ["origin", fields?.origin],
@@ -95,6 +101,148 @@ function fieldConfidence(candidate: BookingExtractionCandidate | undefined): Rec
   return Object.fromEntries(
     entries.flatMap(([field, value]) => (value === undefined ? [] : [[field, value.confidence]]))
   );
+}
+
+export function nextAgreementVersion(agreements: ReadonlyArray<{ version: number }>): number {
+  return (agreements[0]?.version ?? 0) + 1;
+}
+
+const LLM_FIELD_CONFIDENCE_MINIMUM = 0.9;
+
+function currentTurnCandidate<T>(
+  value:
+    | {
+        value: T | null;
+        confidence: number;
+        status: string;
+        evidenceRefs: Array<{ turnId: string }>;
+      }
+    | undefined,
+  sourceTurnId: string
+): T | undefined {
+  if (
+    value?.status !== "PRESENT" ||
+    value.value === null ||
+    value.confidence < LLM_FIELD_CONFIDENCE_MINIMUM ||
+    !value.evidenceRefs.every((reference) => reference.turnId === sourceTurnId)
+  ) {
+    return undefined;
+  }
+  return value.value;
+}
+
+function localDepartureParts(value: Date) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23"
+  }).formatToParts(value);
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value);
+  return {
+    year: get("year"),
+    month: get("month"),
+    day: get("day"),
+    hour: get("hour"),
+    minute: get("minute")
+  };
+}
+
+function canonicalRouteValue(
+  value: string | undefined,
+  departures: ReadonlyArray<{ routeFrom: string; routeTo: string }>,
+  field: "routeFrom" | "routeTo"
+): string | undefined {
+  if (value === undefined) return undefined;
+  const normalized = normalizeForSearch(value);
+  const matches = new Set(
+    departures
+      .map((departure) => departure[field])
+      .filter((candidate) => normalizeForSearch(candidate) === normalized)
+  );
+  return matches.size === 1 ? [...matches][0] : undefined;
+}
+
+/**
+ * The LLM may make a high-confidence proposal when deterministic Vietnamese
+ * parsing is incomplete, but only for catalogue-backed or format-validated
+ * draft fields. It cannot supply contact details, price, inventory, or state.
+ */
+export function mergeValidatedCandidateFacts(
+  facts: Parameters<typeof deterministicCandidateFromFacts>[0],
+  candidate: BookingExtractionCandidate | undefined,
+  sourceTurnId: string,
+  departures: ReadonlyArray<{ routeFrom: string; routeTo: string; departureAtUtc: Date }>
+) {
+  const parsed = BookingExtractionCandidateSchema.safeParse(candidate);
+  if (!parsed.success) return facts;
+  const fields = parsed.data.fields;
+  const proposedFrom = canonicalRouteValue(
+    currentTurnCandidate(fields.origin, sourceTurnId),
+    departures,
+    "routeFrom"
+  );
+  const proposedTo = canonicalRouteValue(
+    currentTurnCandidate(fields.destination, sourceTurnId),
+    departures,
+    "routeTo"
+  );
+  const routeFrom = facts.routeFrom ?? proposedFrom;
+  const routeTo = facts.routeTo ?? proposedTo;
+  const routeIsScheduled =
+    routeFrom !== undefined &&
+    routeTo !== undefined &&
+    departures.some(
+      (departure) => departure.routeFrom === routeFrom && departure.routeTo === routeTo
+    );
+  const proposedDate = currentTurnCandidate(fields.departureDate, sourceTurnId);
+  const proposedTime = currentTurnCandidate(fields.departureTime, sourceTurnId);
+  const exactDepartures =
+    !routeIsScheduled || proposedDate === undefined || proposedTime === undefined
+      ? []
+      : departures.filter((departure) => {
+          const local = localDepartureParts(departure.departureAtUtc);
+          return (
+            departure.routeFrom === routeFrom &&
+            departure.routeTo === routeTo &&
+            `${local.year.toString().padStart(4, "0")}-${local.month.toString().padStart(2, "0")}-${local.day.toString().padStart(2, "0")}` ===
+              proposedDate &&
+            `${local.hour.toString().padStart(2, "0")}:${local.minute.toString().padStart(2, "0")}` ===
+              proposedTime
+          );
+        });
+  const exactDeparture = exactDepartures.length === 1 ? exactDepartures[0] : undefined;
+  const localDeparture =
+    exactDeparture === undefined ? undefined : localDepartureParts(exactDeparture.departureAtUtc);
+  const proposedPickup = currentTurnCandidate(fields.pickupPoint, sourceTurnId);
+  const pickupPoint =
+    proposedPickup === undefined ? undefined : extractReplayFacts(proposedPickup).pickupPoint;
+  const proposedPassengerCount = currentTurnCandidate(fields.passengerCount, sourceTurnId);
+
+  return {
+    ...facts,
+    ...(routeIsScheduled && facts.routeFrom === undefined && proposedFrom !== undefined
+      ? { routeFrom: proposedFrom }
+      : {}),
+    ...(routeIsScheduled && facts.routeTo === undefined && proposedTo !== undefined
+      ? { routeTo: proposedTo }
+      : {}),
+    ...(facts.departureLocalTime === undefined && localDeparture !== undefined
+      ? {
+          departureLocalTime: proposedTime as string,
+          departureDay: localDeparture.day,
+          departureMonth: localDeparture.month
+        }
+      : {}),
+    ...(facts.passengerCount === undefined && proposedPassengerCount !== undefined
+      ? { passengerCount: proposedPassengerCount }
+      : {}),
+    ...(facts.pickupPoint === undefined && pickupPoint !== undefined ? { pickupPoint } : {})
+  };
 }
 
 function safeCandidateForPersistence(candidate: BookingExtractionCandidate | undefined) {
@@ -141,7 +289,9 @@ export function retainCorroboratedCandidateFacts(
     ...(same(fields.passengerCount?.value, facts.passengerCount)
       ? { passengerCount: facts.passengerCount }
       : {}),
-    ...(same(fields.pickupPoint?.value, facts.pickupPoint) ? { pickupPoint: facts.pickupPoint } : {}),
+    ...(same(fields.pickupPoint?.value, facts.pickupPoint)
+      ? { pickupPoint: facts.pickupPoint }
+      : {}),
     ...(same(fields.contactPhoneCandidate?.value, facts.contactPhoneMasked)
       ? { contactPhoneMasked: facts.contactPhoneMasked }
       : {})
@@ -237,7 +387,9 @@ export async function appendTranscriptTurn(
       await transaction.$executeRaw(Prisma.sql`
         SELECT pg_advisory_xact_lock(hashtext(${call.publicId}))
       `);
-      const extractsBookingFacts = shouldExtractBookingFacts(input.turn.speaker);
+      const extractsBookingFacts =
+        shouldExtractBookingFacts(input.turn.speaker) &&
+        !mayContainRevenueTwinVoiceSelection(input.turn.content);
       const departures = extractsBookingFacts
         ? await transaction.tripDeparture.findMany({
             where: { operationalStatus: "SCHEDULED", departureAtUtc: { gt: now } },
@@ -307,35 +459,36 @@ export async function appendTranscriptTurn(
         });
         return { call: activeCall, turn, duplicate: false };
       }
-      const extractor = injectedBookingExtractor ?? createBookingExtractionService({
-        provider: aiProvider,
-        ...(aiExtraction === undefined ? {} : { mode: aiExtraction.mode }),
-        deterministic: createDeterministicBookingExtractor(() =>
-          deterministicCandidateFromFacts(facts, turn.publicId)
-        ),
-        ...(aiProvider !== "openai" || aiExtraction === undefined
-          ? {}
-          : {
-              openai: createLlmBookingExtractor(
-                createOpenAiStructuredTransport({
-                  apiKey: aiExtraction.apiKey,
-                  model: aiExtraction.model,
-                  timeoutMs: aiExtraction.timeoutMs
-                }),
-                aiExtraction.promptVersion
-              )
-            })
-      });
+      const extractor =
+        injectedBookingExtractor ??
+        createBookingExtractionService({
+          provider: aiProvider,
+          ...(aiExtraction === undefined ? {} : { mode: aiExtraction.mode }),
+          deterministic: createDeterministicBookingExtractor(() =>
+            deterministicCandidateFromFacts(facts, turn.publicId)
+          ),
+          ...(aiProvider !== "openai" || aiExtraction === undefined
+            ? {}
+            : {
+                openai: createLlmBookingExtractor(
+                  createOpenAiStructuredTransport({
+                    apiKey: aiExtraction.apiKey,
+                    model: aiExtraction.model,
+                    timeoutMs: aiExtraction.timeoutMs
+                  }),
+                  aiExtraction.promptVersion
+                )
+              })
+        });
       const extraction = await extractor.extract({
         sourceTurnId: turn.publicId,
         transcript: input.turn.content,
         locale: input.turn.language
       });
-      const validatedFacts = retainCorroboratedCandidateFacts(
-        facts,
-        extraction.candidate,
-        turn.publicId
-      );
+      const validatedFacts =
+        extraction.provider === "openai"
+          ? mergeValidatedCandidateFacts(facts, extraction.candidate, turn.publicId, departures)
+          : retainCorroboratedCandidateFacts(facts, extraction.candidate, turn.publicId);
       const persistedCandidate = safeCandidateForPersistence(extraction.candidate);
       const booking = await draftWriter.upsertFromFacts(transaction, {
         callSessionId: activeCall.id,
@@ -353,7 +506,7 @@ export async function appendTranscriptTurn(
           payload: asJson({
             extractorType: aiProvider,
             provider: extraction.provider,
-            model: extraction.provider === "openai" ? aiExtraction?.model ?? null : null,
+            model: extraction.provider === "openai" ? (aiExtraction?.model ?? null) : null,
             schemaVersion: "ctc.booking-extraction.v1",
             promptVersion: extraction.promptVersion ?? null,
             fallbackUsed: extraction.fallbackUsed,
@@ -391,14 +544,18 @@ export async function appendTranscriptTurn(
       if (isTrustedAgoraVoiceConfirmation(input.turn.source, input.turn.content)) {
         const confirmable = await transaction.booking.findUnique({
           where: { id: booking.id },
-          select: { publicId: true, status: true }
+          select: {
+            publicId: true,
+            status: true,
+            agreements: { orderBy: { version: "desc" }, take: 1, select: { version: true } }
+          }
         });
         if (confirmable?.status === "AGREEMENT_READY") {
           await confirmBooking(
             transaction,
             confirmable.publicId,
             {
-              agreementVersion: 1,
+              agreementVersion: nextAgreementVersion(confirmable.agreements),
               confirmation: { method: "VOICE", confirmedTurnId: turn.publicId }
             },
             `agora-voice-confirm-${turn.publicId}`,
@@ -415,6 +572,29 @@ export async function appendTranscriptTurn(
       timeout: 10_000
     }
   );
+
+  if (!persisted.duplicate && input.turn.speaker === "CUSTOMER") {
+    if (!mayContainRevenueTwinVoiceSelection(input.turn.content)) {
+      try {
+        await createRevenueTwinHandlers(client).evaluate(input.callId, input.requestId);
+      } catch (error) {
+        if (
+          !(
+            error instanceof ApiCommandError &&
+            error.code === "REVENUE_TWIN_NO_ELIGIBLE_ALTERNATIVE"
+          )
+        ) {
+          throw error;
+        }
+      }
+    }
+    await applyRevenueTwinVoiceSelection(client, {
+      callId: input.callId,
+      turnId: persisted.turn.publicId,
+      content: input.turn.content,
+      requestId: input.requestId
+    });
+  }
 
   return {
     turnId: persisted.turn.publicId,

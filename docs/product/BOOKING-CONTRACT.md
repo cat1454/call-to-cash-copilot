@@ -120,6 +120,29 @@ The digit-by-digit form may contain the filler word `là` and terminal punctuati
 passenger-count change such as `từ ba người thành bốn người`, the replacement count after the
 change keyword is authoritative for the new draft; the earlier count remains transcript evidence.
 
+When the optional strict-schema LLM extractor is enabled, it may supplement an absent
+deterministic proposal only when its source is the same final customer turn, its confidence meets
+the configured acceptance threshold, and the field passes the same catalogue or supported-pickup
+validation. This allows natural Vietnamese/ASR variants to populate a draft without letting the
+model infer a contact, fare, inventory, payment, confirmation, or state transition.
+
+When that required contact label is present, the parser also accepts ASR-concatenated digit words
+such as `làkhông` and `mộthai`. It does not infer a phone number from a standalone digit sequence.
+For a labelled Vietnamese `chín trăm lẻ ...` contact expression, the parser normalizes the spoken
+hundreds group and restores the leading domestic `0` only when the resulting sequence has exactly
+nine digits.
+
+For the supported Đà Nẵng terminal pickup, the deterministic matcher accepts the common ASR
+substitution `bảy xe trung tâm Đà Nẵng` for `bến xe trung tâm Đà Nẵng`, including when the
+preceding prompt phrase is transcribed as `điểm đốn`. Once all operational
+fields are valid, the server reserves the existing temporary inventory hold and moves the booking
+to `AGREEMENT_READY`; it must still read the terms and obtain explicit confirmation before a
+Solana payment intent is created.
+
+For a trusted live Agora final turn, an explicit confirmation such as `tôi xác nhận` after the
+booking reaches `AGREEMENT_READY` locks the agreement and triggers the existing Solana payment
+intent flow. The same phrase before readiness, or from replay/browser input, cannot create payment.
+
 ### Optional fields
 
 | Field             | Why useful              | Rule                                                   |
@@ -279,6 +302,20 @@ An explicit confirmation is valid only when it clearly accepts the current agree
 "Gửi tôi link trước đi."
 "Tôi hiểu rồi."
 ```
+
+### Customer confirmation surface
+
+When the payment gate is `READY_FOR_CONFIRMATION`, the customer UI must show the
+rendered booking summary and a primary **“Xác nhận điều khoản & mở thanh toán”**
+action. That action submits the existing agreement-confirmation command with
+`confirmation.method = "WEB"` and the current agreement version. The voice path
+remains equivalent: after the terms have been read, an unambiguous final customer
+confirmation uses `confirmation.method = "VOICE"`.
+
+“Tôi muốn đặt cọc” is payment intent, not agreement acceptance. It must bring the
+customer to this confirmation surface or a spoken readback; it must not create a
+payment intent by itself. A **“Sửa thông tin”** action returns the customer to the
+voice correction flow and the next material change requires a new confirmation.
 
 ### Confirmation invalidation
 

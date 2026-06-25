@@ -104,10 +104,10 @@ After an update:
 3. verify `ECC/` remains excluded from pnpm and that the parent repository records only the intended gitlink commit;
 4. do not merge ECC's generic `AGENTS.md`, `CLAUDE.md`, rules, or `.codex/config.toml` over project-specific files.
 
-The current parent repository pins `ECC` as gitlink commit `34faa39`. There is no `.gitmodules` mapping, so a fresh workspace may require the explicit clone command used here rather than `git submodule update`:
+The current parent repository pins `ECC` as gitlink commit `34faa39`. The committed `.gitmodules` mapping points to the upstream ECC repository, so initialize the pinned nested clone after a fresh checkout with:
 
 ```powershell
-git clone https://github.com/affaan-m/ECC.git ECC
+git submodule update --init --recursive
 ```
 
 ## 8. Safety rules

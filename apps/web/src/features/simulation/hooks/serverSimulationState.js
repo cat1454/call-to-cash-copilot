@@ -44,6 +44,8 @@ export function makeInitialState() {
     showPaymentDrawer: false,
     showBoardingPass: false,
     paymentActionPending: false,
+    paymentWalletOpened: false,
+    paymentPollAttempt: 0,
     isTampered: false,
     ledgerLogs: {
       txSig: null,
@@ -72,6 +74,7 @@ export const ACTION = {
   PAYMENT_INTENT_CREATED: "PAYMENT_INTENT_CREATED",
   PAYMENT_STATUS_SYNCED: "PAYMENT_STATUS_SYNCED",
   PAYMENT_ACTION_STARTED: "PAYMENT_ACTION_STARTED",
+  PAYMENT_WALLET_OPENED: "PAYMENT_WALLET_OPENED",
   PAYMENT_PENDING: "PAYMENT_PENDING",
   PAYMENT_VERIFIED: "PAYMENT_VERIFIED",
   PAYMENT_REJECTED: "PAYMENT_REJECTED",
@@ -197,6 +200,8 @@ export function reducer(state, action) {
         paymentIntent,
         paymentIntentId: paymentIntent.paymentIntentId,
         showPaymentDrawer: true,
+        paymentWalletOpened: false,
+        paymentPollAttempt: 0,
         simStatus: "Chờ thanh toán cọc"
       };
     }
@@ -212,10 +217,18 @@ export function reducer(state, action) {
     }
     case ACTION.PAYMENT_ACTION_STARTED:
       return { ...state, paymentActionPending: true, simStatus: "Đang xác minh thanh toán..." };
+    case ACTION.PAYMENT_WALLET_OPENED:
+      return {
+        ...state,
+        paymentWalletOpened: true,
+        paymentPollAttempt: 0,
+        simStatus: "Đã mở ví, đang chờ giao dịch trên Devnet..."
+      };
     case ACTION.PAYMENT_PENDING:
       return {
         ...state,
         paymentActionPending: false,
+        paymentPollAttempt: state.paymentPollAttempt + 1,
         showPaymentDrawer: true,
         error: null,
         simStatus: "Đang chờ giao dịch trên Devnet..."

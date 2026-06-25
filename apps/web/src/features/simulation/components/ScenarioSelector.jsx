@@ -22,6 +22,13 @@ const SCENARIOS = [
     badge: "Sửa đổi Draft vé",
     type: "neutral",
     desc: "Khách đổi ý đặt 2 người rồi đổi sang 4 người, kỳ kèo chính sách và yêu cầu thay đổi giá tiền vé."
+  },
+  {
+    idx: 3,
+    title: "Kịch bản 4: Đà Nẵng → Hà Nội + Solana Devnet",
+    badge: "Quét ví Devnet",
+    type: "success",
+    desc: "Replay dữ liệu đặt 3 khách rồi đổi 4 khách; sau xác nhận sẽ mở QR Solana Devnet thật."
   }
 ];
 
@@ -34,7 +41,7 @@ export default function ScenarioSelector({ currentScenarioIdx, selectScenario })
       <h2 className="mb-4 border-l-[3px] border-[#059669] pl-2 text-sm leading-5 font-semibold text-[#374151] text-balance select-none">
         Chọn Kịch Bản Mô Phỏng Thuyết Trình
       </h2>
-      <div className="grid grid-cols-1 gap-3 min-[900px]:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 min-[900px]:grid-cols-2 min-[1200px]:grid-cols-4">
         {SCENARIOS.map((sc) => (
           <button
             key={sc.idx}

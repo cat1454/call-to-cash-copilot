@@ -31,7 +31,10 @@ export type BookingExtractionResult = {
 
 export type BookingExtractor = {
   readonly name: string;
-  extract(input: BookingExtractionInput, options?: { signal?: AbortSignal }): Promise<BookingExtractionResult>;
+  extract(
+    input: BookingExtractionInput,
+    options?: { signal?: AbortSignal }
+  ): Promise<BookingExtractionResult>;
 };
 
 export type LlmExtractionTransport = {
@@ -62,17 +65,32 @@ export function createOpenAiStructuredTransport(config: {
           body: JSON.stringify({
             model: config.model,
             input: input.prompt,
-            text: { format: { type: "json_schema", name: "booking_extraction", strict: true, schema: BookingExtractionCandidateSchema.toJSONSchema() } }
+            text: {
+              format: {
+                type: "json_schema",
+                name: "booking_extraction",
+                strict: true,
+                schema: BookingExtractionCandidateSchema.toJSONSchema()
+              }
+            }
           })
         });
         if (!response.ok) {
-          const error = Object.assign(new Error("OPENAI_REQUEST_FAILED"), { status: response.status });
+          const error = Object.assign(new Error("OPENAI_REQUEST_FAILED"), {
+            status: response.status
+          });
           throw error;
         }
         const payload = (await response.json()) as { output_text?: unknown };
         if (typeof payload.output_text !== "string") return {};
-        try { return JSON.parse(payload.output_text) as unknown; } catch { return {}; }
-      } finally { clearTimeout(timeout); }
+        try {
+          return JSON.parse(payload.output_text) as unknown;
+        } catch {
+          return {};
+        }
+      } finally {
+        clearTimeout(timeout);
+      }
     }
   };
 }
@@ -104,7 +122,13 @@ function resultForCandidate(
     : statuses.length === 0 || statuses.some((status) => status !== "PRESENT")
       ? "PARTIAL"
       : "SUCCESS";
-  return { outcome, provider, ...(promptVersion === undefined ? {} : { promptVersion }), candidate, fallbackUsed };
+  return {
+    outcome,
+    provider,
+    ...(promptVersion === undefined ? {} : { promptVersion }),
+    candidate,
+    fallbackUsed
+  };
 }
 
 function validateCandidate(
@@ -163,11 +187,17 @@ export function createLlmBookingExtractor(
         );
       } catch (error) {
         const name = error instanceof Error ? error.name : "";
-        const status = typeof error === "object" && error !== null && "status" in error
-          ? (error as { status?: unknown }).status
-          : undefined;
+        const status =
+          typeof error === "object" && error !== null && "status" in error
+            ? (error as { status?: unknown }).status
+            : undefined;
         return {
-          outcome: name === "AbortError" ? "TIMEOUT" : status === 429 ? "RATE_LIMITED" : "PROVIDER_UNAVAILABLE",
+          outcome:
+            name === "AbortError"
+              ? "TIMEOUT"
+              : status === 429
+                ? "RATE_LIMITED"
+                : "PROVIDER_UNAVAILABLE",
           provider: "llm",
           fallbackUsed: false
         };
@@ -186,7 +216,8 @@ export function createBookingExtractionService(input: {
     name: input.provider,
     async extract(request, options) {
       const deterministic = await input.deterministic.extract(request, options);
-      if (input.provider === "deterministic" || input.mode === "deterministic" || deterministic.outcome === "SUCCESS") return deterministic;
+      if (input.provider === "deterministic" || input.mode === "deterministic")
+        return deterministic;
       const primary = input.openai ?? createLlmBookingExtractor();
       const result = await primary.extract(request, options);
       if (result.candidate !== undefined) return { ...result, provider: "openai" };

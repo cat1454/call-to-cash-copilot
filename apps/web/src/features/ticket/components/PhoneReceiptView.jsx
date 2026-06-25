@@ -53,6 +53,11 @@ export default function PhoneReceiptView({
           </div>
           
           <div className="flex justify-between gap-3 py-1">
+            <span className="text-[#6b7280]">Ngày khởi hành:</span>
+            <span className="font-bold text-[#111827] tabular-nums">{bookingData.date}</span>
+          </div>
+
+          <div className="flex justify-between gap-3 py-1">
             <span className="text-[#6b7280]">Khởi hành:</span>
             <span className="font-bold text-[#111827] tabular-nums">{bookingData.time}</span>
           </div>

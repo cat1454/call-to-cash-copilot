@@ -58,20 +58,124 @@ function isFresh(timestamp: string, now = Date.now()): boolean {
   return Number.isFinite(eventTime) && Math.abs(now - eventTime) <= 5 * 60 * 1_000;
 }
 
-export function createVoiceSessionHandlers(config: RuntimeConfig, databaseClient?: DatabaseClient) {
+type VoiceSessionAgentClient = Pick<AgoraConversationAgentClient, "start" | "stop">;
+type VoiceSessionRelayClient = Pick<AgoraLiveTranscriptRelayClient, "start" | "stop">;
+type VoiceSessionLogger = {
+  info(payload: Record<string, unknown>, message?: string): void;
+  warn(payload: Record<string, unknown>, message?: string): void;
+};
+
+type VoiceSessionHandlerDependencies = {
+  agentClient?: VoiceSessionAgentClient;
+  liveRelayClient?: VoiceSessionRelayClient;
+  runtimeStore?: Map<string, VoiceSessionRuntime>;
+  logger?: VoiceSessionLogger;
+  generateCustomerUid?: () => number;
+  generateRequestSuffix?: () => string;
+};
+
+type VoiceStartupStage =
+  | "relay-start-pending-agent"
+  | "agora-agent-start"
+  | "relay-bind-agent-session"
+  | "relay-cleanup"
+  | "agent-cleanup";
+
+function safeAgoraErrorDetails(error: unknown): Record<string, unknown> {
+  if (error instanceof AgoraAdapterError) {
+    return {
+      normalizedCode: error.code,
+      retryable: error.retryable,
+      ...(error.httpStatus === undefined ? {} : { httpStatus: error.httpStatus }),
+      ...(error.providerDetail === undefined ? {} : { providerDetail: error.providerDetail }),
+      ...(error.providerReason === undefined ? {} : { providerReason: error.providerReason })
+    };
+  }
+  if (error instanceof ApiCommandError) {
+    return {
+      normalizedCode: error.code,
+      retryable: error.retryable,
+      httpStatus: error.statusCode
+    };
+  }
+  return {
+    normalizedCode: "UNKNOWN",
+    retryable: true
+  };
+}
+
+function validateAgoraUidPlan(
+  config: RuntimeConfig,
+  customerUid?: number
+): void {
+  const invalid =
+    config.agora.agentUid === config.agora.liveRelay.uid ||
+    customerUid === config.agora.agentUid ||
+    customerUid === config.agora.liveRelay.uid;
+  if (!invalid) return;
+
+  throw new ApiCommandError(
+    422,
+    "AGORA_CHANNEL_UNAVAILABLE",
+    "Agora RTC identities must be distinct.",
+    {
+      agentUid: config.agora.agentUid,
+      relayUid: config.agora.liveRelay.uid,
+      ...(customerUid === undefined ? {} : { customerUid })
+    },
+    false
+  );
+}
+
+export function createVoiceSessionHandlers(
+  config: RuntimeConfig,
+  databaseClient?: DatabaseClient,
+  dependencies: VoiceSessionHandlerDependencies = {}
+) {
   const database = () => requireDatabase(databaseClient);
-  const runtime = new Map<string, VoiceSessionRuntime>();
-  const agentClient = new AgoraConversationAgentClient({
-    appId: config.agora.appId,
-    customerId: config.agora.customerId,
-    customerSecret: config.agora.customerSecret,
-    baseUrl: config.agora.baseUrl,
-    properties: config.agora.agentProperties
-  });
-  const liveRelayClient = new AgoraLiveTranscriptRelayClient({
-    url: config.agora.liveRelay.url,
-    controlSecret: config.agora.liveRelay.controlSecret
-  });
+  const runtime = dependencies.runtimeStore ?? new Map<string, VoiceSessionRuntime>();
+  const agentClient =
+    dependencies.agentClient ??
+    new AgoraConversationAgentClient({
+      appId: config.agora.appId,
+      customerId: config.agora.customerId,
+      customerSecret: config.agora.customerSecret,
+      baseUrl: config.agora.baseUrl,
+      properties: config.agora.agentProperties
+    });
+  const liveRelayClient =
+    dependencies.liveRelayClient ??
+    new AgoraLiveTranscriptRelayClient({
+      url: config.agora.liveRelay.url,
+      controlSecret: config.agora.liveRelay.controlSecret
+    });
+  const logger = dependencies.logger;
+
+  function logStartupStage(
+    level: "info" | "warn",
+    stage: VoiceStartupStage,
+    context: {
+      callId: string;
+      channelName: string;
+      customerUid: number;
+      agentUid: number;
+      relayUid: number;
+    },
+    error?: unknown
+  ) {
+    logger?.[level](
+      {
+        stage,
+        callId: context.callId,
+        channelName: context.channelName,
+        customerUid: context.customerUid,
+        agentUid: context.agentUid,
+        relayUid: context.relayUid,
+        ...(error === undefined ? {} : { error: safeAgoraErrorDetails(error) })
+      },
+      "voice-session.startup"
+    );
+  }
 
   async function lookup(callId: string) {
     const call = await database().callSession.findUnique({
@@ -143,28 +247,8 @@ export function createVoiceSessionHandlers(config: RuntimeConfig, databaseClient
         requestId: input.requestId
       });
       const saved = await lookup(call.callId as string);
-      const customerUid = randomInt(1, 4_000_000_000);
-      if (customerUid === config.agora.agentUid) {
-        throw new ApiCommandError(
-          503,
-          "AGORA_CHANNEL_UNAVAILABLE",
-          "Live voice is unavailable.",
-          undefined,
-          true
-        );
-      }
-      if (
-        customerUid === config.agora.liveRelay.uid ||
-        config.agora.agentUid === config.agora.liveRelay.uid
-      ) {
-        throw new ApiCommandError(
-          503,
-          "AGORA_CHANNEL_UNAVAILABLE",
-          "Live voice is unavailable.",
-          undefined,
-          true
-        );
-      }
+      const customerUid = dependencies.generateCustomerUid?.() ?? randomInt(1, 4_000_000_000);
+      validateAgoraUidPlan(config, customerUid);
       const rtc = issueRtcToken(config.agora, { channelName: saved.channelName, uid: customerUid });
       const prepared = { status: "READY" as const, customerUid, rtc };
       runtime.set(saved.publicId, prepared);
@@ -202,7 +286,7 @@ export function createVoiceSessionHandlers(config: RuntimeConfig, databaseClient
       microphonePublished: true;
       browserRtcUid: number;
     }) {
-      if (config.voiceProvider !== "agora" || !config.agora.ready) {
+      if (config.voiceProvider !== "agora" || !config.agora.ready || !config.agora.liveRelay.ready) {
         throw new ApiCommandError(
           503,
           "AGORA_CHANNEL_UNAVAILABLE",
@@ -229,10 +313,8 @@ export function createVoiceSessionHandlers(config: RuntimeConfig, databaseClient
           true
         );
       }
-      if (
-        prepared.customerUid !== input.browserRtcUid ||
-        prepared.customerUid === config.agora.agentUid
-      ) {
+      validateAgoraUidPlan(config, prepared.customerUid);
+      if (prepared.customerUid !== input.browserRtcUid) {
         throw new ApiCommandError(
           422,
           "AGORA_CHANNEL_UNAVAILABLE",
@@ -260,29 +342,46 @@ export function createVoiceSessionHandlers(config: RuntimeConfig, databaseClient
       const customerUid = prepared.customerUid;
       const session: VoiceSessionRuntime = { status: "STARTING", customerUid };
       runtime.set(call.publicId, session);
+      const startupContext = {
+        callId: call.publicId,
+        channelName: call.channelName,
+        customerUid,
+        agentUid: config.agora.agentUid,
+        relayUid: config.agora.liveRelay.uid
+      };
       try {
         const agentToken = issueRtcAndRtmToken(config.agora, {
           channelName: call.channelName,
           uid: config.agora.agentUid
         });
-        const agentRequestName = `${config.agora.agentName}-${call.publicId}-${randomUUID().slice(0, 8)}`;
+        const agentRequestName = `${config.agora.agentName}-${call.publicId}-${
+          dependencies.generateRequestSuffix?.() ?? randomUUID().slice(0, 8)
+        }`;
         const relayToken = issueRtcAndRtmToken(config.agora, {
           channelName: call.channelName,
           uid: config.agora.liveRelay.uid
         });
 
         // 1. Start relay FIRST with a placeholder sessionId so it's ready to catch the first greeting
-        await liveRelayClient.start({
-          callId: call.publicId,
-          channelName: call.channelName,
-          sessionId: "PENDING_AGENT", // We don't have agentId yet
-          agentUid: config.agora.agentUid,
-          token: relayToken
-        });
+        logStartupStage("info", "relay-start-pending-agent", startupContext);
+        try {
+          await liveRelayClient.start({
+            callId: call.publicId,
+            channelName: call.channelName,
+            sessionId: "PENDING_AGENT", // We don't have agentId yet
+            agentUid: config.agora.agentUid,
+            token: relayToken
+          });
+        } catch (error) {
+          logStartupStage("warn", "relay-start-pending-agent", startupContext, error);
+          throw error;
+        }
 
         // 2. Start the Agora AI Agent
         let agent: { agentId: string; name: string } | undefined;
+        let relayStarted = true;
         try {
+          logStartupStage("info", "agora-agent-start", startupContext);
           agent = await agentClient.start({
             channelName: call.channelName,
             agentToken,
@@ -292,6 +391,7 @@ export function createVoiceSessionHandlers(config: RuntimeConfig, databaseClient
             callId: call.publicId
           });
           // Bind any safely buffered early RTM transcript to the provider-issued session id.
+          logStartupStage("info", "relay-bind-agent-session", startupContext);
           await liveRelayClient.start({
             callId: call.publicId,
             channelName: call.channelName,
@@ -300,8 +400,25 @@ export function createVoiceSessionHandlers(config: RuntimeConfig, databaseClient
             token: relayToken
           });
         } catch (error) {
-          if (agent?.agentId) await agentClient.stop(agent.agentId).catch(() => undefined);
-          await liveRelayClient.stop(call.publicId).catch(() => undefined);
+          logStartupStage(
+            "warn",
+            agent?.agentId ? "relay-bind-agent-session" : "agora-agent-start",
+            startupContext,
+            error
+          );
+          if (agent?.agentId) {
+            logStartupStage("info", "agent-cleanup", startupContext);
+            await agentClient.stop(agent.agentId).catch((cleanupError: unknown) => {
+              logStartupStage("warn", "agent-cleanup", startupContext, cleanupError);
+            });
+          }
+          if (relayStarted) {
+            logStartupStage("info", "relay-cleanup", startupContext);
+            await liveRelayClient.stop(call.publicId).catch((cleanupError: unknown) => {
+              logStartupStage("warn", "relay-cleanup", startupContext, cleanupError);
+            });
+            relayStarted = false;
+          }
           throw error;
         }
         if (agent === undefined) {

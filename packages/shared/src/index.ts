@@ -6,4 +6,5 @@ export * from "./events/index.js";
 export * from "./schemas/domain.js";
 export * from "./schemas/ai-extraction.js";
 export * from "./schemas/primitives.js";
+export * from "./schemas/revenue-twin.js";
 export * from "./transcript-display.js";

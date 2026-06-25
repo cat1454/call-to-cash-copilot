@@ -41,6 +41,12 @@ export interface PaymentIntentEligibility {
 
 type RiskNextActionValue = (typeof RiskNextAction)[keyof typeof RiskNextAction];
 
+const CONFIRMATION_REQUIRED_REASONS: readonly RiskReasonCode[] = [
+  "PRICE_NOT_CONFIRMED",
+  "DEPOSIT_NOT_CONFIRMED",
+  "REFUND_POLICY_NOT_CONFIRMED"
+];
+
 export function evaluatePaymentGate(input: PaymentGateInput): PaymentGateDecision {
   const thresholds = input.thresholds ?? RISK_GATE_THRESHOLDS;
 
@@ -48,7 +54,7 @@ export function evaluatePaymentGate(input: PaymentGateInput): PaymentGateDecisio
     return PaymentGateStatus.ManualReviewRequired;
   }
 
-  if (input.blockingReasons.length > 0) {
+  if (input.blockingReasons.some((reason) => !CONFIRMATION_REQUIRED_REASONS.includes(reason))) {
     return PaymentGateStatus.Locked;
   }
 

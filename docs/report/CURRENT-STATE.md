@@ -1,9 +1,22 @@
 # Call-to-Cash Risk Copilot — Current State
 
-> **Snapshot date:** 2026-06-23 (Asia/Bangkok)
-> **Branch inspected:** `testing` (Phase 9 closure worktree)
-> **Purpose:** state the current product maturity, the Phase 9 closure boundary, and the in-progress Phase 10 evidence boundary.
-> **Status at this snapshot:** Phase 9 core scope is **complete by user-approved closure**. Phase 10 is **IN PROGRESS**; Phase 9 transcript-quality hardening remains an independent quality workstream.
+> **Last refreshed:** 2026-06-24 (Asia/Bangkok)
+> **Current implementation branch:** `codex/revenueTwin`
+> **Purpose:** state the current product maturity, the Phase 9 closure boundary, Phase 10 strict-schema extraction closure, and the active Phase 11 roadmap.
+> **Current status:** Phase 9 core scope, Phase 10, and Phase 11 MVP are implemented. The 2026-06-24 transcript-to-summary hardening is verified in the local cold-start smoke; historical notes below remain as trace evidence where explicitly dated.
+
+## Current update — 2026-06-24
+
+The following facts supersede earlier local-verification-debt statements in this report:
+
+- Agora join properties force Vietnamese ASR (`vi-VN`) server-side when omitted from the configured pipeline properties.
+- Final customer transcript extraction uses deterministic Vietnamese parsing plus a guarded OpenAI structured supplement only for high-confidence, same-turn, catalogue-supported draft fields.
+- The web recovers authoritative booking read models after state-changing SSE events, so the booking summary no longer reconstructs fields from compact event fragments.
+- The summary and Trust Receipt render the same `departureAt` date/time projection.
+- `READY_FOR_CONFIRMATION` shows a customer web-confirmation card while explicit voice confirmation remains equivalent; both lock the current agreement version before payment creation.
+- A material booking change invalidates confirmation, and the trusted voice path now computes the next agreement version instead of assuming version `1`.
+- `demo:smoke:cold` now fails closed unless Scenario 4 produces a complete masked booking summary (route, departure date/time, passengers, pickup, phone, fare, and deposit) before a Solana Devnet payment intent is created.
+- Latest validation passed: workspace test, lint, production build, preflight tests, Agora/API/web focused suites, and the cold-start API/web/relay/PostgreSQL/Devnet smoke.
 
 ---
 
@@ -35,9 +48,9 @@ The project has completed the Phase 9 closure slice for user-approved scope:
 - live voice, audible agent audio, and visible customer/agent transcript have been demonstrated in recorded live-browser smoke evidence;
 - the web labels Live Agora and Replay Demo explicitly and does not silently present replay as live voice.
 
-Transcript presentation hardening remains a Phase 9 quality task: some displayed text can contain spacing, punctuation, repeated-fragment, or chunk-boundary artifacts. It does not reopen the Phase 9 architecture and does not block the approved Phase 10 start.
+Transcript presentation hardening remains a Phase 9 quality task: some displayed text can contain spacing, punctuation, repeated-fragment, or chunk-boundary artifacts. It does not reopen the Phase 9 architecture and does not affect the approved Phase 10 closure.
 
-Phase 9.2 may continue with static-prompt artifacts and controlled evaluation as its own workstream. Phase 10 now begins as optional LLM extraction behind strict schemas and deterministic domain guardrails; it is not an LLM-based transcript formatting repair.
+Phase 9.2 may continue with static-prompt artifacts and controlled evaluation as its own workstream. Phase 10 is complete as optional LLM extraction behind strict schemas and deterministic domain guardrails; it is not an LLM-based transcript formatting repair.
 
 The transcript hardening work has source-level implementation in place but is not yet a PASS/demo-ready claim. Its outstanding local verification debt (fresh live Agora proof, DB-backed coverage, lint, and format checks) remains documented and must not be described as green; it is not a condition blocking Phase 10 kickoff under this user-approved transition.
 
@@ -45,24 +58,25 @@ The transcript hardening work has source-level implementation in place but is no
 
 ## 2. Canonical pipeline status
 
-| Pipeline phase | Current assessment | Evidence / notes |
-| --- | --- | --- |
-| 0 — Contract normalization | **Implemented** | Canonical product, architecture, API/event/error, and privacy contracts exist. |
-| 1 — Workspace, API scaffold, config, CI | **Implemented** | Workspace scripts, local environment conventions, CI, and Compose baseline exist. |
-| 2 — Shared executable contracts | **Implemented** | Shared schemas, DTOs, events, errors, enums, and contract tests exist. |
-| 3 — Deterministic domain kernel | **Implemented** | Deterministic scoring, payment gate, agreement guards, and transition guards exist. |
-| 4 — PostgreSQL / Prisma / inventory / repositories | **Implemented** | Durable state, migrations, repositories, inventory behavior, and DB-backed tests exist. |
-| 5 — Replay REST API, audit trail, outbox, SSE | **Implemented** | Fastify orchestration, durable event flow, replay path, and SSE recovery exist. |
-| 6 — Replace browser fixture authority in web | **Implemented** | Web API-mode state, REST/SSE recovery, reconnect behavior, and privacy-safe projections exist. |
-| 7 — Durable mock payment, proof, receipt | **Implemented** | Server-authoritative payment/proof/receipt happy and failure paths exist. |
-| 8 — Solana Devnet payment verification | **Implemented** | Solana Pay URL/QR, reference discovery, server verification, proof/receipt linkage, and manual Devnet evidence exist. |
-| 9 — Agora voice, transcript, token integration | **Complete — closure scope** | Live voice and transcript path are demonstrated; P0 transcript display-quality hardening remains open. |
-| 9.2 — Agora conversation quality optimization | **GO — V1 draft only** | Versioned static prompt artifacts may be maintained; controlled live prompt evaluation and activation remain pending. |
-| 9.3 — Server-to-agent runtime directives | **Not started** | Future Phase 9 follow-up; domain/API decides what the next step is, agent decides how to phrase it. |
-| 10 — Optional LLM extraction with strict schemas | **IN PROGRESS** | OpenAI `gpt-5-mini` server-side strict-schema adapter, deterministic fallback, and focused checks are implemented; isolated DB and controlled live-provider evidence remain outstanding. |
-| 11 — Redis, queue, object storage | **Not started** | No active provider integration is required for current demo closure. |
-| 12 — E2E, observability, accessibility, deployment | **Partial** | Health/readiness, CORS, rate limiting, runbooks, and local checks exist; broader hardening remains later work. |
-| 13 — Outcome labeling, evaluation, opt-in training data | **Not started** | Later phase. |
+| Pipeline phase                                     | Current assessment                | Evidence / notes                                                                                                                                                                                                         |
+| -------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0 — Contract normalization                         | **Implemented**                   | Canonical product, architecture, API/event/error, and privacy contracts exist.                                                                                                                                           |
+| 1 — Workspace, API scaffold, config, CI            | **Implemented**                   | Workspace scripts, local environment conventions, CI, and Compose baseline exist.                                                                                                                                        |
+| 2 — Shared executable contracts                    | **Implemented**                   | Shared schemas, DTOs, events, errors, enums, and contract tests exist.                                                                                                                                                   |
+| 3 — Deterministic domain kernel                    | **Implemented**                   | Deterministic scoring, payment gate, agreement guards, and transition guards exist.                                                                                                                                      |
+| 4 — PostgreSQL / Prisma / inventory / repositories | **Implemented**                   | Durable state, migrations, repositories, inventory behavior, and DB-backed tests exist.                                                                                                                                  |
+| 5 — Replay REST API, audit trail, outbox, SSE      | **Implemented**                   | Fastify orchestration, durable event flow, replay path, and SSE recovery exist.                                                                                                                                          |
+| 6 — Replace browser fixture authority in web       | **Implemented**                   | Web API-mode state, REST/SSE recovery, reconnect behavior, and privacy-safe projections exist.                                                                                                                           |
+| 7 — Durable mock payment, proof, receipt           | **Implemented**                   | Server-authoritative payment/proof/receipt happy and failure paths exist.                                                                                                                                                |
+| 8 — Solana Devnet payment verification             | **Implemented**                   | Solana Pay URL/QR, reference discovery, server verification, proof/receipt linkage, and manual Devnet evidence exist.                                                                                                    |
+| 9 — Agora voice, transcript, token integration     | **Complete — closure scope**      | Live voice and transcript path are demonstrated; P0 transcript display-quality hardening remains open.                                                                                                                   |
+| 9.2 — Agora conversation quality optimization      | **GO — V1 draft only**            | Versioned static prompt artifacts may be maintained; controlled live prompt evaluation and activation remain pending.                                                                                                    |
+| 9.3 — Server-to-agent runtime directives           | **Not started**                   | Future Phase 9 follow-up; domain/API decides what the next step is, agent decides how to phrase it.                                                                                                                      |
+| 10 — Strict-schema LLM extraction                  | **Complete**                      | Server-side strict-schema adapter, deterministic fallback, and deterministic-domain authority are the approved closure boundary.                                                                                         |
+| 11 — Fleet Revenue Twin                            | **MVP complete — automated pass** | DB-backed snapshot, deterministic optimizer, bounded incentives, persisted acceptance, safe directive/dashboard projections, and deterministic simulation are implemented; controlled Agora live smoke is still pending. |
+| 12 — E2E, observability, accessibility, deployment | **Partial / after Phase 11**      | Health/readiness, CORS, rate limiting, runbooks, and local checks exist; broader hardening follows the Fleet Revenue Twin work.                                                                                          |
+| 13 — Outcome labeling, evaluation, opt-in data     | **Not started**                   | Later phase.                                                                                                                                                                                                             |
+| 14 — Redis, queue, object storage                  | **Deferred**                      | No active infrastructure provider integration is required for current demo closure.                                                                                                                                      |
 
 ---
 
@@ -70,15 +84,15 @@ The transcript hardening work has source-level implementation in place but is no
 
 The following boundaries are non-negotiable.
 
-| Layer | Owns | Must not own |
-| --- | --- | --- |
-| Browser / web app | microphone permission, direct RTC join, rendering, local recovery UX | booking confirmation, risk decision, payment verification, receipt issuance |
-| Agora | real-time audio, agent interaction, transcript/provider facts | inventory, availability, risk, payment, proof, receipt, refund decisions |
-| API | token/session orchestration, transcript admission, REST endpoints, SSE stream | arbitrary business authority delegated to provider or browser |
-| Domain | booking validation, risk, inventory, agreement, payment gate, state transitions | voice phrasing or provider reasoning |
-| PostgreSQL | durable truth, audit/event history, idempotency, recovery state | temporary browser-only UI state |
-| Solana Devnet | payment evidence and transaction verification | customer PII, full transcript, product policy |
-| Voice prompt | concise conversational phrasing | deciding booking/payment/receipt/availability state |
+| Layer             | Owns                                                                            | Must not own                                                                |
+| ----------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Browser / web app | microphone permission, direct RTC join, rendering, local recovery UX            | booking confirmation, risk decision, payment verification, receipt issuance |
+| Agora             | real-time audio, agent interaction, transcript/provider facts                   | inventory, availability, risk, payment, proof, receipt, refund decisions    |
+| API               | token/session orchestration, transcript admission, REST endpoints, SSE stream   | arbitrary business authority delegated to provider or browser               |
+| Domain            | booking validation, risk, inventory, agreement, payment gate, state transitions | voice phrasing or provider reasoning                                        |
+| PostgreSQL        | durable truth, audit/event history, idempotency, recovery state                 | temporary browser-only UI state                                             |
+| Solana Devnet     | payment evidence and transaction verification                                   | customer PII, full transcript, product policy                               |
+| Voice prompt      | concise conversational phrasing                                                 | deciding booking/payment/receipt/availability state                         |
 
 Rules:
 
@@ -95,19 +109,19 @@ Rules:
 
 Phase 8 is implemented with a provider-neutral payment boundary.
 
-| Requirement | Status | Recorded evidence |
-| --- | --- | --- |
-| Server creates payment request | **Pass** | Server returns Devnet-only Solana Pay URL and QR payload. |
-| Reference and memo exclude PII | **Pass** | Random base58 reference and opaque/versioned memo structure. |
-| Browser cannot authoritatively confirm payment | **Pass** | Browser submits only intent/verification request; server verifies facts. |
-| Automatic transaction discovery | **Pass** | Server discovers candidate signatures from payment reference. |
-| Recipient, amount, reference, execution, confirmation checks | **Pass** | Verifier fails closed for mismatch and failed/unconfirmed transactions. |
-| One-time transaction consumption | **Pass** | Reused signature is rejected; no second receipt is created. |
-| Retry-safe RPC handling | **Pass** | Pending/not-found/timeout/unavailable states remain retryable. |
-| Durable proof and receipt linkage | **Pass** | Confirmed transaction creates one proof and one Trust Receipt atomically. |
-| Privacy-safe persistence | **Pass** | No raw phone, transcript, or full agreement is stored on-chain or exposed in events. |
-| Browser polling and refresh behavior | **Pass** | Payment drawer polls safely and terminal state recovers from server. |
-| Real Devnet smoke | **Pass, manual** | Devnet transaction confirmation has been recorded; this remains distinct from commercial settlement. |
+| Requirement                                                  | Status           | Recorded evidence                                                                                    |
+| ------------------------------------------------------------ | ---------------- | ---------------------------------------------------------------------------------------------------- |
+| Server creates payment request                               | **Pass**         | Server returns Devnet-only Solana Pay URL and QR payload.                                            |
+| Reference and memo exclude PII                               | **Pass**         | Random base58 reference and opaque/versioned memo structure.                                         |
+| Browser cannot authoritatively confirm payment               | **Pass**         | Browser submits only intent/verification request; server verifies facts.                             |
+| Automatic transaction discovery                              | **Pass**         | Server discovers candidate signatures from payment reference.                                        |
+| Recipient, amount, reference, execution, confirmation checks | **Pass**         | Verifier fails closed for mismatch and failed/unconfirmed transactions.                              |
+| One-time transaction consumption                             | **Pass**         | Reused signature is rejected; no second receipt is created.                                          |
+| Retry-safe RPC handling                                      | **Pass**         | Pending/not-found/timeout/unavailable states remain retryable.                                       |
+| Durable proof and receipt linkage                            | **Pass**         | Confirmed transaction creates one proof and one Trust Receipt atomically.                            |
+| Privacy-safe persistence                                     | **Pass**         | No raw phone, transcript, or full agreement is stored on-chain or exposed in events.                 |
+| Browser polling and refresh behavior                         | **Pass**         | Payment drawer polls safely and terminal state recovers from server.                                 |
+| Real Devnet smoke                                            | **Pass, manual** | Devnet transaction confirmation has been recorded; this remains distinct from commercial settlement. |
 
 Solana verifies payment evidence only. It does not decide booking risk, agreement validity, payment-gate state, or receipt policy.
 
@@ -186,12 +200,12 @@ Dạ, em muốn đặt ba chỗ từ Đà Nẵng ra Hà Nội, chuyến bảy gi
 
 Trace finding:
 
-| Layer | Finding |
-| --- | --- |
-| Raw provider frame | The RTM/API boundary accepts final `user.transcription` / `assistant.transcription` frames and a custom `ctc.transcript.final/v1` frame. Provider text may contain repeated whitespace or punctuation-boundary artifacts. The current durable path does not persist interim frames. |
-| API-normalized payload | `packages/agora` and the RTM relay now apply shared deterministic display normalization before provider text reaches the canonical final-turn admission path. Non-final provider frames remain non-durable. |
-| Browser DOM textContent | Web SSE and REST recovery projections now run the same display normalization before rendering transcript bubbles. |
-| Confirmed defect layer | Combination of missing deterministic display normalization at provider/API/web projection boundaries plus missing scoped transcript typography utilities. No booking/risk/payment/proof behavior changed. |
+| Layer                   | Finding                                                                                                                                                                                                                                                                             |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Raw provider frame      | The RTM/API boundary accepts final `user.transcription` / `assistant.transcription` frames and a custom `ctc.transcript.final/v1` frame. Provider text may contain repeated whitespace or punctuation-boundary artifacts. The current durable path does not persist interim frames. |
+| API-normalized payload  | `packages/agora` and the RTM relay now apply shared deterministic display normalization before provider text reaches the canonical final-turn admission path. Non-final provider frames remain non-durable.                                                                         |
+| Browser DOM textContent | Web SSE and REST recovery projections now run the same display normalization before rendering transcript bubbles.                                                                                                                                                                   |
+| Confirmed defect layer  | Combination of missing deterministic display normalization at provider/API/web projection boundaries plus missing scoped transcript typography utilities. No booking/risk/payment/proof behavior changed.                                                                           |
 
 Added automated coverage:
 
@@ -238,17 +252,17 @@ Booking extraction is separate final-turn/domain behavior. For supported input f
 
 ### 5.5 Current verification evidence — 2026-06-22
 
-| Area | Status | Evidence / note |
-| --- | --- | --- |
-| `git diff --check` | **PASS** | Passed in the latest verification report. |
-| Frozen install under temporary pnpm 11.1.1 | **PASS, historical/local** | Completed before the package-manager baseline correction. This is not a pnpm 11 migration claim. |
-| Runtime package export regression | **PASS** | 7/7 package checks passed. |
-| Prisma schema validation | **PASS** | Schema validation passed. |
-| Typecheck | **PASS** | Turbo typecheck passed with 17/17 tasks. |
-| API suite before display-expectation reconciliation | **PARTIAL PASS** | Reached 25/26 passing before the legacy display expectation was identified. |
-| API suite after expectation reconciliation | **PASS, focused** | Confirmed the display-preserving contract; DB-backed cases may still depend on local test DB configuration. |
-| API authority invariants | **PASS in focused coverage** | Interim provider frames do not enter durable transcript admission; only customer turns propose booking facts; final agent turns do not mutate customer booking; Solana payment verification coverage remained passing. |
-| Source-line guardrail | **PASS** | Passed after extraction refactor. |
+| Area                                                | Status                       | Evidence / note                                                                                                                                                                                                        |
+| --------------------------------------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `git diff --check`                                  | **PASS**                     | Passed in the latest verification report.                                                                                                                                                                              |
+| Frozen install under temporary pnpm 11.1.1          | **PASS, historical/local**   | Completed before the package-manager baseline correction. This is not a pnpm 11 migration claim.                                                                                                                       |
+| Runtime package export regression                   | **PASS**                     | 7/7 package checks passed.                                                                                                                                                                                             |
+| Prisma schema validation                            | **PASS**                     | Schema validation passed.                                                                                                                                                                                              |
+| Typecheck                                           | **PASS**                     | Turbo typecheck passed with 17/17 tasks.                                                                                                                                                                               |
+| API suite before display-expectation reconciliation | **PARTIAL PASS**             | Reached 25/26 passing before the legacy display expectation was identified.                                                                                                                                            |
+| API suite after expectation reconciliation          | **PASS, focused**            | Confirmed the display-preserving contract; DB-backed cases may still depend on local test DB configuration.                                                                                                            |
+| API authority invariants                            | **PASS in focused coverage** | Interim provider frames do not enter durable transcript admission; only customer turns propose booking facts; final agent turns do not mutate customer booking; Solana payment verification coverage remained passing. |
+| Source-line guardrail                               | **PASS**                     | Passed after extraction refactor.                                                                                                                                                                                      |
 
 Not yet verified to completion after the latest PII/projection refactor:
 
@@ -277,15 +291,15 @@ Package-manager decision:
 
 ## 6. Current priority order
 
- 1. **Keep Phase 9 closure scope intact.** Do not rewrite Agora/API/Solana architecture.
- 2. **Treat transcript formatting as a Phase 9 hardening bug.** It is a display/frame-assembly concern.
- 3. **Trace one controlled sentence through three layers:** raw provider frame → API normalized text → DOM textContent.
- 4. **Correct fragment assembly:** distinguish snapshot, delta, and final frames.
- 5. **Apply deterministic display normalization only:** whitespace, punctuation boundaries, duplicate suppression, and sequence handling.
- 6. **Check CSS and typography:** confirm wrapping/word-break rules do not make correct text appear broken.
- 7. **Add regression tests:** unit, integration, and browser coverage for the observed failure modes.
- 8. **Record a fresh live proof:** readable customer/agent transcript, booking/risk update, and refresh recovery.
- 9. **Continue Phase 9.2 V1 evaluation:** transcript presentation remains its independent acceptance requirement.
+1.  **Keep Phase 9 closure scope intact.** Do not rewrite Agora/API/Solana architecture.
+2.  **Treat transcript formatting as a Phase 9 hardening bug.** It is a display/frame-assembly concern.
+3.  **Trace one controlled sentence through three layers:** raw provider frame → API normalized text → DOM textContent.
+4.  **Correct fragment assembly:** distinguish snapshot, delta, and final frames.
+5.  **Apply deterministic display normalization only:** whitespace, punctuation boundaries, duplicate suppression, and sequence handling.
+6.  **Check CSS and typography:** confirm wrapping/word-break rules do not make correct text appear broken.
+7.  **Add regression tests:** unit, integration, and browser coverage for the observed failure modes.
+8.  **Record a fresh live proof:** readable customer/agent transcript, booking/risk update, and refresh recovery.
+9.  **Continue Phase 9.2 V1 evaluation:** transcript presentation remains its independent acceptance requirement.
 10. **Start Phase 10 behind strict guardrails:** add optional structured extraction in `packages/ai`, validate it deterministically, and retain the deterministic provider as the safe fallback.
 
 ---
@@ -407,11 +421,11 @@ Phase 9.3 is not implemented in this snapshot.
 
 ---
 
-## 9. Phase 10 — Optional LLM extraction
+## 9. Phase 10 — Strict-schema LLM Extraction
 
-**Status:** IN PROGRESS. The first strict-schema adapter/fallback slice is implemented with the approved server-side OpenAI `gpt-5-mini` provider. It is not yet COMPLETE because isolated DB integration and controlled live-provider evidence are not recorded.
+**Status:** COMPLETE by user-approved roadmap closure. The strict-schema adapter/fallback slice is implemented with the approved server-side OpenAI `gpt-5-mini` provider while deterministic domain authority remains unchanged.
 
-Phase 10 begins independently of the remaining Phase 9 transcript-quality verification debt. This approval starts an adapter workstream; it does not mark Phase 10 complete or waive its required contracts, fallback behavior, and acceptance tests.
+Phase 10 is complete independently of the remaining Phase 9 transcript-quality verification debt. Follow-up provider or DB evidence may be added as quality evidence, but it is not an open Phase 10 exit condition under the agreed roadmap.
 
 Current optional flow:
 
@@ -443,7 +457,7 @@ Trust Receipt issuance
 
 LLM must not be introduced to repair spacing, punctuation, chunk ordering, or CSS bugs.
 
-The first implementation slice must:
+The completed implementation preserves these rules:
 
 1. keep `AI_PROVIDER=deterministic` as the default/fallback path;
 2. add an optional provider adapter in `packages/ai` that returns strict shared-schema output with confidence and evidence references;
@@ -452,7 +466,26 @@ The first implementation slice must:
 
 ---
 
-## 10. Verification and evidence standard
+## 10. Phase 11 — Fleet Revenue Twin
+
+**Status:** COMPLETE / automated verification passed. The Scenario-Robust Revenue Rebalancing Optimizer exposes Priority Allocation, Dynamic Incentive, and Overflow Routing. It protects scarce hot-departure capacity by offering a voluntary move only when the alternative retains policy-defined surplus; it never auto-reroutes a customer or revokes a hold. An explicit no-offer waitlist is durable but creates no hold. Isolated PostgreSQL migration, API lifecycle, idempotency, dashboard privacy, and inventory concurrency validation passed. Controlled live-provider smoke remains an operational follow-up and is not represented as completed.
+
+```text
+11.0 — Contract Normalization
+11.1 — Fleet Demand & Departure Snapshot
+11.2 — Overflow Recommendation Engine
+11.3 — Incentive Policy Engine
+11.4 — Offer Acceptance & Inventory Revalidation
+11.5 — Voice Negotiation Runtime Directive
+11.6 — Revenue Recovery Dashboard
+11.7 — Multi-demand Simulation
+```
+
+This is a capability sequence, not authorization to add undocumented routes, events, states, entities, PII fields, payment behavior, or external infrastructure. Each lane starts with its governing contract/documentation update and must preserve PostgreSQL and centralized domain authority.
+
+---
+
+## 11. Verification and evidence standard
 
 ### Automated verification
 
@@ -508,7 +541,7 @@ Never capture secrets, seed phrases, private keys, unmasked phone numbers, raw w
 
 ---
 
-## 11. Known open items
+## 12. Known open items
 
 1. Complete transcript display-quality hardening verification and preserve regression tests.
 2. Record a fresh live run that specifically proves readable transcript output after the fix.
@@ -517,11 +550,12 @@ Never capture secrets, seed phrases, private keys, unmasked phone numbers, raw w
 5. Add browser E2E coverage for payment drawer and recovery where not already covered; Phantom signing remains a manual Devnet smoke step.
 6. Implement authentication/RBAC before exposing booking/payment APIs outside controlled demo conditions.
 7. Resolve the current local dependency-resolution/toolchain blocker through the canonical `pnpm@10.34.4` workspace setup, not through undocumented local workarounds.
-8. Complete isolated DB integration and controlled OpenAI fallback smoke evidence for Phase 10; Redis, queues, object storage, and broader production hardening remain later work.
+8. Run the controlled live Agora Revenue Twin smoke before making a production-provider claim.
+9. Redis, queues, and object storage remain deferred to Phase 14.
 
 ---
 
-## 12. Go / no-go
+## 13. Go / no-go
 
 **Phase 9 core closure:** **GO / complete by user-approved scope.**
 
@@ -529,14 +563,16 @@ Never capture secrets, seed phrases, private keys, unmasked phone numbers, raw w
 
 **Phase 9.2 static prompt V1:** **GO for draft maintenance; not yet activated or fully evaluated.**
 
-**Phase 10 optional LLM extraction:** **IN PROGRESS — focused local checks pass; DB/live-provider closure evidence remains.**
+**Phase 10 strict-schema LLM extraction:** **GO / complete by user-approved roadmap closure.**
+
+**Phase 11 Fleet Revenue Twin:** **MVP COMPLETE / automated verification passed; controlled live Agora smoke pending.**
 
 The approved next progression is:
 
 ```text
-complete Phase 10 isolated DB and controlled provider evidence
+run controlled Agora Revenue Twin smoke
   → preserve deterministic fallback and domain authority
   → continue Phase 9 transcript hardening and fresh live proof independently
   → evaluate Phase 9.2 V1 when its own acceptance criteria are met
-  → consider Phase 9.3 runtime directives separately
+  → sequence 11.1–11.7 only through documented contracts
 ```

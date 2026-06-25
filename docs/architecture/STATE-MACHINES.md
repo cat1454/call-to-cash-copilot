@@ -42,14 +42,14 @@ CREATED ──join──> ACTIVE ──end──> ENDED
 ACTIVE ──provider failure / timeout──> FAILED
 ```
 
-| From      | Command / event                   | To          | Guards                             | Side effects                                            |
-| --------- | --------------------------------- | ----------- | ---------------------------------- | ------------------------------------------------------- |
-| `CREATED` | participant joins / Agora webhook | `ACTIVE`    | valid call, authorized participant | set `started_at`; audit; emit `call.joined`             |
-| `CREATED` | `POST /end` before join           | `CANCELLED` | caller owns call                   | audit; emit `call.ended`                                |
-| `CREATED` | token/channel setup failure       | `FAILED`    | server-detected                    | error audit; emit `call.failed`                         |
-| `CREATED` | CAI or RTM relay start failure    | `FAILED`    | API stops any started provider participant | no transcript authority is opened; retry/replay only |
-| `ACTIVE`  | `POST /end` / webhook left        | `ENDED`     | idempotent                         | set `ended_at`; flush buffers; emit `call.ended`        |
-| `ACTIVE`  | provider outage/timeout           | `FAILED`    | server-detected                    | preserve transcript; queue recovery; emit `call.failed` |
+| From      | Command / event                   | To          | Guards                                     | Side effects                                            |
+| --------- | --------------------------------- | ----------- | ------------------------------------------ | ------------------------------------------------------- |
+| `CREATED` | participant joins / Agora webhook | `ACTIVE`    | valid call, authorized participant         | set `started_at`; audit; emit `call.joined`             |
+| `CREATED` | `POST /end` before join           | `CANCELLED` | caller owns call                           | audit; emit `call.ended`                                |
+| `CREATED` | token/channel setup failure       | `FAILED`    | server-detected                            | error audit; emit `call.failed`                         |
+| `CREATED` | CAI or RTM relay start failure    | `FAILED`    | API stops any started provider participant | no transcript authority is opened; retry/replay only    |
+| `ACTIVE`  | `POST /end` / webhook left        | `ENDED`     | idempotent                                 | set `ended_at`; flush buffers; emit `call.ended`        |
+| `ACTIVE`  | provider outage/timeout           | `FAILED`    | server-detected                            | preserve transcript; queue recovery; emit `call.failed` |
 
 **Call state must not decide payment gate.** It only governs session lifecycle and transcript acceptance.
 
@@ -314,6 +314,23 @@ All authoritative transitions should follow this order:
 - unique active payment intent per booking/agreement via partial index or transactional guard;
 - optimistic `version` field or `SELECT ... FOR UPDATE` for booking/payment transitions;
 - idempotency key for every money-adjacent POST command.
+
+### Revenue Twin offer lifecycle
+
+```text
+OPEN → ACCEPTED | DECLINED | EXPIRED | REQUIRES_REEVALUATION
+OPEN → SUPERSEDED (when a competing offer is accepted)
+```
+
+`ACCEPTED` is allowed only after TTL, policy-version, inventory-version and full-group-capacity checks pass inside one transaction. If the same booking has an active hold on the requested departure, that hold is released and the new alternative hold is created atomically; a capacity failure rolls the release back. Holds for other bookings are never preempted. It never confirms agreement or payment.
+
+### Revenue Twin waitlist lifecycle
+
+```text
+PENDING -> OFFERED | CANCELLED | EXPIRED
+```
+
+An entry may be created only after an explicit customer request for a no-suitable-offer evaluation. `PENDING` does not reserve capacity, alter a booking, revoke a hold, or open payment. A later offer remains a separate explicit customer-choice flow.
 
 ---
 

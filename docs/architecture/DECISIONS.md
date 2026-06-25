@@ -203,6 +203,12 @@ extraction first and invokes OpenAI only for incomplete or ambiguous results; ti
 unavailable, or invalid output falls back to deterministic extraction. No `OPENAI_*` or
 `AI_EXTRACTION_*` variable may be exposed through `VITE_*`.
 
+In hybrid mode, a valid high-confidence OpenAI candidate may supplement an absent deterministic
+draft field only after server validation: route values must exactly match one scheduled catalogue
+route, pickup values must normalize to a supported location, and passenger count remains schema
+bounded. Contact details, price, inventory, payment, confirmation, risk, proof, and receipt facts
+remain deterministic/server-owned; an LLM candidate cannot set them.
+
 ### Required AI output contract
 
 ```json
@@ -432,3 +438,23 @@ Create a new ADR or amend this document when any of the following happens:
 4. The model gains authority beyond extraction/proposal.
 5. Audio retention or training policy changes.
 6. The Solana/payment implementation changes from devnet/demo to production.
+
+---
+
+## ADR-015 — Fleet Revenue Twin remains a proposal layer
+
+### Decision
+
+Phase 11 introduces Fleet Revenue Twin as a server-authoritative recommendation boundary, not a new inventory, payment, or LLM authority. The Phase 11.0 contracts use phase-neutral `ctc.revenue-twin.*` schema identifiers.
+
+### Rules
+
+- Revenue Twin may rank safe alternatives and compute policy-bounded offer terms.
+- Only the existing inventory authority may create a hold; a recommendation does not reserve a seat.
+- Acceptance reloads server-owned offer state and revalidates current inventory and policy before entering the existing booking/agreement/payment flow.
+- Potential recovery remains distinct from accepted and secured recovery.
+- A future commitment assessment may use booking completeness, deposit readiness, explicit time constraint, group size, request timestamp, and hold expiry; it must never revoke a hold, displace an accepted customer, bypass inventory, or use protected/sensitive attributes.
+
+### Consequences
+
+No Prisma migration, API route, dashboard, worker, Redis, object store, partner settlement, dynamic pricing, optimization model, or provider integration is part of Phase 11.0.

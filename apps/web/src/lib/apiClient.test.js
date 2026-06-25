@@ -84,6 +84,7 @@ test("createCall sends correct sourceMode and channel purpose", async () => {
   assert.equal(body.channelPurpose, "BOOKING");
 });
 
+
 test("startVoiceSession sends browser RTC readiness only after publishing", async () => {
   const fetchMock = mockFetch(200, {
     success: true,

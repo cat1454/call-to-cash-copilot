@@ -1,4 +1,4 @@
-import { REFUND_POLICY } from "./refundPolicy";
+import { REFUND_POLICY } from "./refundPolicy.js";
 
 export const scenarios = [
   // Scenario 1: Normal Booking
@@ -246,5 +246,30 @@ export const scenarios = [
         timeline: [1, 2, 3, 4, 5]
       }
     }
+  ],
+
+  // Scenario 4: Da Nang to Ha Noi replay with real Solana Devnet deposit
+  [
+    { sender: "customer", text: "Tôi muốn đặt vé xe từ Đà Nẵng đến Hà Nội.", updates: {} },
+    { sender: "customer", text: "Ngày khởi hành là ngày hai mươi tám tháng sáu.", updates: {} },
+    { sender: "customer", text: "Giờ khởi hành là mười chín giờ.", updates: {} },
+    { sender: "customer", text: "Số lượng hành khách là ba người.", updates: {} },
+    {
+      sender: "customer",
+      text: "Số điện thoại là không chín không một hai ba bốn năm sáu bảy.",
+      updates: {}
+    },
+    {
+      sender: "customer",
+      text: "Tôi muốn sửa số lượng hành khách từ ba người thành bốn người.",
+      updates: {}
+    },
+    { sender: "customer", text: "Điểm đốn là bảy xe trung tâm Đà Nẵng.", updates: {} },
+    {
+      sender: "ai",
+      text: `Dạ em xác nhận 4 khách tuyến Đà Nẵng đi Hà Nội lúc 19 giờ ngày 28 tháng 6. Tổng tiền 1.800.000 đồng, cọc 300.000 đồng. ${REFUND_POLICY.spokenSummary} Anh/chị xác nhận để mở cọc Devnet nhé?`,
+      updates: {}
+    },
+    { sender: "customer", text: "Tôi xác nhận đặt cọc theo điều khoản vừa đọc.", updates: {} }
   ]
 ];

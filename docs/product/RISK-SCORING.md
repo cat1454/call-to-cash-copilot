@@ -51,12 +51,12 @@ The LLM proposes fields and signals. The backend owns the score, the gate, and s
 
 ## 4. The four MVP scores
 
-| Score | Range | Question answered | Used for |
-|---|---:|---|---|
-| `completeness` | 0–100 | Do we have all operationally required facts? | Gate prerequisite |
-| `dispute_risk` | 0–100 | How likely are terms to be misunderstood or contested? | Gate blocker / manual review |
-| `payment_readiness` | 0–100 | Has the customer clearly accepted the current commercial terms? | Gate prerequisite |
-| `agent_quality` | 0–100 | Did the system handle the interaction safely and efficiently? | Monitoring; never sole payment authority |
+| Score               | Range | Question answered                                               | Used for                                 |
+| ------------------- | ----: | --------------------------------------------------------------- | ---------------------------------------- |
+| `completeness`      | 0–100 | Do we have all operationally required facts?                    | Gate prerequisite                        |
+| `dispute_risk`      | 0–100 | How likely are terms to be misunderstood or contested?          | Gate blocker / manual review             |
+| `payment_readiness` | 0–100 | Has the customer clearly accepted the current commercial terms? | Gate prerequisite                        |
+| `agent_quality`     | 0–100 | Did the system handle the interaction safely and efficiently?   | Monitoring; never sole payment authority |
 
 ### Customer-facing score
 
@@ -77,18 +77,18 @@ Measure whether the booking has enough validated information to operate and pric
 
 ### Weighted components for v1
 
-| Component | Weight | Complete when |
-|---|---:|---|
-| Route | 15 | origin and destination are supported and normalized |
-| Departure time | 15 | valid schedule slot is confirmed |
-| Passenger count | 12 | integer within available capacity |
-| Pickup point | 10 | supported pickup point is confirmed |
-| Customer contact | 10 | valid contact captured and masked |
-| Inventory hold | 15 | active hold exists and is not expired |
-| Pricing | 10 | total price is server-calculated and current |
-| Deposit amount | 5 | server-calculated and shown to customer |
-| Refund policy | 5 | active policy version attached |
-| Confirmation readiness | 3 | all terms are available to be read back |
+| Component              | Weight | Complete when                                       |
+| ---------------------- | -----: | --------------------------------------------------- |
+| Route                  |     15 | origin and destination are supported and normalized |
+| Departure time         |     15 | valid schedule slot is confirmed                    |
+| Passenger count        |     12 | integer within available capacity                   |
+| Pickup point           |     10 | supported pickup point is confirmed                 |
+| Customer contact       |     10 | valid contact captured and masked                   |
+| Inventory hold         |     15 | active hold exists and is not expired               |
+| Pricing                |     10 | total price is server-calculated and current        |
+| Deposit amount         |      5 | server-calculated and shown to customer             |
+| Refund policy          |      5 | active policy version attached                      |
+| Confirmation readiness |      3 | all terms are available to be read back             |
 
 ```ts
 export function calculateCompleteness(input: CompletenessInput): number {
@@ -142,27 +142,27 @@ This score is based on **current evidence**, not a prediction about the person.
 
 ### Signal weights for v1
 
-| Reason code | Weight | Example | Critical? |
-|---|---:|---|---:|
-| `AMBIGUOUS_CONFIRMATION` | +25 | “Ừm”, “để xem” after terms are read | No |
-| `PRICE_NOT_CONFIRMED` | +25 | total/deposit not read back | No |
-| `REFUND_POLICY_NOT_CONFIRMED` | +20 | customer asks but never accepts policy | No |
-| `TIME_CONTRADICTION` | +30 | customer says both 20:30 and 22:30 | Yes if unresolved |
-| `PASSENGER_COUNT_CONTRADICTION` | +20 | says 2 then 4 without resolution | No |
-| `PICKUP_POINT_UNSUPPORTED` | +20 | requested point not served | No |
-| `CALL_DROPPED_DURING_CONFIRMATION` | +30 | call ended while terms were unresolved | No |
-| `PAYMENT_AMOUNT_MISMATCH` | +80 | transaction amount differs | Yes |
-| `PAYMENT_RECIPIENT_MISMATCH` | +100 | funds sent to wrong recipient | Yes |
-| `PAYMENT_REFERENCE_MISMATCH` | +80 | reference belongs to another intent | Yes |
-| `AGREEMENT_VERSION_STALE` | +60 | payment bound to superseded agreement | Yes |
-| `PROOF_MISMATCH` | +100 | stored terms do not match proof | Yes |
+| Reason code                        | Weight | Example                                |         Critical? |
+| ---------------------------------- | -----: | -------------------------------------- | ----------------: |
+| `AMBIGUOUS_CONFIRMATION`           |    +25 | “Ừm”, “để xem” after terms are read    |                No |
+| `PRICE_NOT_CONFIRMED`              |    +25 | total/deposit not read back            |                No |
+| `REFUND_POLICY_NOT_CONFIRMED`      |    +20 | customer asks but never accepts policy |                No |
+| `TIME_CONTRADICTION`               |    +30 | customer says both 20:30 and 22:30     | Yes if unresolved |
+| `PASSENGER_COUNT_CONTRADICTION`    |    +20 | says 2 then 4 without resolution       |                No |
+| `PICKUP_POINT_UNSUPPORTED`         |    +20 | requested point not served             |                No |
+| `CALL_DROPPED_DURING_CONFIRMATION` |    +30 | call ended while terms were unresolved |                No |
+| `PAYMENT_AMOUNT_MISMATCH`          |    +80 | transaction amount differs             |               Yes |
+| `PAYMENT_RECIPIENT_MISMATCH`       |   +100 | funds sent to wrong recipient          |               Yes |
+| `PAYMENT_REFERENCE_MISMATCH`       |    +80 | reference belongs to another intent    |               Yes |
+| `AGREEMENT_VERSION_STALE`          |    +60 | payment bound to superseded agreement  |               Yes |
+| `PROOF_MISMATCH`                   |   +100 | stored terms do not match proof        |               Yes |
 
 ### Calculation
 
 ```ts
 export function calculateDisputeRisk(signals: RiskSignal[]): number {
   const score = signals
-    .filter((signal) => signal.status === 'ACTIVE')
+    .filter((signal) => signal.status === "ACTIVE")
     .reduce((total, signal) => total + signal.weight, 0);
 
   return Math.min(100, score);
@@ -181,14 +181,14 @@ Determine whether the customer is ready to make the deposit for the **current** 
 
 ### Weighted components
 
-| Component | Weight | Required evidence |
-|---|---:|---|
-| Terms were rendered/read | 20 | agreement was shown/spoken |
-| Total price understood | 15 | customer accepts or repeats correct total |
-| Deposit amount understood | 20 | customer accepts stated amount |
-| Refund policy understood | 15 | explicit policy acceptance |
-| Explicit booking confirmation | 25 | clear affirmative statement/action |
-| Payment channel available | 5 | valid payment intent can be presented |
+| Component                     | Weight | Required evidence                         |
+| ----------------------------- | -----: | ----------------------------------------- |
+| Terms were rendered/read      |     20 | agreement was shown/spoken                |
+| Total price understood        |     15 | customer accepts or repeats correct total |
+| Deposit amount understood     |     20 | customer accepts stated amount            |
+| Refund policy understood      |     15 | explicit policy acceptance                |
+| Explicit booking confirmation |     25 | clear affirmative statement/action        |
+| Payment channel available     |      5 | valid payment intent can be presented     |
 
 ```ts
 export function calculatePaymentReadiness(input: PaymentReadinessInput): number {
@@ -222,15 +222,15 @@ Measure operational quality and regressions in the assistant, not customer trust
 
 ### Signals
 
-| Signal | Direction |
-|---|---:|
-| Asked one missing field at a time | positive |
-| Repeated a field already confirmed | negative |
-| Asked for payment before agreement lock | critical negative |
-| Failed to clarify low-confidence transcript | negative |
-| Recovered from misunderstanding | positive |
-| Handed off appropriately | positive |
-| Average response latency beyond target | negative |
+| Signal                                      |         Direction |
+| ------------------------------------------- | ----------------: |
+| Asked one missing field at a time           |          positive |
+| Repeated a field already confirmed          |          negative |
+| Asked for payment before agreement lock     | critical negative |
+| Failed to clarify low-confidence transcript |          negative |
+| Recovered from misunderstanding             |          positive |
+| Handed off appropriately                    |          positive |
+| Average response latency beyond target      |          negative |
 
 ### Rule
 
@@ -242,32 +242,38 @@ Measure operational quality and regressions in the assistant, not customer trust
 
 ```ts
 export type PaymentGateDecision =
-  | 'LOCKED'
-  | 'READY_FOR_CONFIRMATION'
-  | 'UNLOCKED'
-  | 'MANUAL_REVIEW_REQUIRED';
+  | "LOCKED"
+  | "READY_FOR_CONFIRMATION"
+  | "UNLOCKED"
+  | "MANUAL_REVIEW_REQUIRED";
 
 export function evaluatePaymentGate(input: GateInput): PaymentGateDecision {
-  if (input.criticalBlockers.length > 0) return 'MANUAL_REVIEW_REQUIRED';
-  if (input.disputeRisk > 35) return 'LOCKED';
-  if (input.completeness < 85) return 'LOCKED';
-  if (input.paymentReadiness < 80) return 'READY_FOR_CONFIRMATION';
-  if (!input.explicitConfirmation) return 'READY_FOR_CONFIRMATION';
-  if (!input.agreementLocked) return 'READY_FOR_CONFIRMATION';
-  if (!input.inventoryHoldActive) return 'LOCKED';
-  return 'UNLOCKED';
+  if (input.criticalBlockers.length > 0) return "MANUAL_REVIEW_REQUIRED";
+  if (input.disputeRisk > 35) return "LOCKED";
+  if (input.completeness < 85) return "LOCKED";
+  if (input.paymentReadiness < 80) return "READY_FOR_CONFIRMATION";
+  if (!input.explicitConfirmation) return "READY_FOR_CONFIRMATION";
+  if (!input.agreementLocked) return "READY_FOR_CONFIRMATION";
+  if (!input.inventoryHoldActive) return "LOCKED";
+  return "UNLOCKED";
 }
 ```
 
+The pre-confirmation reasons `PRICE_NOT_CONFIRMED`, `DEPOSIT_NOT_CONFIRMED`, and
+`REFUND_POLICY_NOT_CONFIRMED` do not make an otherwise complete draft `LOCKED`: they produce
+`READY_FOR_CONFIRMATION`, so the assistant can read the terms and prepare the Solana deposit
+step. They remain hard guards against creating a payment intent until the customer explicitly
+confirms the current agreement.
+
 ### Gate thresholds for MVP
 
-| Condition | Threshold | Rationale |
-|---|---:|---|
-| Completeness | `>= 85` | operational details must be mostly complete |
-| Dispute risk | `<= 35` | unresolved contradiction must not reach payment |
-| Payment readiness | `>= 80` | terms must be understood before payment |
-| Explicit confirmation | `true` | prevents “payment link first” ambiguity |
-| Critical blocker count | `0` | payment/proof mismatch requires review |
+| Condition              | Threshold | Rationale                                       |
+| ---------------------- | --------: | ----------------------------------------------- |
+| Completeness           |   `>= 85` | operational details must be mostly complete     |
+| Dispute risk           |   `<= 35` | unresolved contradiction must not reach payment |
+| Payment readiness      |   `>= 80` | terms must be understood before payment         |
+| Explicit confirmation  |    `true` | prevents “payment link first” ambiguity         |
+| Critical blocker count |       `0` | payment/proof mismatch requires review          |
 
 Thresholds live in versioned configuration, not hard-coded in UI components.
 
@@ -333,8 +339,8 @@ AI output is validated before it influences scoring.
 
 ```ts
 export type AiDecisionProposal = {
-  schemaVersion: 'v1';
-  intent: 'BOOK_INTERCITY_TRIP' | 'CHANGE_BOOKING' | 'CANCEL_BOOKING' | 'OTHER';
+  schemaVersion: "v1";
+  intent: "BOOK_INTERCITY_TRIP" | "CHANGE_BOOKING" | "CANCEL_BOOKING" | "OTHER";
   extractedFields: Partial<{
     routeFrom: string;
     routeTo: string;
@@ -349,7 +355,7 @@ export type AiDecisionProposal = {
     field: string;
     evidenceSegmentIds: string[];
   }>;
-  confirmation: 'EXPLICIT' | 'AMBIGUOUS' | 'NONE';
+  confirmation: "EXPLICIT" | "AMBIGUOUS" | "NONE";
   proposedSignals: Array<{
     code: string;
     evidenceSegmentIds: string[];
@@ -402,15 +408,15 @@ Show score values, reason codes, evidence references, rule version, model versio
 
 Create at least 30–80 scripted scenarios and verify:
 
-| Metric | Target for MVP |
-|---|---:|
-| Required-field extraction accuracy | tracked by field |
-| Incorrect gate unlock rate | 0 in scripted critical cases |
-| Gate lock explanation coverage | 100% reason-code backed |
-| Payment mismatch detection | 100% scripted cases |
-| Agreement-change invalidation | 100% scripted cases |
-| Transcript-to-decision latency | target tracked, not hidden |
-| Human-handoff trigger correctness | reviewed cases |
+| Metric                             |               Target for MVP |
+| ---------------------------------- | ---------------------------: |
+| Required-field extraction accuracy |             tracked by field |
+| Incorrect gate unlock rate         | 0 in scripted critical cases |
+| Gate lock explanation coverage     |      100% reason-code backed |
+| Payment mismatch detection         |          100% scripted cases |
+| Agreement-change invalidation      |          100% scripted cases |
+| Transcript-to-decision latency     |   target tracked, not hidden |
+| Human-handoff trigger correctness  |               reviewed cases |
 
 ### Training data eligibility
 
@@ -443,4 +449,3 @@ regression_suite_result
 ```
 
 A configuration change that materially affects gate unlocking requires staged rollout or feature-flag control and an easy rollback path.
-

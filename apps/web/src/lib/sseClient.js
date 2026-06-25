@@ -127,7 +127,7 @@ export function createSseClient(options) {
       connected = true;
       retryMs = MIN_RETRY_MS;
       updateStatus("open");
-      onOpen?.();
+      onOpen?.({ reconnected: isReconnect });
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();

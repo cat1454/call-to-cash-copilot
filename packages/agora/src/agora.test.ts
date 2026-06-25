@@ -162,6 +162,34 @@ test("join request injects the versioned V1 system message server-side", async (
   assert.match(systemMessages[0]?.content ?? "", /Prompt ID: CTC-AGORA-VI-V1/u);
 });
 
+test("join request defaults ASR to Vietnamese when the pipeline properties omit it", async () => {
+  let joinBody: Record<string, unknown> | undefined;
+  const client = new AgoraConversationAgentClient(
+    {
+      appId: "app-id",
+      customerId: "customer-id",
+      customerSecret: "customer-secret",
+      baseUrl: "https://example.test",
+      properties: { pipeline_id: "pipeline-id" }
+    },
+    async (_url, init) => {
+      joinBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return new Response(JSON.stringify({ agent_id: "agent-1" }), { status: 200 });
+    }
+  );
+
+  await client.start({
+    channelName: "ctc_call_012345",
+    agentToken: "server-only-token",
+    agentUid: 10001,
+    customerUid: 10002,
+    name: "call-012345",
+    callId: "call_012345"
+  });
+
+  assert.deepEqual((joinBody?.properties as Record<string, unknown>).asr, { language: "vi-VN" });
+});
+
 test("accepts the documented Agora event 103 history payload", () => {
   const parsed = AgoraConversationHistoryNotificationSchema.parse({
     noticeId: "notice-103-1",

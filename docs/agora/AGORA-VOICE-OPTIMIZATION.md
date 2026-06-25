@@ -31,7 +31,7 @@ Customer microphone
 Phase 9 core scope: COMPLETE by user-approved closure.
 Current P0: transcript display-quality hardening.
 Phase 9.2: GO for static prompt draft work; V1 is not yet activated/fully evaluated.
-Phase 10: optional LLM extraction remains NOT STARTED / P3.
+Phase 10: strict-schema LLM extraction is COMPLETE; it remains separate from Phase 9 transcript-quality work.
 ```
 
 Live browser evidence has demonstrated microphone use, agent audio, and visible customer/agent transcript. The current issue is transcript quality: spacing, punctuation, duplicated fragments, or chunk-boundary artifacts can make correct spoken content look unreadable in the UI.
@@ -758,9 +758,9 @@ Possible future directive categories include asking for missing route/time/passe
 
 ---
 
-## 14. Phase 10 — Optional LLM extraction
+## 14. Phase 10 — Strict-schema LLM Extraction
 
-Phase 10 remains deferred.
+Phase 10 strict-schema LLM extraction is complete under the agreed roadmap. It remains separate from this Phase 9 transcript-quality work.
 
 Future optional architecture:
 
@@ -861,7 +861,7 @@ Use the repository’s existing test commands and isolated test database setup. 
 [ ] V1 prompt artifacts are versioned and server-side.
 [ ] Prompt safety constraints are tested.
 [ ] V1 remains DRAFT until controlled live evaluations pass.
-[ ] Phase 9.3 and Phase 10 remain out of scope.
+[ ] Phase 9.3 remains out of scope; Phase 10 is complete and is not part of this transcript-quality work.
 ```
 
 ---
@@ -878,5 +878,5 @@ Preserve Phase 9 closure boundary
   → record fresh readable live evidence
   → evaluate Phase 9.2 V1 static prompt
   → consider Phase 9.3 directives later
-  → keep Phase 10 LLM extraction deferred as P3
+  → begin Phase 11 Fleet Revenue Twin with 11.0 Contract Normalization separately
 ```

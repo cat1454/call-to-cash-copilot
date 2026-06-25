@@ -8,6 +8,7 @@ import { SectionHeading } from "../../../components/ui/SectionHeading";
 import { Card, CardHeader, CardBody } from "../../../components/ui/Card";
 import { LiveVoiceStatus } from "../../voice/LiveVoiceStatus";
 import { getVoiceModeLabel } from "../../../config/runtime";
+import { DemoReadinessBanner } from "./DemoReadinessBanner";
 
 const STATUS_LABELS = {
   "Sẵn sàng": "Sẵn sàng đàm thoại",
@@ -42,7 +43,10 @@ export default function VoiceSimulatorPanel({
   retryLiveVoice,
   continueInReplayMode,
   endVoiceSession,
-  postCallTranscriptSync
+  postCallTranscriptSync,
+  demoReady,
+  demoReadiness,
+  retryDemoReadiness
 }) {
   const [liveConsent, setLiveConsent] = useState(false);
   const statusLabel = STATUS_LABELS[simStatus] ?? simStatus;
@@ -87,6 +91,7 @@ export default function VoiceSimulatorPanel({
       </CardHeader>
 
       <CardBody className="gap-4 p-5">
+        <DemoReadinessBanner readiness={demoReadiness} onRetry={retryDemoReadiness} />
         <div className="rounded-full bg-[#f3f4f6] px-3 py-1.5 text-center text-xs font-medium text-[#4b5563]">
           {getVoiceModeLabel(voiceMode)}
         </div>
@@ -229,6 +234,7 @@ export default function VoiceSimulatorPanel({
             onClick={startSimulation}
             disabled={
               isSimulating || isCompleted || (voiceConnectionState !== null && !liveConsent)
+              || !demoReady
             }
             className={cn(
               "w-16 h-16 rounded-full border-0 transition-all duration-200 ease-out select-none active:scale-[0.95]",
