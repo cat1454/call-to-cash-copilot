@@ -38,6 +38,7 @@ export function makeInitialState() {
     scores: { completeness: 0, dispute: 0, readiness: 0 },
     paymentGate: "LOCKED",
     transcript: [],
+    transcriptAnalysis: null,
     subtitles: { speaker: "Tổng đài AI", text: "Đang chờ cuộc gọi..." },
     bookingData: { ...emptyBooking },
     timelineSteps: [],

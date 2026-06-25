@@ -1,9 +1,14 @@
 import { createPrismaClient } from "../packages/db/src/client.js";
+import { loadTripScheduleRows } from "./schedule-fixture.js";
+import { fileURLToPath } from "node:url";
 
 const databaseUrl =
   process.env.DATABASE_URL ??
   "postgresql://call_to_cash:call_to_cash@127.0.0.1:55432/call_to_cash?schema=public";
 const prisma = createPrismaClient({ databaseUrl });
+const scheduleRows = loadTripScheduleRows(
+  fileURLToPath(new URL("./fixtures/trip-schedule-demo.csv", import.meta.url))
+);
 
 function nextVietnamOccurrence(month: number, day: number, hour: number, minute: number): Date {
   const now = new Date();
@@ -95,6 +100,41 @@ try {
       refundPolicyVersion: "BUS-V1/1.0"
     }
   });
+
+  for (const row of scheduleRows) {
+    await prisma.tripDeparture.upsert({
+      where: { publicId: row.publicId },
+      update: {
+        routeCode: row.routeCode,
+        routeFrom: row.routeFrom,
+        routeTo: row.routeTo,
+        departureAtUtc: row.departureAtUtc,
+        departureTimezone: row.departureTimezone,
+        capacity: row.capacity,
+        operationalStatus: row.operationalStatus,
+        currency: row.currency,
+        farePerSeatMinor: row.farePerSeatMinor,
+        depositAmountMinor: row.depositAmountMinor,
+        pricePolicyVersion: row.pricePolicyVersion,
+        refundPolicyVersion: row.refundPolicyVersion
+      },
+      create: {
+        publicId: row.publicId,
+        routeCode: row.routeCode,
+        routeFrom: row.routeFrom,
+        routeTo: row.routeTo,
+        departureAtUtc: row.departureAtUtc,
+        departureTimezone: row.departureTimezone,
+        capacity: row.capacity,
+        operationalStatus: row.operationalStatus,
+        currency: row.currency,
+        farePerSeatMinor: row.farePerSeatMinor,
+        depositAmountMinor: row.depositAmountMinor,
+        pricePolicyVersion: row.pricePolicyVersion,
+        refundPolicyVersion: row.refundPolicyVersion
+      }
+    });
+  }
 } finally {
   await prisma.$disconnect();
 }

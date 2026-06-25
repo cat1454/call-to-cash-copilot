@@ -83,6 +83,7 @@ export function evaluateProviderConfig(serverEnv, webEnv) {
       ["AGORA_PROVIDER_EVENT_SECRET", "Agora provider-event secret"],
       ["AGORA_RTM_RELAY_CONTROL_SECRET", "Agora RTM relay control secret"],
       ["AGORA_NCS_WEBHOOK_SECRET", "Agora Notifications secret"],
+      ["AGORA_TO_GATEWAY_SHARED_SECRET", "Agora gateway shared secret"],
       ["AGORA_CAI_PROPERTIES_JSON", "Agora CAI properties"]
     ]) {
       results.push(
@@ -124,10 +125,9 @@ async function loadEnv(path) {
   return parseEnv(await readFile(path, "utf8"));
 }
 
-export function selectWebEnv(webLocalEnv, webEnv, serverEnv) {
+export function selectWebEnv(webLocalEnv, webEnv, _serverEnv = {}) {
   if (Object.keys(webLocalEnv).length > 0) return webLocalEnv;
-  if (Object.keys(webEnv).length > 0) return webEnv;
-  return serverEnv;
+  return webEnv;
 }
 
 async function checkDatabase(databaseUrl) {

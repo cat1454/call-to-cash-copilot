@@ -23,8 +23,17 @@ export function registerRoutes(app: FastifyInstance, dependencies: ApiDependenci
   registerVoiceSessionRoutes(app, dependencies);
   registerRevenueTwinRoutes(app, dependencies);
 
-  app.setNotFoundHandler((request, reply) =>
-    reply.code(404).send(
+  app.setNotFoundHandler((request, reply) => {
+    request.log.warn(
+      {
+        event: "http.route_not_found",
+        requestId: request.id,
+        method: request.method,
+        path: request.url.split("?")[0]
+      },
+      "HTTP route was not found"
+    );
+    return reply.code(404).send(
       ApiErrorEnvelopeSchema.parse({
         success: false,
         error: {
@@ -34,8 +43,8 @@ export function registerRoutes(app: FastifyInstance, dependencies: ApiDependenci
           retryable: false
         }
       })
-    )
-  );
+    );
+  });
 
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof ApiCommandError) {

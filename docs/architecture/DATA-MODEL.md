@@ -283,6 +283,13 @@ The following tables are the minimum production-shaped schema. A hackathon may i
 
 **Constraints:** unique `(route_code, departure_at_utc)`; positive capacity; non-negative fare; positive deposit. Availability is derived under a row lock from active, unexpired and consumed holds; browser counters are never authoritative.
 
+**Demo schedule input:** Phase 10.5 keeps the database model unchanged and imports the
+Excel-editable CSV fixture `prisma/fixtures/trip-schedule-demo.csv` into `trip_departures` during
+the idempotent seed. The CSV is catalogue input for route, local date/time, capacity, fare, deposit,
+policy, and demo pickup policy. Runtime availability for Revenue Twin remains derived from
+`trip_departures` plus `inventory_holds`; do not encode "available seats" directly in the schedule
+CSV.
+
 ---
 
 ### 5.8 `inventory_holds`

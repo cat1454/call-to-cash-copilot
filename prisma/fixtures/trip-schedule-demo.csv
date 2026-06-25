@@ -1,0 +1,37 @@
+publicId,routeCode,routeFrom,routeTo,localMonth,localDay,localTime,pickupPoints,capacity,farePerSeatMinor,depositAmountMinor,pricePolicyVersion,refundPolicyVersion
+dep_demo_cantho_dalat_0525_0730,CTO-DLI-DEMO-0730,Can Tho,Da Lat,5,25,07:30,Ben xe Can Tho|Ben xe trung tam Can Tho,36,420000,300000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_cantho_dalat_0525_1100,CTO-DLI-DEMO-1100,Can Tho,Da Lat,5,25,11:00,Ben xe Can Tho|Ben xe trung tam Can Tho,36,420000,300000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_cantho_dalat_0525_1600,CTO-DLI-DEMO-1600,Can Tho,Da Lat,5,25,16:00,Ben xe Can Tho|Ben xe trung tam Can Tho,36,420000,300000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_cantho_dalat_0526_0730,CTO-DLI-DEMO-0730,Can Tho,Da Lat,5,26,07:30,Ben xe Can Tho|Ben xe trung tam Can Tho,36,420000,300000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_cantho_dalat_0526_1100,CTO-DLI-DEMO-1100,Can Tho,Da Lat,5,26,11:00,Ben xe Can Tho|Ben xe trung tam Can Tho,36,420000,300000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_cantho_dalat_0526_1600,CTO-DLI-DEMO-1600,Can Tho,Da Lat,5,26,16:00,Ben xe Can Tho|Ben xe trung tam Can Tho,36,420000,300000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_cantho_dalat_0527_0730,CTO-DLI-DEMO-0730,Can Tho,Da Lat,5,27,07:30,Ben xe Can Tho|Ben xe trung tam Can Tho,36,420000,300000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_cantho_dalat_0527_1100,CTO-DLI-DEMO-1100,Can Tho,Da Lat,5,27,11:00,Ben xe Can Tho|Ben xe trung tam Can Tho,36,420000,300000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_cantho_dalat_0527_1600,CTO-DLI-DEMO-1600,Can Tho,Da Lat,5,27,16:00,Ben xe Can Tho|Ben xe trung tam Can Tho,36,420000,300000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_cantho_dalat_0528_0730,CTO-DLI-DEMO-0730,Can Tho,Da Lat,5,28,07:30,Ben xe Can Tho|Ben xe trung tam Can Tho,36,420000,300000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_cantho_dalat_0528_1100,CTO-DLI-DEMO-1100,Can Tho,Da Lat,5,28,11:00,Ben xe Can Tho|Ben xe trung tam Can Tho,36,420000,300000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_cantho_dalat_0528_1600,CTO-DLI-DEMO-1600,Can Tho,Da Lat,5,28,16:00,Ben xe Can Tho|Ben xe trung tam Can Tho,36,420000,300000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_cantho_dalat_0529_0730,CTO-DLI-DEMO-0730,Can Tho,Da Lat,5,29,07:30,Ben xe Can Tho|Ben xe trung tam Can Tho,36,420000,300000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_cantho_dalat_0529_1100,CTO-DLI-DEMO-1100,Can Tho,Da Lat,5,29,11:00,Ben xe Can Tho|Ben xe trung tam Can Tho,36,420000,300000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_cantho_dalat_0529_1600,CTO-DLI-DEMO-1600,Can Tho,Da Lat,5,29,16:00,Ben xe Can Tho|Ben xe trung tam Can Tho,36,420000,300000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_cantho_dalat_0530_0730,CTO-DLI-DEMO-0730,Can Tho,Da Lat,5,30,07:30,Ben xe Can Tho|Ben xe trung tam Can Tho,36,420000,300000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_cantho_dalat_0530_1100,CTO-DLI-DEMO-1100,Can Tho,Da Lat,5,30,11:00,Ben xe Can Tho|Ben xe trung tam Can Tho,36,420000,300000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_cantho_dalat_0530_1600,CTO-DLI-DEMO-1600,Can Tho,Da Lat,5,30,16:00,Ben xe Can Tho|Ben xe trung tam Can Tho,36,420000,300000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_hue_nhatrang_0525_0700,HUE-NHA-DEMO-0700,Hue,Nha Trang,5,25,07:00,Ben xe Hue,20,360000,250000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_hue_nhatrang_0525_0730,HUE-NHA-DEMO-0730,Hue,Nha Trang,5,25,07:30,Ben xe Hue,20,360000,250000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_hue_nhatrang_0525_0800,HUE-NHA-DEMO-0800,Hue,Nha Trang,5,25,08:00,Ben xe Hue,20,360000,250000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_hue_nhatrang_0526_0700,HUE-NHA-DEMO-0700,Hue,Nha Trang,5,26,07:00,Ben xe Hue,20,360000,250000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_hue_nhatrang_0526_0730,HUE-NHA-DEMO-0730,Hue,Nha Trang,5,26,07:30,Ben xe Hue,20,360000,250000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_hue_nhatrang_0526_0800,HUE-NHA-DEMO-0800,Hue,Nha Trang,5,26,08:00,Ben xe Hue,20,360000,250000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_hue_nhatrang_0527_0700,HUE-NHA-DEMO-0700,Hue,Nha Trang,5,27,07:00,Ben xe Hue,20,360000,250000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_hue_nhatrang_0527_0730,HUE-NHA-DEMO-0730,Hue,Nha Trang,5,27,07:30,Ben xe Hue,20,360000,250000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_hue_nhatrang_0527_0800,HUE-NHA-DEMO-0800,Hue,Nha Trang,5,27,08:00,Ben xe Hue,20,360000,250000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_hue_nhatrang_0528_0700,HUE-NHA-DEMO-0700,Hue,Nha Trang,5,28,07:00,Ben xe Hue,20,360000,250000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_hue_nhatrang_0528_0730,HUE-NHA-DEMO-0730,Hue,Nha Trang,5,28,07:30,Ben xe Hue,20,360000,250000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_hue_nhatrang_0528_0800,HUE-NHA-DEMO-0800,Hue,Nha Trang,5,28,08:00,Ben xe Hue,20,360000,250000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_hue_nhatrang_0529_0700,HUE-NHA-DEMO-0700,Hue,Nha Trang,5,29,07:00,Ben xe Hue,20,360000,250000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_hue_nhatrang_0529_0730,HUE-NHA-DEMO-0730,Hue,Nha Trang,5,29,07:30,Ben xe Hue,20,360000,250000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_hue_nhatrang_0529_0800,HUE-NHA-DEMO-0800,Hue,Nha Trang,5,29,08:00,Ben xe Hue,20,360000,250000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_hue_nhatrang_0530_0700,HUE-NHA-DEMO-0700,Hue,Nha Trang,5,30,07:00,Ben xe Hue,20,360000,250000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_hue_nhatrang_0530_0730,HUE-NHA-DEMO-0730,Hue,Nha Trang,5,30,07:30,Ben xe Hue,20,360000,250000,BUS-PRICE-V1,BUS-V1/1.0
+dep_demo_hue_nhatrang_0530_0800,HUE-NHA-DEMO-0800,Hue,Nha Trang,5,30,08:00,Ben xe Hue,20,360000,250000,BUS-PRICE-V1,BUS-V1/1.0

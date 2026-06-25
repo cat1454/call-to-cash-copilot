@@ -106,10 +106,22 @@ Route, departure date, and departure time may arrive in separate final customer 
 server retains the already accepted route while matching a later date/time turn against the
 scheduled catalogue; it does not require the customer to repeat every prior field in one sentence.
 
+Phase 10.5 adds an Excel-editable schedule fixture at `prisma/fixtures/trip-schedule-demo.csv`.
+The CSV is demo catalogue input for route/date/time/capacity/fare/deposit/pickup policy; the
+seed imports its rows into `trip_departures`. The parser and optional LLM extractor may only
+select a route/departure/pickup that resolves to that scheduled catalogue or to the existing
+database catalogue. They must not invent a route, departure time, fare, deposit, or pickup point
+that is absent from the catalogue.
+
 The deterministic matcher tolerates omitted internal spaces in a catalogue place name (for
 example `Sapa` for `Sa Pa`) and accepts ASR's spoken `hour:minute` form (for example
 `hai mươi hai:ba mươi phút`). It still requires an exact scheduled route and departure; these
 normalizations do not allow a near-match or an inferred inventory choice.
+
+The matcher also accepts common Vietnamese route order variants such as `tu <origin> den
+<destination>` and `di <destination> tu <origin>` when the spoken cities identify exactly one
+scheduled route. A passenger count next to a clock expression, for example `07:30 cho 3 nguoi`,
+must not treat the `30` minute component as a seat count.
 
 For the current deterministic Vietnamese parser, a contact number may be supplied as a valid
 contiguous number or as digit-by-digit speech after `số điện thoại`, `sđt`, or `liên hệ`.
@@ -126,6 +138,11 @@ the configured acceptance threshold, and the field passes the same catalogue or 
 validation. This allows natural Vietnamese/ASR variants to populate a draft without letting the
 model infer a contact, fare, inventory, payment, confirmation, or state transition.
 
+After a final customer turn is accepted, the transcript command emits an authoritative analysis
+projection from the validated booking/risk state. That projection may update the UI's "understood"
+summary, missing fields, ambiguity diagnostics, and next question, but it is not an agreement,
+confirmation, payment gate, price, inventory hold, proof, or receipt authority.
+
 When that required contact label is present, the parser also accepts ASR-concatenated digit words
 such as `làkhông` and `mộthai`. It does not infer a phone number from a standalone digit sequence.
 For a labelled Vietnamese `chín trăm lẻ ...` contact expression, the parser normalizes the spoken
@@ -138,6 +155,11 @@ preceding prompt phrase is transcribed as `điểm đốn`. Once all operational
 fields are valid, the server reserves the existing temporary inventory hold and moves the booking
 to `AGREEMENT_READY`; it must still read the terms and obtain explicit confirmation before a
 Solana payment intent is created.
+
+For catalogue demo rows, supported pickup values come from the CSV `pickupPoints` column where
+available, with route-origin terminal fallbacks such as `Ben xe <origin>` for deterministic local
+demo coverage. Pickup matching remains a validation step only; precise pickup stays off-chain and
+is displayed only through the existing safe booking projection.
 
 For a trusted live Agora final turn, an explicit confirmation such as `tôi xác nhận` after the
 booking reaches `AGREEMENT_READY` locks the agreement and triggers the existing Solana payment

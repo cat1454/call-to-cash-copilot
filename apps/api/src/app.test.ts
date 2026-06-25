@@ -906,6 +906,7 @@ test(
         EventName.BookingUpdated,
         EventName.RiskScoreUpdated,
         EventName.RiskPaymentGateUpdated,
+        EventName.TranscriptAnalysisUpdated,
         EventName.RevenueTwinEvaluated
       ]
     );
@@ -928,6 +929,7 @@ test(
         EventName.BookingUpdated,
         EventName.RiskScoreUpdated,
         EventName.RiskPaymentGateUpdated,
+        EventName.TranscriptAnalysisUpdated,
         EventName.RevenueTwinEvaluated
       ]
     );
@@ -1043,6 +1045,101 @@ test(
     });
     assert.equal(booking.statusCode, 200);
     assert.equal(booking.json().data.fareTotalVnd, 900_000);
+    await app.close();
+  }
+);
+
+test(
+  "Phase 10.5 imported schedule rows drive authoritative summary, pricing, hold, and payment guard",
+  { skip: phase5SkipReason() },
+  async () => {
+    assert.ok(databaseUrl);
+    await seedFutureDeparture();
+    const prisma = createPrismaClient({ databaseUrl });
+    await prisma.tripDeparture.create({
+      data: {
+        publicId: `dep_phase105_cantho_dalat_${uniqueSuffix()}`,
+        routeCode: `CTO-DLI-PHASE105-${uniqueSuffix()}`,
+        routeFrom: "Can Tho",
+        routeTo: "Da Lat",
+        departureAtUtc: new Date("2030-05-25T00:30:00.000Z"),
+        departureTimezone: "Asia/Ho_Chi_Minh",
+        capacity: 36,
+        operationalStatus: "SCHEDULED",
+        currency: "VND",
+        farePerSeatMinor: 420_000,
+        depositAmountMinor: 300_000,
+        pricePolicyVersion: "BUS-PRICE-V1",
+        refundPolicyVersion: "BUS-V1/1.0"
+      }
+    });
+    await prisma.$disconnect();
+
+    const app = buildApp(demoConfig);
+    const callResponse = await app.inject({
+      method: "POST",
+      url: "/v1/calls",
+      payload: { channelPurpose: "BOOKING", sourceMode: "TRANSCRIPT_REPLAY" }
+    });
+    assert.equal(callResponse.statusCode, 201, callResponse.body);
+    const callId = callResponse.json().data.callId as string;
+    const turnResponse = await app.inject({
+      method: "POST",
+      url: `/v1/calls/${callId}/transcript-turns`,
+      payload: {
+        turn: {
+          clientTurnId: `phase105-turn-${uniqueSuffix()}`,
+          sequenceNo: 1,
+          speaker: "CUSTOMER",
+          content:
+            "Em dat 2 ve di Da Lat tu Can Tho ngay 25/5 luc 07:30, don o ben xe Can Tho, lien he 0912345678.",
+          language: "vi-VN",
+          isFinal: true,
+          source: "REPLAY"
+        }
+      }
+    });
+    assert.equal(turnResponse.statusCode, 202, turnResponse.body);
+
+    const callRead = await app.inject({ method: "GET", url: `/v1/calls/${callId}` });
+    assert.equal(callRead.statusCode, 200, callRead.body);
+    const bookingId = callRead.json().data.booking.bookingId as string;
+    const bookingResponse = await app.inject({
+      method: "GET",
+      url: `/v1/bookings/${bookingId}`
+    });
+    assert.equal(bookingResponse.statusCode, 200, bookingResponse.body);
+    const booking = bookingResponse.json().data;
+    assert.equal(booking.routeFrom, "Can Tho");
+    assert.equal(booking.routeTo, "Da Lat");
+    assert.equal(booking.passengerCount, 2);
+    assert.equal(booking.pickupPoint, "Ben xe Can Tho");
+    assert.equal(booking.contactPhoneMasked, "0912***678");
+    assert.equal(booking.fareTotalVnd, 840_000);
+    assert.equal(booking.depositAmountVnd, 300_000);
+    assert.equal(booking.status, "AGREEMENT_READY");
+
+    const verify = createPrismaClient({ databaseUrl });
+    const persisted = await verify.booking.findUniqueOrThrow({
+      where: { publicId: bookingId },
+      include: { inventoryHolds: true, tripDeparture: true }
+    });
+    assert.equal(persisted.tripDeparture?.routeCode.startsWith("CTO-DLI-PHASE105-"), true);
+    assert.equal(persisted.inventoryHolds.length, 1);
+    assert.equal(persisted.inventoryHolds[0]?.quantity, 2);
+    assert.equal(persisted.inventoryHolds[0]?.status, "ACTIVE");
+    await verify.$disconnect();
+
+    const prematurePayment = await app.inject({
+      method: "POST",
+      url: "/v1/payments/mock/create",
+      headers: { "Idempotency-Key": `phase105-payment-${uniqueSuffix()}` },
+      payload: { bookingId }
+    });
+    assert.equal(prematurePayment.statusCode, 422, prematurePayment.body);
+    assert.equal(prematurePayment.json().success, false);
+    assert.equal(prematurePayment.json().error.code, ErrorCodeSchema.enum.AGREEMENT_NOT_READY);
+
     await app.close();
   }
 );
@@ -1626,5 +1723,13 @@ test("unknown routes return the standard safe error envelope", async () => {
   assert.equal(payload.error.retryable, false);
   assert.equal(typeof payload.error.requestId, "string");
 
+  await app.close();
+});
+
+test("native Agora mode does not expose a custom LLM gateway route", async () => {
+  const app = buildApp(demoConfig);
+  const response = await app.inject({ method: "POST", url: "/v1/agora/chat/completions" });
+
+  assert.equal(response.statusCode, 404);
   await app.close();
 });

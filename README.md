@@ -13,17 +13,17 @@ Customer voice or replay
 
 ## What is implemented
 
-| Capability               | Current behavior                                                                                                                                                          |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Voice                    | Browser connects directly to Agora RTC for live mode; replay stays explicitly labelled as replay.                                                                         |
-| Vietnamese transcription | Agora join properties default ASR to `vi-VN`; only final provider turns may become durable business input.                                                                |
-| Booking extraction       | Deterministic Vietnamese parsing is the safe baseline. Optional OpenAI structured extraction may fill only high-confidence, same-turn, catalogue-validated draft fields.  |
-| Booking summary          | REST/SSE recovery reloads the authoritative booking read model. The customer view shows route, departure date/time, passengers, masked phone, fare, and deposit.          |
-| Confirmation             | `READY_FOR_CONFIRMATION` renders a web confirmation card. The customer may tap **Xác nhận điều khoản & mở thanh toán** or make an explicit voice confirmation.            |
-| Payment                  | Server-created mock or Solana Pay Devnet payment intent; the browser never decides payment success.                                                                       |
-| Proof and receipt        | Server verifies payment evidence, writes a canonical agreement proof, and issues a privacy-safe Trust Receipt. Tamper simulation produces a mismatch/manual-review state. |
-| Recovery                 | SSE reconnect plus REST recovery restores booking, transcript, payment, and receipt state using privacy-safe projections.                                                 |
-| Revenue Twin             | Fleet Revenue Twin evaluates constrained alternatives, bounded incentives, consented acceptance, and waitlist fallback without browser authority over inventory or price. |
+| Capability | Current behavior |
+| --- | --- |
+| Voice | Browser connects directly to Agora RTC for live mode; replay stays explicitly labelled as replay. |
+| Vietnamese transcription | Agora join properties default ASR to `vi-VN`; only final provider turns may become durable business input. |
+| Booking extraction | Deterministic Vietnamese parsing is the safe baseline. Optional OpenAI structured extraction may fill only high-confidence, same-turn, catalogue-validated draft fields. |
+| Booking summary | REST/SSE recovery reloads the authoritative booking read model. The customer view shows route, departure date/time, passengers, masked phone, fare, and deposit. |
+| Confirmation | `READY_FOR_CONFIRMATION` renders a web confirmation card. The customer may tap **Xác nhận điều khoản & mở thanh toán** or make an explicit voice confirmation. |
+| Payment | Server-created mock or Solana Pay Devnet payment intent; the browser never decides payment success. |
+| Proof and receipt | Server verifies payment evidence, writes a canonical agreement proof, and issues a privacy-safe Trust Receipt. Tamper simulation produces a mismatch/manual-review state. |
+| Recovery | SSE reconnect plus REST recovery restores booking, transcript, payment, and receipt state using privacy-safe projections. |
+| Revenue Twin | Fleet Revenue Twin evaluates constrained alternatives, bounded incentives, consented acceptance, and waitlist fallback without browser authority over inventory or price. |
 
 ## Architecture and authority
 
@@ -47,12 +47,12 @@ flowchart LR
 
 ## Modes
 
-| Mode          | Use case                                   | Truth boundary                                                                     |
-| ------------- | ------------------------------------------ | ---------------------------------------------------------------------------------- |
-| Replay        | Deterministic demo and regression testing  | Replay turns follow the same API/domain path; it is never labelled as live Agora.  |
-| Agora live    | Customer microphone and agent conversation | Final trusted provider turns enter the same canonical transcript command.          |
-| Mock payment  | Fast deterministic payment/proof demo      | The server validates server-owned mock evidence.                                   |
-| Solana Devnet | Wallet/QR demonstration                    | The server creates and verifies a Devnet request; it is not commercial settlement. |
+| Mode | Use case | Truth boundary |
+| --- | --- | --- |
+| Replay | Deterministic demo and regression testing | Replay turns follow the same API/domain path; it is never labelled as live Agora. |
+| Agora live | Customer microphone and agent conversation | Final trusted provider turns enter the same canonical transcript command. |
+| Mock payment | Fast deterministic payment/proof demo | The server validates server-owned mock evidence. |
+| Solana Devnet | Wallet/QR demonstration | The server creates and verifies a Devnet request; it is not commercial settlement. |
 
 ## Repository layout
 
@@ -148,16 +148,16 @@ The cold smoke test fails closed unless the authoritative booking summary contai
 
 ## Documentation
 
-- [Current state](docs/report/CURRENT-STATE.md)
-- [Pipeline](docs/architecture/PIPELINE.md)
-- [State machines](docs/architecture/STATE-MACHINES.md)
-- [Booking contract](docs/product/BOOKING-CONTRACT.md)
-- [Risk scoring](docs/product/RISK-SCORING.md)
-- [API contract](docs/contracts/API-CONTRACT.md)
-- [Event contract](docs/contracts/EVENT-CONTRACT.md)
-- [Data privacy and on-chain policy](docs/security/DATA-PRIVACY-ONCHAIN-POLICY.md)
-- [Local setup](docs/operations/LOCAL-SETUP.md)
-- [Deployment](docs/operations/DEPLOYMENT.md)
+- Current state
+- Pipeline
+- State machines
+- Booking contract
+- Risk scoring
+- API contract
+- Event contract
+- Data privacy and on-chain policy
+- Local setup
+- Deployment
 
 ## License and demo boundary
 

@@ -140,6 +140,10 @@ export function readRuntimeConfig(
   env: Readonly<Record<string, string | undefined>> = process.env
 ): RuntimeConfig {
   const recipientPublicKey = env.SOLANA_RECIPIENT_PUBLIC_KEY?.trim() ?? "";
+  const { llm: _legacyCustomLlm, ...agoraAgentProperties } = readJsonObject(
+    "AGORA_CAI_PROPERTIES_JSON",
+    env.AGORA_CAI_PROPERTIES_JSON
+  );
   const solanaCluster = readEnum(
     "SOLANA_CLUSTER",
     env.SOLANA_CLUSTER,
@@ -189,7 +193,9 @@ export function readRuntimeConfig(
       customerSecret: env.AGORA_CUSTOMER_SECRET?.trim() ?? "",
       providerEventSecret: env.AGORA_PROVIDER_EVENT_SECRET?.trim() ?? "",
       ncsWebhookSecret: env.AGORA_NCS_WEBHOOK_SECRET?.trim() ?? "",
-      agentProperties: readJsonObject("AGORA_CAI_PROPERTIES_JSON", env.AGORA_CAI_PROPERTIES_JSON),
+      // Agora's native configured pipeline owns its LLM settings. Discard a
+      // legacy app-side `llm` override so it cannot become an accidental hop.
+      agentProperties: agoraAgentProperties,
       tokenTtlSeconds: readStrictPositiveInt(
         "AGORA_TOKEN_TTL_SECONDS",
         env.AGORA_TOKEN_TTL_SECONDS,
@@ -210,9 +216,9 @@ export function readRuntimeConfig(
         (env.AGORA_CUSTOMER_ID?.trim().length ?? 0) > 0 &&
         (env.AGORA_CUSTOMER_SECRET?.trim().length ?? 0) > 0 &&
         (env.AGORA_PROVIDER_EVENT_SECRET?.trim().length ?? 0) > 0 &&
+        (env.AGORA_NCS_WEBHOOK_SECRET?.trim().length ?? 0) > 0 &&
         (env.AGORA_RTM_RELAY_CONTROL_SECRET?.trim().length ?? 0) > 0 &&
-        Object.keys(readJsonObject("AGORA_CAI_PROPERTIES_JSON", env.AGORA_CAI_PROPERTIES_JSON))
-          .length > 0
+        Object.keys(agoraAgentProperties).length > 0
     },
     aiProvider,
     aiExtraction,

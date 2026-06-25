@@ -89,7 +89,9 @@ PowerShell:
 Copy-Item .env.example .env
 ```
 
-The repository-root `.env` is the canonical local server configuration. The API entrypoint resolves this file explicitly even though pnpm runs the API package with `apps/api` as its working directory. Do not create or depend on `apps/api/.env`; package-local files are ignored and are not part of the documented startup path. Vite reads browser-safe values from `apps/web/.env.local` when it exists, otherwise `apps/web/.env`; `demo:preflight` uses that same precedence. Copy `apps/web/.env.example` to one of those files and never place server credentials there.
+The repository-root `.env` is the canonical local **server** configuration. The API entrypoint resolves this file explicitly even though pnpm runs the API package with `apps/api` as its working directory. Do not create or depend on `apps/api/.env`; package-local files are ignored and are not part of the documented startup path. Do not put `VITE_*` values in root `.env`.
+
+Vite reads browser-safe values from `apps/web/.env.local` when it exists, otherwise `apps/web/.env`; `demo:preflight` uses that same precedence and never falls back to root `.env`. Copy `apps/web/.env.example` to one of those files. Browser files must not contain server credentials, database URLs, webhook secrets, Agora certificates, or gateway secrets.
 
 Current variables:
 
@@ -123,22 +125,30 @@ AGORA_CAI_AGENT_NAME=call-to-cash-agent
 AGORA_API_BASE_URL=https://api.agora.io
 AGORA_CAI_PROPERTIES_JSON=
 AI_PROVIDER=deterministic
-
-VITE_DEMO_MODE=true
-VITE_API_BASE_URL=http://127.0.0.1:3001
-
-For the deployed Danang Toi Uu surfaces, configure the backend with
-`WEB_ORIGIN=https://ctc.danangtoiiu.live`, the frontend build with
-`VITE_API_BASE_URL=https://ctc-api.danangtoiiu.live`, and configure Agora Notifications with
-`https://ctc-api.danangtoiiu.live/v1/webhooks/agora/conversation-ai`.
-VITE_VOICE_PROVIDER=replay
 ```
 
-Only `VITE_*` values may be exposed to the browser. Never put provider certificates, private keys, database URLs, webhook secrets, or LLM keys in a `VITE_*` variable.
+Create `apps/web/.env` (or the higher-priority local override) from `apps/web/.env.example`:
+
+```env
+VITE_DEMO_MODE=true
+VITE_API_BASE_URL=http://127.0.0.1:3001
+VITE_VOICE_PROVIDER=replay
+VITE_AI_PROVIDER=deterministic
+```
+
+For live voice, set both `VOICE_PROVIDER=agora` in root `.env` and `VITE_VOICE_PROVIDER=agora` in the browser file, then restart the stack. For the deployed Danang Toi Uu surfaces, configure the backend with `WEB_ORIGIN=https://ctc.danangtoiiu.live`, the frontend build with `VITE_API_BASE_URL=https://ctc-api.danangtoiiu.live`, and Agora Notifications with `https://ctc-api.danangtoiiu.live/v1/webhooks/agora/conversation-ai`.
+
+Only `VITE_*` values may be exposed to the browser. Never put provider certificates, private keys, database URLs, webhook secrets, or LLM/gateway keys in a `VITE_*` variable.
 
 Set `PAYMENT_PROVIDER=solana_devnet` only when a public Devnet recipient is configured. Set both `VOICE_PROVIDER=agora` and `VITE_VOICE_PROVIDER=agora` only when the server-only Agora values are configured. Missing/invalid provider configuration leaves process liveness intact but the selected live flow fails closed. No private key is accepted. Redis, object-storage, and LLM variables remain deferred until their first implemented consumer.
 
 For the Vietnamese booking flow, the server always adds `asr.language = "vi-VN"` to the Agora join properties. `AGORA_CAI_PROPERTIES_JSON` may therefore contain only the required `pipeline_id`; do not add prompt text or any browser-visible setting to it. Restart the API before starting a new live call after changing any Agora configuration.
+
+For responsive conversation, set the Agora dashboard pipeline itself to Vietnamese ASR, reduce
+history from `32` to `8`, use the responsive turn-detection preset, set end-of-speech silence to
+roughly `350–400 ms`, interrupt duration to about `250 ms`, and prefix padding to about `200 ms`.
+Agora owns model selection, history, and streaming for the live voice turn. These changes apply
+only to new CAI sessions after the dashboard update and API restart.
 
 When `VOICE_PROVIDER=agora`, the isolated RTM relay is also required. Give `AGORA_RTM_RELAY_CONTROL_SECRET` a new random server-only value (distinct from `AGORA_PROVIDER_EVENT_SECRET` and `AGORA_NCS_WEBHOOK_SECRET`), keep its URL private to the API deployment network, and choose a relay UID different from the agent and browser UIDs. The relay process needs the same `AGORA_APP_ID`, `AGORA_PROVIDER_EVENT_SECRET`, `AGORA_RTM_RELAY_CONTROL_SECRET`, `AGORA_RTM_RELAY_UID`, plus these local-only settings:
 
@@ -149,7 +159,7 @@ RTM_RELAY_API_BASE_URL=http://127.0.0.1:3001
 RTM_RELAY_BROWSER_EXECUTABLE_PATH=C:\path\to\chromium.exe
 ```
 
-Start it separately; root `pnpm dev` intentionally does not start a browser runtime in replay mode:
+`pnpm dev:live` starts the relay automatically. Start it separately only when debugging one component:
 
 ```bash
 pnpm dev:rtm-relay
@@ -175,21 +185,27 @@ Migration policy:
 - never use `prisma db push` as a deployment strategy;
 - never edit a migration after it has been deployed outside local development.
 
-The Phase 4 seed is idempotent and creates `usr_provider_demo` plus departure `dep_hn_sapa_20260620_2230` with 36 seats, `BUS-PRICE-V1`, and `BUS-V1/1.0`.
+The seed is idempotent and creates `usr_provider_demo`, the original deterministic demo
+departures, and the Phase 10.5 Excel-editable schedule fixture from
+`prisma/fixtures/trip-schedule-demo.csv`. That fixture covers 25-30 May demo departures with
+multiple daily slots per route for catalogue-backed parser and Revenue Twin rehearsal data.
 
 ## 6. Run the applications
 
-Run both development processes through Turbo:
+For a Live Agora stack, use the single canonical command:
 
 ```bash
-pnpm dev
+corepack pnpm dev:live
 ```
 
-Or run them independently:
+It starts PostgreSQL, applies idempotent migrations/seeding, launches API, web (fixed at port `5173`), and RTM relay, waits for all readiness endpoints, then runs the secret-safe preflight. `Ctrl+C` stops only the API/web/relay process trees; it leaves PostgreSQL and its volume intact.
+
+For focused debugging, run components independently:
 
 ```bash
 pnpm dev:api
 pnpm dev:web
+pnpm dev:rtm-relay
 ```
 
 After both processes are running, verify the complete local configuration without printing secret values:
@@ -285,36 +301,36 @@ Turbo's package-local DB task graph runs `prisma:generate` once before DB build/
 
 Do not expect the following commands or services to work until their pipeline phase is implemented:
 
-| Capability                                                                          |      Planned phase |
-| ----------------------------------------------------------------------------------- | -----------------: |
-| Web REST/SSE adapter and refresh recovery                                           | **Phase 6 — done** |
-| Mock payment failure outcomes and simulate-failure demo endpoint                    | **Phase 7 — done** |
-| Server read-model hooks and useServerSimulation wiring                              | **Phase 7 — done** |
-| Solana Devnet provider, URL, automatic reference discovery, and server verification | **Phase 8 — done** |
-| Agora adapter and server-to-CAI probe                                               | **Phase 9 — done** |
-| Agora browser microphone, final transcript, and SSE live acceptance                 | **Phase 9 — done** |
-| Strict-schema LLM extraction                                                        | **Phase 10 — done** |
+| Capability                                                                          |                                                                                     Planned phase |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------: |
+| Web REST/SSE adapter and refresh recovery                                           |                                                                                **Phase 6 — done** |
+| Mock payment failure outcomes and simulate-failure demo endpoint                    |                                                                                **Phase 7 — done** |
+| Server read-model hooks and useServerSimulation wiring                              |                                                                                **Phase 7 — done** |
+| Solana Devnet provider, URL, automatic reference discovery, and server verification |                                                                                **Phase 8 — done** |
+| Agora adapter and server-to-CAI probe                                               |                                                                                **Phase 9 — done** |
+| Agora browser microphone, final transcript, and SSE live acceptance                 |                                                                                **Phase 9 — done** |
+| Strict-schema LLM extraction                                                        |                                                                               **Phase 10 — done** |
 | Fleet Revenue Twin                                                                  | **Phase 11 — MVP implemented; isolated PostgreSQL verification passed; live Agora smoke pending** |
-| E2E, observability, accessibility, deployment                                       | **Phase 12 — partial / after Phase 11** |
-| Outcome labeling, evaluation, opt-in data                                            | **Phase 13 — not started** |
-| Redis, queue, object storage                                                        | **Phase 14 — deferred** |
+| E2E, observability, accessibility, deployment                                       |                                                           **Phase 12 — partial / after Phase 11** |
+| Outcome labeling, evaluation, opt-in data                                           |                                                                        **Phase 13 — not started** |
+| Redis, queue, object storage                                                        |                                                                           **Phase 14 — deferred** |
 
 Do not create speculative Redis or object-storage configuration before its consumer phase.
 
 ## 10. Common local problems
 
-| Symptom                                   | Likely cause                                       | Fix                                                               |
-| ----------------------------------------- | -------------------------------------------------- | ----------------------------------------------------------------- |
-| pnpm cannot verify npm TLS chain          | organization proxy CA is missing from Node trust   | configure `NODE_EXTRA_CA_CERTS` with the valid CA bundle          |
-| API exits during startup                  | invalid port, boolean, or provider value           | compare `.env` with `.env.example`                                |
-| PostgreSQL container port is unavailable  | another process uses `55432`                       | set `POSTGRES_PORT` and update `DATABASE_URL` consistently        |
-| Prisma cannot connect                     | container is unhealthy or `DATABASE_URL` differs   | run `docker compose ps` and `pnpm db:migrate:status`              |
-| PostgreSQL 18 reports an old data path    | Compose volume mounted at the pre-v18 path         | keep the committed mount at `/var/lib/postgresql`                 |
-| Web shows the readiness lock              | API `/ready` failed or VITE_API_BASE_URL not set   | start the API, correct config, run `pnpm demo:preflight`, then use the UI retry CTA |
-| Cold smoke reports an occupied API/web/relay port | an earlier local demo process is still listening | stop that scoped demo process, then rerun `pnpm demo:smoke:cold` |
-| Cold smoke cannot start PostgreSQL | Docker Desktop engine is unavailable to the current user | start Docker Desktop from the owning desktop account, then rerun `pnpm demo:smoke:cold` |
-| `dist` import is missing during typecheck | package dependency was not built                   | run the root command so Turbo follows `^build` dependencies       |
-| UI claims live provider status            | stale browser assets/cache                         | rebuild, unregister stale service worker if needed, and reload    |
+| Symptom                                           | Likely cause                                             | Fix                                                                                     |
+| ------------------------------------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| pnpm cannot verify npm TLS chain                  | organization proxy CA is missing from Node trust         | configure `NODE_EXTRA_CA_CERTS` with the valid CA bundle                                |
+| API exits during startup                          | invalid port, boolean, or provider value                 | compare `.env` with `.env.example`                                                      |
+| PostgreSQL container port is unavailable          | another process uses `55432`                             | set `POSTGRES_PORT` and update `DATABASE_URL` consistently                              |
+| Prisma cannot connect                             | container is unhealthy or `DATABASE_URL` differs         | run `docker compose ps` and `pnpm db:migrate:status`                                    |
+| PostgreSQL 18 reports an old data path            | Compose volume mounted at the pre-v18 path               | keep the committed mount at `/var/lib/postgresql`                                       |
+| Web shows the readiness lock                      | API `/ready` failed or VITE_API_BASE_URL not set         | start the API, correct config, run `pnpm demo:preflight`, then use the UI retry CTA     |
+| Cold smoke reports an occupied API/web/relay port | an earlier local demo process is still listening         | stop that scoped demo process, then rerun `pnpm demo:smoke:cold`                        |
+| Cold smoke cannot start PostgreSQL                | Docker Desktop engine is unavailable to the current user | start Docker Desktop from the owning desktop account, then rerun `pnpm demo:smoke:cold` |
+| `dist` import is missing during typecheck         | package dependency was not built                         | run the root command so Turbo follows `^build` dependencies                             |
+| UI claims live provider status                    | stale browser assets/cache                               | rebuild, unregister stale service worker if needed, and reload                          |
 
 ## 11. Safety notes
 

@@ -207,6 +207,31 @@ test("accepts an Agora text-mode assistant transcript without word metadata", ()
   }
 });
 
+test("accepts a text-mode assistant transcript with direct text and word metadata", () => {
+  const result = parseRtmTranscriptFrame(
+    JSON.stringify({
+      object: "assistant.transcription",
+      text: "Please provide your departure date.",
+      start_ms: 3400,
+      duration_ms: 1100,
+      language: "en-US",
+      turn_id: 2,
+      stream_id: 0,
+      user_id: "9001",
+      words: [{ text: "Please" }, { text: "provide" }]
+    }),
+    "9001",
+    binding,
+    new Date("2026-06-22T10:00:02.000Z")
+  );
+
+  assert.equal(result.accepted, true);
+  if (result.accepted) {
+    assert.equal(result.event.turn.speaker, "AGENT");
+    assert.equal(result.event.turn.text, "Please provide your departure date.");
+  }
+});
+
 test("accepts a text-mode assistant transcript whose provider names the text content differently", () => {
   const result = parseRtmTranscriptFrame(
     JSON.stringify({

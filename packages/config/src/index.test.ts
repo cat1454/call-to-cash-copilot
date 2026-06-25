@@ -119,19 +119,31 @@ test("runtime config parses an explicit false demo mode", () => {
   assert.equal(readRuntimeConfig({ DEMO_MODE: "false" }).demoMode, false);
 });
 
-test("Agora live readiness requires the separate RTM relay control secret", () => {
-  const config = readRuntimeConfig({
+test("Agora live readiness uses the native pipeline and needs no custom LLM gateway secret", () => {
+  const baseEnv = {
     VOICE_PROVIDER: "agora",
     AGORA_APP_ID: "app",
     AGORA_APP_CERTIFICATE: "certificate",
     AGORA_CUSTOMER_ID: "customer",
     AGORA_CUSTOMER_SECRET: "secret",
     AGORA_PROVIDER_EVENT_SECRET: "provider-secret",
+    AGORA_NCS_WEBHOOK_SECRET: "notifications-secret",
     AGORA_CAI_PROPERTIES_JSON: '{"pipeline_id":"pipeline"}',
     AGORA_RTM_RELAY_CONTROL_SECRET: "relay-control"
-  });
+  };
+
+  const config = readRuntimeConfig(baseEnv);
   assert.equal(config.agora.liveRelay.ready, true);
   assert.equal(config.agora.ready, true);
+});
+
+test("Agora config removes legacy custom LLM properties before the native pipeline joins", () => {
+  const config = readRuntimeConfig({
+    AGORA_CAI_PROPERTIES_JSON:
+      '{"pipeline_id":"pipeline","llm":{"url":"https://legacy-gateway.invalid"}}'
+  });
+
+  assert.deepEqual(config.agora.agentProperties, { pipeline_id: "pipeline" });
 });
 
 test("runtime config preserves the exact production web origin", () => {

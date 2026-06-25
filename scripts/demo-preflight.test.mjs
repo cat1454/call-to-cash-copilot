@@ -52,6 +52,7 @@ test("provider alignment accepts explicit live and replay pairs", () => {
       AGORA_PROVIDER_EVENT_SECRET: "present",
       AGORA_RTM_RELAY_CONTROL_SECRET: "present",
       AGORA_NCS_WEBHOOK_SECRET: "present",
+      AGORA_TO_GATEWAY_SHARED_SECRET: "present",
       AGORA_CAI_PROPERTIES_JSON: "{}"
     },
     { VITE_VOICE_PROVIDER: "agora" }
@@ -72,6 +73,43 @@ test("preflight gives Vite's local browser environment precedence", () => {
   );
 
   assert.equal(selected.VITE_VOICE_PROVIDER, "agora");
+});
+
+test("preflight never falls back to root VITE values when browser config is absent", () => {
+  const selected = selectWebEnv(
+    {},
+    {},
+    { VITE_VOICE_PROVIDER: "agora", VITE_API_BASE_URL: "http://127.0.0.1:3001" }
+  );
+
+  assert.deepEqual(selected, {});
+});
+
+test("live Agora preflight requires the gateway shared secret without revealing its value", () => {
+  const results = evaluateProviderConfig(
+    {
+      VOICE_PROVIDER: "agora",
+      PAYMENT_PROVIDER: "mock",
+      AGORA_APP_ID: "present",
+      AGORA_APP_CERTIFICATE: "present",
+      AGORA_CUSTOMER_ID: "present",
+      AGORA_CUSTOMER_SECRET: "present",
+      AGORA_PROVIDER_EVENT_SECRET: "present",
+      AGORA_RTM_RELAY_CONTROL_SECRET: "present",
+      AGORA_NCS_WEBHOOK_SECRET: "present",
+      AGORA_CAI_PROPERTIES_JSON: "{}"
+    },
+    { VITE_VOICE_PROVIDER: "agora" }
+  );
+
+  assert.deepEqual(
+    results.find((item) => item.label === "Agora gateway shared secret"),
+    {
+      level: "FAIL",
+      label: "Agora gateway shared secret",
+      detail: "missing"
+    }
+  );
 });
 
 test("Solana public-key validation accepts exactly 32 decoded bytes", () => {

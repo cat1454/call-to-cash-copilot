@@ -1,10 +1,6 @@
 import { fileURLToPath } from "node:url";
-
 import { config as loadEnv } from "dotenv";
-
 import { readRuntimeConfig } from "@call-to-cash/config";
-
-import { buildApp } from "./app.js";
 
 loadEnv({
   path: fileURLToPath(new URL("../../../.env", import.meta.url)),
@@ -12,12 +8,6 @@ loadEnv({
 });
 
 const config = readRuntimeConfig();
-const app = buildApp(config);
-
-try {
-  await app.listen({ host: config.host, port: config.port });
-} catch (error) {
-  app.log.error(error);
-  process.exitCode = 1;
-}
- 
+console.log("aiProvider:", config.aiProvider);
+console.log("apiKey length:", config.aiExtraction.apiKey.length);
+console.log("apiKey:", config.aiExtraction.apiKey ? "PRESENT" : "MISSING");

@@ -230,7 +230,11 @@ export async function recomputeBookingRiskAndEvents(
     bookingCreated?: boolean;
     changedFields?: string[];
   }
-): Promise<void> {
+): Promise<{
+  risk: ReturnType<typeof deriveRisk>;
+  assessmentId: string;
+  status: BookingStatusValue;
+}> {
   const booking = await loadBookingForRisk(transaction, bookingId);
   const agreementLocked = latestLockedAgreement(booking) !== undefined;
   const risk = deriveRisk(booking, input.occurredAt, {
@@ -337,4 +341,5 @@ export async function recomputeBookingRiskAndEvents(
     requestId: input.requestId,
     occurredAt: input.occurredAt
   });
+  return { risk, assessmentId: assessment.publicId, status };
 }

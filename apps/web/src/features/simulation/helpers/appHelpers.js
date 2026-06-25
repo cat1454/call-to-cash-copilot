@@ -18,6 +18,19 @@ export function getReadinessScore(sim) {
 }
 
 export function getAIDecision(sim) {
+  if (sim.transcriptAnalysis) {
+    return {
+      understood: sim.transcriptAnalysis.understood,
+      missing: sim.transcriptAnalysis.missing,
+      risk: sim.scores.dispute > 50 ? "TRUNG BÌNH / CAO" : "AN TOÀN / THẤP",
+      gate:
+        sim.paymentGate === "UNLOCKED"
+          ? "ĐÃ MỞ / SẴN SÀNG"
+          : "ĐÃ KHÓA / CHƯA ĐỦ ĐIỀU KIỆN",
+      next: sim.transcriptAnalysis.nextQuestion
+    };
+  }
+
   if (sim.simStatus === "Sẵn sàng") {
     return {
       understood: "Chưa bắt đầu cuộc đàm thoại.",

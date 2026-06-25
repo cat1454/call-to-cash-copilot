@@ -111,7 +111,7 @@ test("normalization preserves time money and phone-like spacing", () => {
   assert.equal(turn.content, "Lúc 19:00, cọc 300.000 đ, số 0912 345 678.");
 });
 
-test("join request injects the versioned V1 system message server-side", async () => {
+test("native pipeline join injects the versioned V1 system message without custom LLM overrides", async () => {
   let joinBody: Record<string, unknown> | undefined;
   const client = new AgoraConversationAgentClient(
     {
@@ -145,9 +145,11 @@ test("join request injects the versioned V1 system message server-side", async (
   assert.equal(joinBody?.pipeline_id, "pipeline-id");
   const properties = joinBody?.properties as Record<string, unknown>;
   const llm = properties.llm as Record<string, unknown>;
-  assert.equal(llm.vendor, "openai");
-  assert.equal(llm.model, "gpt-4.1");
-  assert.equal(llm.endpoint, "https://llm.example.test");
+  assert.equal("vendor" in llm, false);
+  assert.equal("model" in llm, false);
+  assert.equal("endpoint" in llm, false);
+  assert.equal("url" in llm, false);
+  assert.equal("api_key" in llm, false);
   assert.deepEqual(properties.asr, { language: "vi-VN" });
   assert.deepEqual(properties.tts, { voice: "vi-female" });
   assert.equal(properties.providerManagedSetting, true);

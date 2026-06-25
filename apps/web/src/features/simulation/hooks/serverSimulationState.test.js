@@ -5,6 +5,7 @@ import { EventName } from "@call-to-cash/shared";
 
 import { buildVerificationPayload } from "./serverPayment.js";
 import { getSolanaPollDelayMs, scheduleSolanaPaymentPoll } from "./useSolanaPaymentPolling.js";
+import { getAIDecision } from "../helpers/appHelpers.js";
 
 import {
   ACTION,
@@ -137,6 +138,16 @@ describe("server simulation event projection", () => {
     );
     assert.equal(receiptProjected.date, projected.date);
     assert.equal(receiptProjected.time, projected.time);
+  });
+
+  test("projects transcript analysis updates into the decision summary without raw PII", () => {
+    const analysis = { extractionId: "ext_public01", understood: { routeFrom: "Da Nang", routeTo: "Ha Noi", passengerCount: 4, contactPhoneMasked: "0901***567", contactPhone: "0901567890" }, missingFields: ["refundPolicyConfirmation"], contradictions: [], nextQuestion: "Confirm deposit terms." };
+    const state = reducer(makeInitialState(), { type: ACTION.SERVER_EVENT, envelope: envelope(EventName.TranscriptAnalysisUpdated, analysis, 2, { bookingId: "bk_public01" }) });
+    const decision = getAIDecision(state);
+    assert.equal(state.bookingId, "bk_public01");
+    assert.match(decision.understood, /Da Nang.*Ha Noi.*4.*0901\*\*\*567/u);
+    assert.deepEqual([decision.missing, decision.next], ["refundPolicyConfirmation", "Confirm deposit terms."]);
+    assert.doesNotMatch(JSON.stringify(decision), /0901567890/u);
   });
 
   test("REST recovery stores only whitelisted booking and receipt projections", () => {

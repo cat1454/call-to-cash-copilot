@@ -6,10 +6,11 @@ type DepartureCandidate = {
   routeFrom: string;
   routeTo: string;
   departureAtUtc: Date;
+  pickupPoints?: string[];
 };
 
 type ExtractionOptions = {
-  departures?: DepartureCandidate[];
+  departures?: readonly DepartureCandidate[];
   now?: Date;
 };
 
@@ -45,23 +46,54 @@ function parseNumber(expression: string | undefined): number | undefined {
 }
 
 function findSpokenLocation(normalized: string, location: string, startAt = 0) {
-  const expression = normalizeForSearch(location)
-    .trim()
-    .split(/\s+/u)
-    .map((word) => word.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"))
-    .join("\\s*");
+  const expression = locationExpression(location);
   const match = new RegExp(`\\b${expression}\\b`, "u").exec(normalized.slice(startAt));
   if (match === null || match.index === undefined) return null;
   const index = startAt + match.index;
   return { index, end: index + match[0].length };
 }
 
-function extractRoute(normalized: string, departures: DepartureCandidate[]) {
+function locationExpression(location: string) {
+  return normalizeForSearch(location)
+    .trim()
+    .split(/\s+/u)
+    .map((word) => word.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"))
+    .join("\\s*");
+}
+
+function routePatternMatches(
+  normalized: string,
+  route: { routeFrom: string; routeTo: string }
+): boolean {
+  const from = locationExpression(route.routeFrom);
+  const to = locationExpression(route.routeTo);
+  const patterns = [
+    new RegExp(`\\btu\\s+${from}\\s+(?:den|toi|di|ra|vao|ve)\\s+${to}\\b`, "u"),
+    new RegExp(`\\b${from}\\s+(?:den|toi|di|ra|vao|ve)\\s+${to}\\b`, "u"),
+    new RegExp(`\\b(?:di|den|toi|ra|vao|ve)\\s+${to}\\s+tu\\s+${from}\\b`, "u")
+  ];
+  return patterns.some((pattern) => pattern.test(normalized));
+}
+
+function extractRoute(normalized: string, departures: readonly DepartureCandidate[]) {
   const uniqueRoutes = new Map<string, { routeFrom: string; routeTo: string }>();
   for (const departure of departures) {
     uniqueRoutes.set(`${departure.routeFrom}\u0000${departure.routeTo}`, departure);
   }
-  const matches = [...uniqueRoutes.values()]
+  const explicitMatches = [...uniqueRoutes.values()]
+    .map((route) => ({
+      ...route,
+      specificity:
+        normalizeForSearch(route.routeFrom).length + normalizeForSearch(route.routeTo).length
+    }))
+    .filter((route) => routePatternMatches(normalized, route))
+    .sort((left, right) => right.specificity - left.specificity);
+  if (explicitMatches.length > 0) {
+    const route = explicitMatches[0];
+    if (route === undefined) return {};
+    return { routeFrom: route.routeFrom, routeTo: route.routeTo };
+  }
+  const orderedMatches = [...uniqueRoutes.values()]
     .map((route) => {
       const from = findSpokenLocation(normalized, route.routeFrom);
       const to = from === null ? null : findSpokenLocation(normalized, route.routeTo, from.end);
@@ -75,7 +107,7 @@ function extractRoute(normalized: string, departures: DepartureCandidate[]) {
     })
     .filter((route) => route.fromIndex >= 0 && route.toIndex > route.fromIndex)
     .sort((left, right) => right.specificity - left.specificity);
-  const route = matches[0];
+  const route = orderedMatches[0];
   return route === undefined ? {} : { routeFrom: route.routeFrom, routeTo: route.routeTo };
 }
 
@@ -164,12 +196,34 @@ function extractSpokenPhone(normalized: string): string | undefined {
   return /^0\d{8,10}$/u.test(phone) ? phone : undefined;
 }
 
-function extractSupportedPickupPoint(normalized: string): string | undefined {
-  if (/\bmy\s*dinh\b/u.test(normalized)) return "My Dinh";
-  if (/\b(?:ben|bay)\s*xe\s*trung\s*tam\s*da\s*nang\b/u.test(normalized)) {
-    return "Ben xe Trung tam Da Nang";
+function supportedPickupPoints(departures: readonly DepartureCandidate[]): string[] {
+  const points = new Set(["My Dinh", "Ben xe Trung tam Da Nang"]);
+  for (const departure of departures) {
+    for (const point of departure.pickupPoints ?? []) points.add(point);
+    points.add(`Ben xe ${departure.routeFrom}`);
+    points.add(`Ben xe trung tam ${departure.routeFrom}`);
   }
-  return undefined;
+  return [...points];
+}
+
+function pickupExpression(point: string) {
+  const normalized = normalizeForSearch(point).trim();
+  if (normalized.startsWith("ben xe ")) {
+    return `(?:ben|bay)\\s*xe\\s*${locationExpression(normalized.slice("ben xe ".length))}`;
+  }
+  return locationExpression(point);
+}
+
+function extractSupportedPickupPoint(
+  normalized: string,
+  pickupPoints: readonly string[]
+): string | undefined {
+  const ordered = [...new Set(pickupPoints)].sort(
+    (left, right) => normalizeForSearch(right).length - normalizeForSearch(left).length
+  );
+  return ordered.find((point) =>
+    new RegExp(`\\b${pickupExpression(point)}\\b`, "u").test(normalized)
+  );
 }
 
 function extractPassengerCount(normalized: string): number | undefined {
@@ -180,10 +234,14 @@ function extractPassengerCount(normalized: string): number | undefined {
       "u"
     )
   );
-  const firstMention = normalized.match(
-    new RegExp(`\\b(${NUMBER_EXPRESSION})\\s*${passengerUnit}\\b`, "u")
-  );
-  return parseNumber(replacement?.[1] ?? firstMention?.[1]);
+  if (replacement?.[1] !== undefined) return parseNumber(replacement[1]);
+  const firstMentionPattern = new RegExp(`\\b(${NUMBER_EXPRESSION})\\s*${passengerUnit}\\b`, "gu");
+  for (const match of normalized.matchAll(firstMentionPattern)) {
+    const previous = normalized[Math.max(0, (match.index ?? 0) - 1)];
+    if (previous === ":") continue;
+    return parseNumber(match[1]);
+  }
+  return undefined;
 }
 
 export function extractReplayFacts(
@@ -193,10 +251,10 @@ export function extractReplayFacts(
   const normalized = normalizeForSearch(content).replace(/\s+/gu, " ").trim();
   const phone = content.match(/\b0\d{8,10}\b/u)?.[0] ?? extractSpokenPhone(normalized);
   const passengerCount = extractPassengerCount(normalized);
-  const pickupPoint = extractSupportedPickupPoint(normalized);
   const departures = (options.departures ?? []).filter(
     (departure) => departure.departureAtUtc > (options.now ?? new Date())
   );
+  const pickupPoint = extractSupportedPickupPoint(normalized, supportedPickupPoints(departures));
 
   return {
     ...extractRoute(normalized, departures),

@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { TranscriptAnalysisUpdatedEventSchema } from "@call-to-cash/shared";
+
 import {
   canPersistFinalTranscriptForCall,
+  buildExtractionDiagnostics,
+  buildTranscriptAnalysisProjection,
   deterministicCandidateFromFacts,
   isTrustedAgoraVoiceConfirmation,
   mergeValidatedCandidateFacts,
@@ -88,6 +92,34 @@ test("high-confidence LLM extraction can fill a supported passenger count and pi
   assert.deepEqual(result, { passengerCount: 1, pickupPoint: "My Dinh" });
 });
 
+test("high-confidence LLM pickup proposals must validate against catalogue-derived pickup points", () => {
+  const result = mergeValidatedCandidateFacts(
+    {},
+    {
+      schemaVersion: "ctc.booking-extraction.v1",
+      fields: {
+        pickupPoint: {
+          value: "Ben xe Can Tho",
+          confidence: 0.97,
+          status: "PRESENT",
+          evidenceRefs: [{ turnId: "turn_phase105source" }]
+        }
+      },
+      warnings: []
+    },
+    "turn_phase105source",
+    [
+      {
+        routeFrom: "Can Tho",
+        routeTo: "Da Lat",
+        departureAtUtc: new Date("2027-05-25T00:30:00.000Z")
+      }
+    ]
+  );
+
+  assert.deepEqual(result, { pickupPoint: "Ben xe Can Tho" });
+});
+
 test("high-confidence LLM route values must normalize to one scheduled catalogue route", () => {
   const result = mergeValidatedCandidateFacts(
     {},
@@ -166,6 +198,84 @@ test("LLM extraction cannot introduce low-confidence or unsupported booking fiel
   );
 
   assert.deepEqual(result, {});
+});
+
+test("extraction diagnostics persist missing and ambiguous candidate fields", () => {
+  const diagnostics = buildExtractionDiagnostics({
+    schemaVersion: "ctc.booking-extraction.v1",
+    fields: {
+      origin: {
+        value: null,
+        confidence: 0.4,
+        status: "MISSING",
+        evidenceRefs: [{ turnId: "turn_phase10source" }]
+      },
+      departureTime: {
+        value: null,
+        confidence: 0.55,
+        status: "AMBIGUOUS",
+        evidenceRefs: [{ turnId: "turn_phase10source" }]
+      },
+      contactPhoneCandidate: {
+        value: "0901***567",
+        confidence: 0.98,
+        status: "PRESENT",
+        evidenceRefs: [{ turnId: "turn_phase10source" }]
+      }
+    },
+    warnings: []
+  });
+
+  assert.deepEqual(diagnostics.missingFields, ["routeFrom", "departureAt"]);
+  assert.deepEqual(diagnostics.contradictions, [
+    {
+      field: "departureAt",
+      evidenceSegmentIds: ["turn_phase10source"],
+      reason: "AMBIGUOUS"
+    }
+  ]);
+  assert.doesNotMatch(JSON.stringify(diagnostics), /0901567/u);
+});
+
+test("transcript analysis projection is schema-valid and privacy-safe", () => {
+  const projection = buildTranscriptAnalysisProjection(
+    "ext_public01",
+    {
+      routeFrom: "Da Nang",
+      routeTo: "Ha Noi",
+      departureAtUtc: new Date("2026-07-20T12:00:00.000Z"),
+      passengerCount: 4,
+      pickupPointDisplay: "Ben xe Trung tam Da Nang",
+      contactPhoneMasked: "0901***567"
+    },
+    ["refundPolicyConfirmation"],
+    []
+  );
+  const event = {
+    eventId: "evt_public01",
+    event: "transcript.analysis.updated",
+    version: 1,
+    occurredAt: "2026-06-22T10:00:00.000Z",
+    callId: "call_public1",
+    bookingId: "bk_public01",
+    sequence: 1,
+    data: projection
+  };
+
+  assert.equal(TranscriptAnalysisUpdatedEventSchema.safeParse(event).success, true);
+  assert.deepEqual(projection.understood, {
+    routeFrom: "Da Nang",
+    routeTo: "Ha Noi",
+    departureAt: "2026-07-20T12:00:00.000Z",
+    passengerCount: 4,
+    pickupPoint: "Ben xe Trung tam Da Nang",
+    contactPhoneMasked: "0901***567"
+  });
+  assert.equal(
+    projection.nextQuestion,
+    "Em đã có đủ thông tin đặt chỗ, vui lòng xác nhận điều khoản cọc."
+  );
+  assert.doesNotMatch(JSON.stringify(projection), /0901567|raw transcript|canonicalPayload/u);
 });
 
 test("interim provider transcript frames do not reach durable transcript admission", async () => {

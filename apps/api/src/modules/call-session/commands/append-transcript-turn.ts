@@ -103,6 +103,115 @@ function fieldConfidence(
   );
 }
 
+const candidateFieldToBookingField = {
+  origin: "routeFrom",
+  destination: "routeTo",
+  departureDate: "departureAt",
+  departureTime: "departureAt",
+  passengerCount: "passengerCount",
+  pickupPoint: "pickupPoint",
+  contactPhoneCandidate: "contactPhone"
+} as const;
+
+type CandidateFieldName = keyof typeof candidateFieldToBookingField;
+
+function unique<T>(values: readonly T[]): T[] {
+  return [...new Set(values)];
+}
+
+export function buildExtractionDiagnostics(candidate: BookingExtractionCandidate | undefined): {
+  missingFields: string[];
+  contradictions: Array<{
+    field: string;
+    evidenceSegmentIds: string[];
+    reason: "AMBIGUOUS" | "INVALID";
+  }>;
+} {
+  const parsed = BookingExtractionCandidateSchema.safeParse(candidate);
+  if (!parsed.success) return { missingFields: [], contradictions: [] };
+  const entries = Object.entries(parsed.data.fields).flatMap(([field, value]) =>
+    field in candidateFieldToBookingField && value !== undefined
+      ? [[field as CandidateFieldName, value] as const]
+      : []
+  );
+  const missingFields = unique(
+    entries.flatMap(([field, value]) =>
+      value.status === "MISSING" || value.status === "AMBIGUOUS" || value.status === "INVALID"
+        ? [candidateFieldToBookingField[field]]
+        : []
+    )
+  );
+  const contradictions = entries.flatMap(([field, value]) =>
+    value.status === "AMBIGUOUS" || value.status === "INVALID"
+      ? [
+          {
+            field: candidateFieldToBookingField[field],
+            evidenceSegmentIds: unique(value.evidenceRefs.map((reference) => reference.turnId)),
+            reason: value.status
+          }
+        ]
+      : []
+  );
+  return { missingFields, contradictions };
+}
+
+function understoodFromBooking(booking: {
+  routeFrom: string | null;
+  routeTo: string | null;
+  departureAtUtc: Date | null;
+  passengerCount: number | null;
+  pickupPointDisplay: string | null;
+  contactPhoneMasked: string | null;
+}) {
+  return {
+    ...(booking.routeFrom === null ? {} : { routeFrom: booking.routeFrom }),
+    ...(booking.routeTo === null ? {} : { routeTo: booking.routeTo }),
+    ...(booking.departureAtUtc === null
+      ? {}
+      : { departureAt: booking.departureAtUtc.toISOString() }),
+    ...(booking.passengerCount === null ? {} : { passengerCount: booking.passengerCount }),
+    ...(booking.pickupPointDisplay === null ? {} : { pickupPoint: booking.pickupPointDisplay }),
+    ...(booking.contactPhoneMasked === null
+      ? {}
+      : { contactPhoneMasked: booking.contactPhoneMasked })
+  };
+}
+
+function nextQuestionFor(missingFields: readonly string[]): string {
+  const field = missingFields[0];
+  if (field === "routeFrom" || field === "routeTo") return "Anh/chị muốn đi tuyến nào ạ?";
+  if (field === "departureAt") return "Anh/chị muốn đi ngày nào và chuyến mấy giờ ạ?";
+  if (field === "passengerCount") return "Anh/chị đi mấy khách ạ?";
+  if (field === "pickupPoint") return "Anh/chị muốn đón ở điểm nào ạ?";
+  if (field === "contactPhone") return "Anh/chị cho em số điện thoại liên hệ ạ?";
+  if (field === "refundPolicyConfirmation" || field === "explicitConfirmation")
+    return "Em đã có đủ thông tin đặt chỗ, vui lòng xác nhận điều khoản cọc.";
+  return "Em cần xác nhận thêm một thông tin trước khi mở thanh toán.";
+}
+
+export function buildTranscriptAnalysisProjection(
+  extractionId: string,
+  booking: {
+    routeFrom: string | null;
+    routeTo: string | null;
+    departureAtUtc: Date | null;
+    passengerCount: number | null;
+    pickupPointDisplay: string | null;
+    contactPhoneMasked: string | null;
+  },
+  missingFields: readonly string[],
+  contradictions: readonly unknown[]
+) {
+  const safeMissingFields = unique(missingFields);
+  return {
+    extractionId,
+    understood: understoodFromBooking(booking),
+    missingFields: safeMissingFields,
+    contradictions: [...contradictions],
+    nextQuestion: nextQuestionFor(safeMissingFields)
+  };
+}
+
 export function nextAgreementVersion(agreements: ReadonlyArray<{ version: number }>): number {
   return (agreements[0]?.version ?? 0) + 1;
 }
@@ -220,7 +329,9 @@ export function mergeValidatedCandidateFacts(
     exactDeparture === undefined ? undefined : localDepartureParts(exactDeparture.departureAtUtc);
   const proposedPickup = currentTurnCandidate(fields.pickupPoint, sourceTurnId);
   const pickupPoint =
-    proposedPickup === undefined ? undefined : extractReplayFacts(proposedPickup).pickupPoint;
+    proposedPickup === undefined
+      ? undefined
+      : extractReplayFacts(proposedPickup, { departures }).pickupPoint;
   const proposedPassengerCount = currentTurnCandidate(fields.passengerCount, sourceTurnId);
 
   return {
@@ -490,13 +601,14 @@ export async function appendTranscriptTurn(
           ? mergeValidatedCandidateFacts(facts, extraction.candidate, turn.publicId, departures)
           : retainCorroboratedCandidateFacts(facts, extraction.candidate, turn.publicId);
       const persistedCandidate = safeCandidateForPersistence(extraction.candidate);
+      const diagnostics = buildExtractionDiagnostics(extraction.candidate);
       const booking = await draftWriter.upsertFromFacts(transaction, {
         callSessionId: activeCall.id,
         facts: validatedFacts,
         requestId: input.requestId,
         now
       });
-      await transaction.bookingExtraction.create({
+      const extractionRecord = await transaction.bookingExtraction.create({
         data: {
           publicId: opaqueId("ext"),
           callSessionId: activeCall.id,
@@ -515,8 +627,8 @@ export async function appendTranscriptTurn(
             fields: persistedCandidate
           }),
           fieldConfidence: asJson(fieldConfidence(extraction.candidate)),
-          missingFields: asJson([]),
-          contradictions: asJson([]),
+          missingFields: asJson(diagnostics.missingFields),
+          contradictions: asJson(diagnostics.contradictions),
           status: extraction.outcome === "SUCCESS" ? "ACCEPTED" : "PROPOSED"
         }
       });
@@ -535,11 +647,40 @@ export async function appendTranscriptTurn(
         requestId: input.requestId,
         occurredAt: now
       });
-      await recomputeBookingRiskAndEvents(transaction, activeCall.publicId, booking.publicId, {
+      const recompute = await recomputeBookingRiskAndEvents(
+        transaction,
+        activeCall.publicId,
+        booking.publicId,
+        {
+          requestId: input.requestId,
+          occurredAt: now,
+          bookingCreated: booking.created,
+          changedFields: booking.changedFields
+        }
+      );
+      const analysisBooking = await transaction.booking.findUniqueOrThrow({
+        where: { id: booking.id },
+        select: {
+          routeFrom: true,
+          routeTo: true,
+          departureAtUtc: true,
+          passengerCount: true,
+          pickupPointDisplay: true,
+          contactPhoneMasked: true
+        }
+      });
+      await appendEvent(transaction, {
+        callId: activeCall.publicId,
+        bookingId: booking.publicId,
+        event: EventName.TranscriptAnalysisUpdated,
+        data: buildTranscriptAnalysisProjection(
+          extractionRecord.publicId,
+          analysisBooking,
+          recompute.risk.missingFields,
+          diagnostics.contradictions
+        ),
         requestId: input.requestId,
-        occurredAt: now,
-        bookingCreated: booking.created,
-        changedFields: booking.changedFields
+        occurredAt: now
       });
       if (isTrustedAgoraVoiceConfirmation(input.turn.source, input.turn.content)) {
         const confirmable = await transaction.booking.findUnique({

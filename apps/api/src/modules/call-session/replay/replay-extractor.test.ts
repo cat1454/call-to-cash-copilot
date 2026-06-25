@@ -17,6 +17,19 @@ const departures = [
   }
 ];
 
+const catalogueDepartures = [
+  {
+    routeFrom: "Can Tho",
+    routeTo: "Da Lat",
+    departureAtUtc: new Date("2027-05-25T00:30:00.000Z")
+  },
+  {
+    routeFrom: "Hue",
+    routeTo: "Nha Trang",
+    departureAtUtc: new Date("2027-05-26T02:00:00.000Z")
+  }
+];
+
 test("extracts a catalogue-backed route in the spoken direction", () => {
   const facts = extractReplayFacts("Tôi muốn đặt chuyến đi Đà Nẵng Hà Nội", {
     departures,
@@ -63,6 +76,41 @@ test("extracts the Da Nang to Ha Noi happy-path facts and its supported pickup p
     passengerCount: 3,
     pickupPoint: "Ben xe Trung tam Da Nang"
   });
+});
+
+test("extracts an arbitrary catalogue route, schedule, seats, contact, and route-derived pickup", () => {
+  const facts = extractReplayFacts(
+    "Em dat 2 ve tu Can Tho den Da Lat ngay 25/5 luc 07:30, don o ben xe Can Tho, lien he 0912345678.",
+    {
+      departures: catalogueDepartures,
+      now: new Date("2027-05-01T00:00:00.000Z")
+    }
+  );
+
+  assert.deepEqual(facts, {
+    routeFrom: "Can Tho",
+    routeTo: "Da Lat",
+    departureLocalTime: "07:30",
+    departureDay: 25,
+    departureMonth: 5,
+    passengerCount: 2,
+    pickupPoint: "Ben xe Can Tho",
+    contactPhoneMasked: "0912***678"
+  });
+});
+
+test("extracts destination-before-origin phrasing only when the catalogue route is valid", () => {
+  const facts = extractReplayFacts(
+    "Toi muon di Da Lat tu Can Tho ngay 25/5 luc 07:30 cho 3 nguoi.",
+    {
+      departures: catalogueDepartures,
+      now: new Date("2027-05-01T00:00:00.000Z")
+    }
+  );
+
+  assert.equal(facts.routeFrom, "Can Tho");
+  assert.equal(facts.routeTo, "Da Lat");
+  assert.equal(facts.passengerCount, 3);
 });
 
 test("prefers the replacement passenger count after Vietnamese change keywords", () => {

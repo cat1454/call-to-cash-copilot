@@ -9,6 +9,7 @@ import {
   formatDepartureTime,
   formatVnd
 } from "./bookingDisplayFormatters.js";
+import { projectTranscriptAnalysisForDecision } from "./transcriptAnalysisProjection.js";
 
 export { projectTranscriptTurnForDisplay } from "./transcriptDisplayProjection.js";
 
@@ -229,6 +230,8 @@ export function applyServerEvent(state, input) {
             : next.simStatus
       };
     }
+    case EventName.TranscriptAnalysisUpdated:
+      return { ...next, transcriptAnalysis: projectTranscriptAnalysisForDecision(data) };
     case EventName.RiskScoreUpdated:
       return {
         ...next,

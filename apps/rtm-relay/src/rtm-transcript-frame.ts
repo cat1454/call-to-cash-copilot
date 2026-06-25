@@ -190,7 +190,7 @@ export function parseRtmTranscriptFrame(
   const isFinal = isCustomer
     ? transcription.data.final
     : transcription.data.turn_status === undefined
-      ? transcription.data.words === null || transcription.data.words.length === 0
+      ? true
       : transcription.data.turn_status !== 0;
   const text = normalizeTranscriptDisplayText(transcription.data.text);
   if (!isFinal || text.length === 0) return { accepted: false, reason: "PARTIAL" };

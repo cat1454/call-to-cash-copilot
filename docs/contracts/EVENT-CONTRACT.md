@@ -163,7 +163,13 @@ data: {"eventId":"evt_01J...","event":"risk.score.updated",...}
 
 #### `transcript.analysis.updated`
 
-**When:** extraction/reconciliation completes for a transcript window.
+**When:** extraction/reconciliation completes for a transcript window. For the canonical final
+customer-turn command, this event is emitted only after the transcript turn, booking extraction,
+booking draft update, and risk recomputation have committed to the transactional event log.
+`understood` is derived from the current validated booking projection; `missingFields` is derived
+from backend risk/validation state; `contradictions` may include schema-safe ambiguity diagnostics
+from the extraction candidate. The payload must not include raw phone numbers, raw transcript text,
+model reasoning, prompts, payment authority, proof data, or receipt authority.
 
 ```json
 {

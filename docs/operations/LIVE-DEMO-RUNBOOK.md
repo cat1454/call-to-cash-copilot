@@ -17,17 +17,10 @@ Demonstrate one honest path from Vietnamese voice input to server-authoritative 
 corepack pnpm install --frozen-lockfile
 corepack pnpm build
 node --test tests/packageRuntimeExports.test.js
-docker compose up -d postgres
-pnpm db:migrate:deploy
-pnpm db:seed
-pnpm dev:api
-# second terminal
-pnpm dev:web
-# third terminal
-pnpm demo:preflight
+corepack pnpm dev:live
 ```
 
-All preflight checks must pass before opening the judge flow. The command reports presence/status only and never prints secret values.
+Before `dev:live`, configure all server-only Agora and relay values in root `.env` and browser-safe values only in `apps/web/.env` or `apps/web/.env.local`. The Agora pipeline owns its LLM configuration; the command starts PostgreSQL, migrations/seed, API, web, and the private relay, then runs `demo:preflight`. All checks must pass before opening the judge flow. It reports presence/status only and never prints secret values.
 
 If a runtime import says an internal package does not export a symbol that exists in `src`, rebuild the owning package and rerun `tests/packageRuntimeExports.test.js`. Do not alter valid API imports to compensate for stale `dist`.
 
@@ -65,15 +58,15 @@ If live voice fails, use the visible `Dùng bản phát lại` action. Confirm t
 
 ## Troubleshooting
 
-| Symptom                           | Safe action                                                                                                                                                                         |
-| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Preflight reports voice mismatch  | Align root `VOICE_PROVIDER` and the effective browser value (`apps/web/.env.local` when present, otherwise `apps/web/.env`) for `VITE_VOICE_PROVIDER`, then restart both processes. |
-| Microphone denied/missing         | Fix browser permission/device, retry, or choose replay.                                                                                                                             |
-| Agora or RTM relay cannot connect | Retry once; then use explicit replay fallback. Existing durable state remains; do not start live CAI without the relay.                                                             |
-| SSE reconnecting                  | Keep the page open; the client uses Last-Event-ID and authoritative REST recovery.                                                                                                  |
-| Phantom opens wrong network       | Switch to Devnet before signing.                                                                                                                                                    |
-| Payment remains pending           | Keep the drawer open and retry verification; do not create a second booking.                                                                                                        |
-| API/DB unavailable                | Restore PostgreSQL/API and rerun preflight. Do not continue the live payment story.                                                                                                 |
+| Symptom                                         | Safe action                                                                                                                                                                         |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Preflight reports voice mismatch                | Align root `VOICE_PROVIDER` and the effective browser value (`apps/web/.env.local` when present, otherwise `apps/web/.env`) for `VITE_VOICE_PROVIDER`, then restart both processes. |
+| Microphone denied/missing                       | Fix browser permission/device, retry, or choose replay.                                                                                                                             |
+| Agora or RTM relay cannot connect               | Retry once; then use explicit replay fallback. Existing durable state remains; do not start live CAI without the relay.                                                             |
+| SSE reconnecting                                | Keep the page open; the client uses Last-Event-ID and authoritative REST recovery.                                                                                                  |
+| Phantom opens wrong network                     | Switch to Devnet before signing.                                                                                                                                                    |
+| Payment remains pending                         | Keep the drawer open and retry verification; do not create a second booking.                                                                                                        |
+| API/DB unavailable                              | Restore PostgreSQL/API and rerun preflight. Do not continue the live payment story.                                                                                                 |
 
 ## Phase 9 closure evidence
 
