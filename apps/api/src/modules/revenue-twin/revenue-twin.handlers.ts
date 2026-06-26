@@ -114,10 +114,7 @@ function requireRevenueTwinDelegates(client: DatabaseClient): void {
 
 function catalogueMetadataForDeparture(departure: { publicId: string; routeCode: string }) {
   const routePickups: Record<string, string[]> = {
-    "HUE-NHA": ["pickup_HUE_TERMINAL", "pickup_HUE_CENTER"],
-    "CTO-DLI": ["pickup_CTO_TERMINAL", "pickup_CTO_CENTER"],
-    "DAD-BNA": ["pickup_DAD_TERMINAL", "pickup_DAD_CENTER"],
-    "HAN-SAP": ["pickup_HAN_MY_DINH", "pickup_HAN_CENTER"]
+    "DAD-NHA": ["pickup_DAD_TERMINAL", "pickup_DAD_CENTER"]
   };
   const operatorRelation = departure.publicId.includes("_partner")
     ? ("VERIFIED_PARTNER" as const)
@@ -139,21 +136,12 @@ function pickupPointIdForBooking(
     .replace(/\p{Diacritic}/gu, "")
     .toLowerCase();
   const routeAliases: Record<string, Array<{ id: string; aliases: string[] }>> = {
-    "HUE-NHA": [
-      { id: "pickup_HUE_TERMINAL", aliases: ["ben xe hue", "ben xe phia nam hue", "hue terminal"] },
-      { id: "pickup_HUE_CENTER", aliases: ["trung tam hue", "hue center"] }
-    ],
-    "CTO-DLI": [
-      { id: "pickup_CTO_TERMINAL", aliases: ["ben xe can tho", "can tho terminal"] },
-      { id: "pickup_CTO_CENTER", aliases: ["trung tam can tho", "can tho center"] }
-    ],
-    "DAD-BNA": [
-      { id: "pickup_DAD_TERMINAL", aliases: ["ben xe da nang", "da nang terminal"] },
-      { id: "pickup_DAD_CENTER", aliases: ["trung tam da nang", "da nang center"] }
-    ],
-    "HAN-SAP": [
-      { id: "pickup_HAN_MY_DINH", aliases: ["my dinh", "ben xe my dinh"] },
-      { id: "pickup_HAN_CENTER", aliases: ["trung tam ha noi", "ha noi center"] }
+    "DAD-NHA": [
+      {
+        id: "pickup_DAD_TERMINAL",
+        aliases: ["ben xe da nang", "ben xe trung tam da nang", "da nang terminal"]
+      },
+      { id: "pickup_DAD_CENTER", aliases: ["trung tam da nang", "da nang center", "hai chau"] }
     ]
   };
   return routeAliases[routeCode]?.find((entry) =>
@@ -303,7 +291,12 @@ export function createRevenueTwinHandlers(databaseClient?: DatabaseClient): Reve
         );
       const primary = await snapshotDeparture(client, booking.tripDeparture, now);
       const departures = await client.tripDeparture.findMany({
-        where: { routeCode: booking.tripDeparture.routeCode, operationalStatus: "SCHEDULED" }
+        where: {
+          routeCode: booking.tripDeparture.routeCode,
+          catalogueSource: booking.tripDeparture.catalogueSource,
+          catalogueVersion: booking.tripDeparture.catalogueVersion,
+          operationalStatus: "SCHEDULED"
+        }
       });
       const alternatives = await Promise.all(
         departures.map((departure) => snapshotDeparture(client, departure, now))
@@ -597,6 +590,7 @@ export function createRevenueTwinHandlers(databaseClient?: DatabaseClient): Reve
             await transaction.booking.update({
               where: { id: offer.evaluation.booking.id },
               data: {
+                tripDepartureId: offer.alternativeDeparture.id,
                 departureAtUtc: offer.alternativeDeparture.departureAtUtc,
                 totalAmountMinor: offer.finalFareAmountMinor * offer.passengerCount
               }

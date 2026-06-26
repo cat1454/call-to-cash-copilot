@@ -36,6 +36,13 @@ test("single-flight recovery coalesces concurrent requests and runs the newest q
 
 test("booking and receipt events request authoritative recovery with only opaque identifiers", () => {
   assert.deepEqual(
+    recoveryHintsForEvent(EventName.TranscriptAnalysisUpdated, {
+      bookingId: "bk_public01",
+      data: { extractionId: "ext_public01", understood: { contactPhone: "0901567890" } }
+    }),
+    { bookingId: "bk_public01" }
+  );
+  assert.deepEqual(
     recoveryHintsForEvent(EventName.BookingUpdated, {
       bookingId: "bk_public01",
       data: { changedFields: ["passengerCount"] }

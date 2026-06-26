@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { reserveInventory } from "@call-to-cash/db";
+import { InventoryUnavailableError, reserveInventory } from "@call-to-cash/db";
 
 import type { Transaction } from "../types.js";
 
@@ -33,14 +33,21 @@ export async function reserveInventoryHold(
   if (active !== null) {
     return;
   }
-  await reserveInventory(transaction, {
-    publicId: opaqueId("hold"),
-    idempotencyKey: `hold-${input.bookingPublicId}-v${input.bookingVersion}`,
-    bookingId: input.bookingId,
-    departureId: input.departureId,
-    quantity: input.passengerCount,
-    now: input.now,
-    expiresAt: new Date(input.now.getTime() + 15 * 60_000),
-    requestId: input.requestId
-  });
+  try {
+    await reserveInventory(transaction, {
+      publicId: opaqueId("hold"),
+      idempotencyKey: `hold-${input.bookingPublicId}-v${input.bookingVersion}`,
+      bookingId: input.bookingId,
+      departureId: input.departureId,
+      quantity: input.passengerCount,
+      now: input.now,
+      expiresAt: new Date(input.now.getTime() + 15 * 60_000),
+      requestId: input.requestId
+    });
+  } catch (error) {
+    if (error instanceof InventoryUnavailableError) {
+      return;
+    }
+    throw error;
+  }
 }

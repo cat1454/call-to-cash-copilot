@@ -7,12 +7,17 @@ type DepartureCandidate = {
   routeFrom: string;
   routeTo: string;
   departureAtUtc: Date;
-  pickupPoints?: string[];
+  pickupPoints?: Array<string | PickupPointCandidate>;
 };
 
 type ExtractionOptions = {
   departures?: readonly DepartureCandidate[];
   now?: Date;
+};
+
+type PickupPointCandidate = {
+  canonicalName: string;
+  aliases?: readonly string[];
 };
 
 const NUMBER_UNITS: Record<string, number> = {
@@ -198,21 +203,26 @@ function extractSpokenPhone(normalized: string): string | undefined {
 }
 
 const ROUTE_PICKUP_POINTS: Record<string, string[]> = {
-  "HUE-NHA": ["Ben xe phia Nam Hue", "Trung tam Hue"],
-  "CTO-DLI": ["Ben xe Can Tho", "Trung tam Can Tho"],
-  "DAD-BNA": ["Ben xe Trung tam Da Nang", "Trung tam Da Nang"],
-  "HAN-SAP": ["Ben xe My Dinh", "Trung tam Ha Noi"]
+  "DAD-NHA": ["Ben xe Trung tam Da Nang", "Trung tam Da Nang"]
 };
 
-function supportedPickupPoints(departures: readonly DepartureCandidate[]): string[] {
-  const points = new Set(["My Dinh", "Ben xe Trung tam Da Nang"]);
+function pickupCandidate(point: string): PickupPointCandidate {
+  return { canonicalName: point, aliases: [point] };
+}
+
+function supportedPickupPoints(departures: readonly DepartureCandidate[]): PickupPointCandidate[] {
+  const points = new Map<string, PickupPointCandidate>();
+  const add = (point: string | PickupPointCandidate) => {
+    const candidate = typeof point === "string" ? pickupCandidate(point) : point;
+    if (!points.has(candidate.canonicalName)) points.set(candidate.canonicalName, candidate);
+  };
   for (const departure of departures) {
-    for (const point of departure.pickupPoints ?? []) points.add(point);
-    for (const point of ROUTE_PICKUP_POINTS[departure.routeCode ?? ""] ?? []) points.add(point);
-    points.add(`Ben xe ${departure.routeFrom}`);
-    points.add(`Ben xe trung tam ${departure.routeFrom}`);
+    for (const point of departure.pickupPoints ?? []) add(point);
+    for (const point of ROUTE_PICKUP_POINTS[departure.routeCode ?? ""] ?? []) add(point);
+    add(`Ben xe ${departure.routeFrom}`);
+    add(`Ben xe trung tam ${departure.routeFrom}`);
   }
-  return [...points];
+  return [...points.values()];
 }
 
 function pickupExpression(point: string) {
@@ -225,14 +235,22 @@ function pickupExpression(point: string) {
 
 function extractSupportedPickupPoint(
   normalized: string,
-  pickupPoints: readonly string[]
+  pickupPoints: readonly PickupPointCandidate[]
 ): string | undefined {
-  const ordered = [...new Set(pickupPoints)].sort(
-    (left, right) => normalizeForSearch(right).length - normalizeForSearch(left).length
-  );
+  const ordered = pickupPoints
+    .flatMap((point) =>
+      [point.canonicalName, ...(point.aliases ?? [])].map((spokenForm) => ({
+        canonicalName: point.canonicalName,
+        spokenForm
+      }))
+    )
+    .sort(
+      (left, right) =>
+        normalizeForSearch(right.spokenForm).length - normalizeForSearch(left.spokenForm).length
+    );
   return ordered.find((point) =>
-    new RegExp(`\\b${pickupExpression(point)}\\b`, "u").test(normalized)
-  );
+    new RegExp(`\\b${pickupExpression(point.spokenForm)}\\b`, "u").test(normalized)
+  )?.canonicalName;
 }
 
 function extractPassengerCount(normalized: string): number | undefined {

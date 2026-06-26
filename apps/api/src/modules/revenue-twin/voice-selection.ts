@@ -33,7 +33,8 @@ function matchingOfferByTime(content: string, offers: readonly VoiceSelectableOf
   }
   return offers.find((offer) => {
     const date = new Date(offer.scheduledAt);
-    return date.getUTCHours() === hours && date.getUTCMinutes() === minutes;
+    const vietnamHour = (date.getUTCHours() + 7) % 24;
+    return vietnamHour === hours && date.getUTCMinutes() === minutes;
   });
 }
 
@@ -44,7 +45,10 @@ export function mayContainRevenueTwinVoiceSelection(content: string): boolean {
     /\b(?:chot|chon) chuyen (?:dau tien|thu nhat)\b/u.test(normalized) ||
     /\b(?:vao )?(?:danh sach cho|waitlist)\b/u.test(normalized) ||
     /\bchuyen nao cung duoc\b/u.test(normalized) ||
-    /\b\d{1,2}\s*(?:gio|h)(?:\s*\d{1,2})?\b/u.test(normalized) ||
+    /\b(?:di|chot|chon|lay|doi|qua|sang|chuyen sang)\s+(?:chuyen\s+)?\d{1,2}\s*(?:gio|h)(?:\s*\d{1,2})?\b/u.test(
+      normalized
+    ) ||
+    /\bchuyen\s+\d{1,2}\s*(?:gio|h)(?:\s*\d{1,2})?\b/u.test(normalized) ||
     /^(?:duoc|dong y|ok|okay)[.! ]*$/u.test(normalized)
   );
 }

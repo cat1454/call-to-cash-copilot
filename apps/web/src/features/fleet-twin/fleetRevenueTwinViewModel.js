@@ -35,10 +35,82 @@ export function buildFleetRevenueTwinViewModel({
   paymentGate = "LOCKED",
   evaluation = null,
   dashboard = null,
+  mockRevenueTwinOverride = null,
   decision = null,
   streamStatus = "idle",
   simStatus = "San sang"
 } = {}) {
+  // ---- Mock Revenue Twin override (Scenario 5 phase 0–11) ---------------
+  // When the mock simulation provides revenueTwin data, synthesize
+  // a live-compatible evaluation + dashboard shape so the UI panels
+  // render meaningful optimization data without a real API connection.
+  if (mockRevenueTwinOverride && !evaluation) {
+    const mock = mockRevenueTwinOverride;
+    const trips = mock.overlappingTrips ?? [];
+    const winner = trips.find((t) => t.id === mock.recommendedTripId) ?? null;
+    const isAccepted = mock.status === "ACCEPTED";
+
+
+    // Build synthetic offers list (one per overlapping trip)
+    const syntheticOffers = trips.map((trip, idx) => ({
+      offerId: trip.id,
+      departureId: trip.id,
+      scheduledAt: `2026-06-28T${trip.time}:00+07:00`,
+      rank: idx + 1,
+      status: trip.id === mock.recommendedTripId
+        ? (isAccepted ? "ACCEPTED" : "OPEN")
+        : "OPEN",
+      discountAmountMinor: trip.id === mock.recommendedTripId ? 30_000 : 0,
+      finalFareAmountMinor: trip.id === mock.recommendedTripId
+        ? (mock.securedRevenue ?? 1_170_000) / 3
+        : Math.round((350_000 * (100 - trip.fillRate)) / 100),
+      inventoryHoldId: isAccepted && trip.id === mock.recommendedTripId
+        ? `hold-${trip.id}` : null
+    }));
+
+    // Build synthetic routing list
+    const syntheticRouting = trips.map((trip, idx) => ({
+      offerId: trip.id,
+      rank: idx + 1,
+      scheduledAt: `2026-06-28T${trip.time}:00+07:00`,
+      availableSeatsAtEvaluation: trip.seats,
+      discountAmountMinor: trip.id === mock.recommendedTripId ? 30_000 : 0
+    }));
+
+    // Build synthetic metrics
+    const syntheticMetrics = {
+      recoverablePassengerCount: trips.reduce((s, t) => s + t.seats, 0),
+      acceptedPassengerCount: isAccepted ? 3 : 0,
+      offersGenerated: trips.length,
+      offerAcceptanceRateBasisPoints: isAccepted ? 7500 : 0,
+      potentialGrossRevenueAmountMinor: mock.savedRevenue ?? 1_260_000,
+      potentialDiscountCostAmountMinor: mock.discountCost ?? 90_000,
+      securedRecoveredRevenueAmountMinor: isAccepted ? (mock.securedRevenue ?? 1_170_000) : 0,
+      potentialNetRevenueRecoveredAmountMinor: mock.securedRevenue ?? 1_170_000
+    };
+
+    const syntheticOccupancy = winner
+      ? {
+          capacitySeats: winner.seats + 10,
+          beforeOccupiedSeats: Math.round(winner.seats * (winner.fillRate / 100)),
+          afterOccupiedSeats: Math.round(winner.seats * (winner.fillRate / 100)) + (isAccepted ? 3 : 0)
+        }
+      : null;
+
+    evaluation = {
+      evaluationId: `mock-eval-${mock.phase}`,
+      status: mock.status ?? "EVALUATING",
+      offers: syntheticOffers
+    };
+    dashboard = {
+      metrics: syntheticMetrics,
+      occupancy: syntheticOccupancy,
+      routing: syntheticRouting
+    };
+  }
+  // -----------------------------------------------------------------------
+
+
   const offers = evaluation?.offers ?? [];
   const recommendation =
     offers.find((offer) => offer.status === "OPEN") ??
@@ -111,7 +183,8 @@ export function buildFleetRevenueTwinViewModel({
         { label: "Hold created", done: Boolean(holdId) },
         { label: "Booking saved", done: Boolean(booking?.bookingId) }
       ],
-      canAccept: Boolean(recommendation?.offerId && evaluation?.evaluationId && recommendation.status === "OPEN")
+      canAccept: Boolean(recommendation?.offerId && evaluation?.evaluationId && recommendation.status === "OPEN"),
+      canDecline: Boolean(recommendation?.offerId && evaluation?.evaluationId && recommendation.status === "OPEN")
     },
     kpis: [
       ["Revenue recovered", formatVnd(metrics?.securedRecoveredRevenueAmountMinor) || DASH, "secured", "green"],

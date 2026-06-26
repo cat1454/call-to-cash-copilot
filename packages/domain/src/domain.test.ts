@@ -483,7 +483,7 @@ test("Revenue Twin rejects same-route alternatives that do not support the reque
   const demand = {
     schemaVersion: "ctc.revenue-twin.demand.v1" as const,
     callId: "call_01JTEST0001",
-    routeId: "route_HUE-NHA",
+    routeId: "route_DAD-NHA",
     requestedDepartureId: "dep_hue_nha_0700",
     pickupPointId: "pickup_HUE_TERMINAL",
     passengerCount: 3,

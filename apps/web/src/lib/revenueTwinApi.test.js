@@ -62,3 +62,37 @@ test("Revenue Twin client accepts an offer with identifiers and idempotency only
   assert.equal("finalFareAmountMinor" in JSON.parse(init.body), false);
   assert.equal("availableSeatsAtEvaluation" in JSON.parse(init.body), false);
 });
+
+test("Revenue Twin client declines an offer with identifiers only", async () => {
+  const fetchMock = mock.fn(async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({
+      success: true,
+      data: {
+        callId: "call_public1",
+        evaluationId: "rtw_eval_public1",
+        offerId: "rtw_offer_public1",
+        status: "DECLINED"
+      },
+      meta: { requestId: "rtw-decline" }
+    })
+  }));
+  const client = createApiClient("http://localhost:3001", fetchMock);
+  const command = {
+    callId: "call_public1",
+    evaluationId: "rtw_eval_public1",
+    offerId: "rtw_offer_public1"
+  };
+  await client.declineRevenueTwinOffer("call_public1", "rtw_offer_public1", command);
+
+  const [, init] = fetchMock.mock.calls[0].arguments;
+  assert.equal(
+    fetchMock.mock.calls[0].arguments[0],
+    "http://localhost:3001/v1/calls/call_public1/revenue-twin/offers/rtw_offer_public1/decline"
+  );
+  assert.equal(init.method, "POST");
+  assert.deepEqual(JSON.parse(init.body), command);
+  assert.equal("finalFareAmountMinor" in JSON.parse(init.body), false);
+  assert.equal("availableSeatsAtEvaluation" in JSON.parse(init.body), false);
+});

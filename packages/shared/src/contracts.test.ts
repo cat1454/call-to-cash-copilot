@@ -130,7 +130,7 @@ test("schedule resolution contract distinguishes matched, clarification, and no-
   assert.equal(
     ScheduleResolutionSchema.safeParse({
       status: "MATCHED",
-      departureId: "dep_demo_hue_nha_20300620_0700_own",
+      departureId: "dep_demo_dad_nha_20260628_0700_own",
       reasons: []
     }).success,
     true
@@ -152,7 +152,7 @@ test("schedule resolution contract distinguishes matched, clarification, and no-
   assert.equal(
     ScheduleResolutionSchema.safeParse({
       status: "NO_MATCH",
-      departureId: "dep_demo_hue_nha_20300620_0745_cancelled",
+      departureId: "dep_demo_dad_nha_20260628_0745_cancelled",
       reasons: ["DEPARTURE_CANCELLED"]
     }).success,
     false

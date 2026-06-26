@@ -33,6 +33,9 @@ function asJson(value: unknown): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue;
 }
 
+const DEMO_CATALOGUE_SOURCE = "DEMO_CSV";
+const DEMO_CATALOGUE_VERSION = "trip-schedule-demo:v1";
+
 function departureParts(value: Date) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Ho_Chi_Minh",
@@ -103,6 +106,8 @@ export async function upsertBookingFromFacts(
     hasDepartureHint
       ? await transaction.tripDeparture.findMany({
           where: {
+            catalogueSource: DEMO_CATALOGUE_SOURCE,
+            catalogueVersion: DEMO_CATALOGUE_VERSION,
             routeFrom: departureRoute.routeFrom,
             routeTo: departureRoute.routeTo,
             operationalStatus: "SCHEDULED",

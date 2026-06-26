@@ -228,7 +228,10 @@ export function applyServerEvent(state, input) {
       };
     }
     case EventName.TranscriptAnalysisUpdated:
-      return { ...next, transcriptAnalysis: projectTranscriptAnalysisForDecision(data) };
+      return {
+        ...next,
+        transcriptAnalysis: projectTranscriptAnalysisForDecision(data)
+      };
     case EventName.RiskScoreUpdated:
       return {
         ...next,

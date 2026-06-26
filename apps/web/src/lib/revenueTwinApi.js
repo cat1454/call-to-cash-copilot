@@ -11,6 +11,9 @@ export function createRevenueTwinApi(post, get) {
         "Idempotency-Key": idempotencyKey
       });
     },
+    declineRevenueTwinOffer(callId, offerId, command) {
+      return post(`/v1/calls/${callId}/revenue-twin/offers/${offerId}/decline`, command);
+    },
     getRevenueTwinDashboard() {
       return get("/v1/revenue-twin/dashboard");
     }

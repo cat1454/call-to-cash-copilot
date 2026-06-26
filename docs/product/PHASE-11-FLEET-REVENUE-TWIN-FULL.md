@@ -454,11 +454,11 @@ DB-backed work must use an isolated database URL, e.g. set `TEST_DATABASE_URL` f
 
 ### Demo script
 
-Fleet state: route **Đà Nẵng → Bà Nà**. 07:00 has 0 available seats at 200,000 VND; 07:30 has 12 at 200,000 VND; 08:00 has 15 at 190,000 VND. Policy maximum discount is 30,000 VND; offer TTL is 120 seconds.
+Fleet state: route **Đà Nẵng → Nha Trang** on **2026-06-28**. 07:00 has 2 available seats for a 3-passenger request; 07:30 has 12 available seats; 08:00 has 15 available seats. Base fare is 420,000 VND per seat. Policy maximum discount is 30,000 VND per seat; offer TTL is 120 seconds.
 
-1. Customer: “Alo, tôi muốn đặt một vé đi Bà Nà lúc 7 giờ sáng nay.”
+1. Customer: “Alo, tôi muốn đặt 3 vé từ Đà Nẵng đi Nha Trang ngày 28 tháng 6 lúc 7 giờ.”
 2. The final customer turn enters the existing Phase 10 strict-schema path; server resolves requested 07:00.
-3. Snapshot reports 07:00 full; deterministic engine selects eligible 07:30 and calculates the policy-safe incentive.
+3. Snapshot reports 07:00 has only 2 seats for a 3-passenger group; deterministic engine selects eligible 07:30 and calculates the policy-safe incentive.
 4. The agent presents the server directive for 07:30, never saying it is held.
 5. Customer explicitly accepts; server reloads offer, policy, and inventory, then creates the existing hold transactionally.
 6. Existing agreement/payment gate proceeds. The server creates a Solana Pay Devnet request → customer signs → server verifies transaction → proof and Trust Receipt continue. No smart-contract escrow is claimed.

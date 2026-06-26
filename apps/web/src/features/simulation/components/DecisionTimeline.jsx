@@ -8,7 +8,7 @@ const STEPS_DATA = [
   { step: 3, title: "Đánh giá rủi ro",          desc: "Phân tích nguy cơ hủy vé, rủi ro đàm thoại và hoàn tiền." },
   { step: 4, title: "Chốt điều khoản đặt vé",   desc: "Tóm tắt thỏa thuận đặt cọc giữ chỗ và đọc to cho khách hàng." },
   { step: 5, title: "Mở cổng thanh toán",        desc: "Khởi động cổng Solana Pay chuyển khoản và chờ chữ ký số." },
-  { step: 6, title: "Neo băm & Cấp vé",          desc: "Neo băm thỏa thuận giao dịch on-chain và phát hành vé điện tử." },
+  { step: 6, title: "Xác minh proof & Cấp vé",   desc: "Đối chiếu proof cọc Devnet và phát hành vé điện tử." },
 ];
 
 export default function DecisionTimeline({ timelineSteps }) {

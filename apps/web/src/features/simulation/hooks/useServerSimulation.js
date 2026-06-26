@@ -13,7 +13,7 @@ import { useAgreementConfirmation } from "./useAgreementConfirmation.js";
 import { useServerSimulationReset } from "./useServerSimulationReset.js";
 import { usePaymentIntentCreation } from "./usePaymentIntentCreation.js";
 import { useServerEventBatch } from "./useServerEventBatch.js";
-import { useAcceptRevenueTwinOffer, useRevenueTwinDashboardSync } from "./useRevenueTwinServerIntegration.js";
+import { useAcceptRevenueTwinOffer, useDeclineRevenueTwinOffer, useRevenueTwinDashboardSync } from "./useRevenueTwinServerIntegration.js";
 export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, scenarios) {
   const [state, dispatch] = useReducer(reducer, undefined, makeInitialState);
   const [currentTurnIdx, setCurrentTurnIdx] = useState(0);
@@ -224,12 +224,8 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
     if (stateRef.current.paymentIntent?.provider === "solana_devnet") dispatch({ type: ACTION.PAYMENT_WALLET_OPENED });
   }, []);
 
-  const acceptRevenueTwinOffer = useAcceptRevenueTwinOffer({
-    apiClient,
-    callIdRef,
-    requestRecovery,
-    stateRef
-  });
+  const acceptRevenueTwinOffer = useAcceptRevenueTwinOffer({ apiClient, callIdRef, requestRecovery, stateRef });
+  const declineRevenueTwinOffer = useDeclineRevenueTwinOffer({ apiClient, callIdRef, requestRecovery, stateRef });
   const resetServerSimulation = useServerSimulationReset({
     apiClient,
     callIdRef,
@@ -291,6 +287,7 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
     startPostCallTranscriptSync: postCallTranscriptSync.start,
     agreementConfirmation,
     acceptRevenueTwinOffer,
+    declineRevenueTwinOffer,
     simulateWalletPayment,
     markPaymentWalletOpened,
     tamperAgreement, resetSimulation

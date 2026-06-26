@@ -6,6 +6,9 @@ import path from "node:path";
 import test from "node:test";
 
 import {
+  DEMO_CATALOGUE_SOURCE,
+  DEMO_CATALOGUE_VERSION,
+  applyDemoCatalogueFixtures,
   loadPickupPointRows,
   loadRevenueTwinDemandRows,
   loadRevenueTwinPolicyRows,
@@ -32,18 +35,18 @@ function writeTempFixture(content: string): string {
 function validScheduleFixture(overrides: Partial<Record<string, string>> = {}): string {
   const values: Record<string, string> = {
     publicId: "dep_x",
-    routeCode: "HUE-NHA",
-    serviceCode: "HUE-NHA-0700",
+    routeCode: "DAD-NHA",
+    serviceCode: "DAD-NHA-0700",
     operatorCode: "ctc_demo_own",
     operatorRelation: "OWN_FLEET",
-    routeFromCode: "HUE",
-    routeFrom: "Hue",
+    routeFromCode: "DAD",
+    routeFrom: "Da Nang",
     routeToCode: "NHA",
     routeTo: "Nha Trang",
-    serviceDate: "2030-06-20",
+    serviceDate: "2026-06-28",
     localTime: "07:00",
     timezone: "Asia/Ho_Chi_Minh",
-    pickupPointCodes: "HUE_TERMINAL",
+    pickupPointCodes: "DAD_TERMINAL",
     capacity: "20",
     farePerSeatMinor: "420000",
     depositRuleCode: "DEPOSIT_50K",
@@ -72,21 +75,26 @@ test("loads strict Excel-editable schedule, pickup, inventory, demand, and polic
   const inventoryRows = loadTripInventoryRows(inventoryPath, rows);
   const demandRows = loadRevenueTwinDemandRows(demandPath, pickupRows);
 
-  assert.equal(rows.filter((row) => row.status === "SCHEDULED").length >= 96, true);
+  assert.equal(new Set(rows.map((row) => row.routeCode)).size, 1);
+  assert.equal(
+    rows.every((row) => row.routeCode === "DAD-NHA"),
+    true
+  );
+  assert.equal(rows.filter((row) => row.status === "SCHEDULED").length, 3);
   assert.deepEqual(rows[0], {
-    publicId: "dep_demo_hue_nha_20300620_0700_own",
-    routeCode: "HUE-NHA",
-    serviceCode: "HUE-NHA-0700",
+    publicId: "dep_demo_dad_nha_20260628_0700_own",
+    routeCode: "DAD-NHA",
+    serviceCode: "DAD-NHA-0700",
     operatorCode: "ctc_demo_own",
     operatorRelation: "OWN_FLEET",
-    routeFromCode: "HUE",
-    routeFrom: "Hue",
+    routeFromCode: "DAD",
+    routeFrom: "Da Nang",
     routeToCode: "NHA",
     routeTo: "Nha Trang",
-    serviceDate: "2030-06-20",
+    serviceDate: "2026-06-28",
     localTime: "07:00",
     timezone: "Asia/Ho_Chi_Minh",
-    pickupPointCodes: ["HUE_TERMINAL", "HUE_CENTER"],
+    pickupPointCodes: ["DAD_TERMINAL", "DAD_CENTER"],
     capacity: 20,
     farePerSeatMinor: 420000,
     depositRuleCode: "DEPOSIT_50K",
@@ -95,13 +103,15 @@ test("loads strict Excel-editable schedule, pickup, inventory, demand, and polic
     refundPolicyVersion: "BUS-V1/1.0",
     incentivePolicyVersion: "SRRRO-V1",
     status: "SCHEDULED",
-    departureAtUtc: new Date("2030-06-20T00:00:00.000Z")
+    departureAtUtc: new Date("2026-06-28T00:00:00.000Z")
   });
   assert.equal(
     inventoryRows.some((row) => row.departurePublicId === rows[0]!.publicId),
     true
   );
-  assert.equal(demandRows[0]?.expectedTopOfferServiceCode, "HUE-NHA-0730");
+  assert.equal(demandRows.length, 1);
+  assert.equal(demandRows[0]?.routeCode, "DAD-NHA");
+  assert.equal(demandRows[0]?.expectedTopOfferServiceCode, "DAD-NHA-0730");
 });
 
 test("keeps routeCode as physical route and serviceCode as the time variant", () => {
@@ -109,27 +119,29 @@ test("keeps routeCode as physical route and serviceCode as the time variant", ()
     pickupRows: loadPickupPointRows(pickupPath),
     policyRows: loadRevenueTwinPolicyRows(policyPath)
   });
-  const hueRows = rows.filter((row) => row.routeCode === "HUE-NHA" && row.status === "SCHEDULED");
+  const daNangRows = rows.filter(
+    (row) => row.routeCode === "DAD-NHA" && row.status === "SCHEDULED"
+  );
 
   assert.equal(
-    hueRows.some((row) => row.serviceCode === "HUE-NHA-0700"),
+    daNangRows.some((row) => row.serviceCode === "DAD-NHA-0700"),
     true
   );
   assert.equal(
-    hueRows.some((row) => row.serviceCode === "HUE-NHA-0730"),
+    daNangRows.some((row) => row.serviceCode === "DAD-NHA-0730"),
     true
   );
   assert.equal(
-    hueRows.some((row) => row.serviceCode === "HUE-NHA-0800"),
+    daNangRows.some((row) => row.serviceCode === "DAD-NHA-0800"),
     true
   );
   assert.equal(
-    hueRows.every((row) => !/\d{3,4}/u.test(row.routeCode)),
+    daNangRows.every((row) => !/\d{3,4}/u.test(row.routeCode)),
     true
   );
 });
 
-test("maps schedule rows to the current trip_departures table without a migration", () => {
+test("maps schedule rows to the current catalogue-aware trip_departures table", () => {
   const rows = loadTripScheduleRows(schedulePath, {
     pickupRows: loadPickupPointRows(pickupPath),
     policyRows: loadRevenueTwinPolicyRows(policyPath)
@@ -137,12 +149,15 @@ test("maps schedule rows to the current trip_departures table without a migratio
   const departure = tripScheduleRowToDepartureSeed(rows[0]!);
 
   assert.deepEqual(departure, {
-    publicId: "dep_demo_hue_nha_20300620_0700_own",
-    routeCode: "HUE-NHA",
-    routeFrom: "Hue",
+    publicId: "dep_demo_dad_nha_20260628_0700_own",
+    catalogueSource: DEMO_CATALOGUE_SOURCE,
+    catalogueVersion: DEMO_CATALOGUE_VERSION,
+    routeCode: "DAD-NHA",
+    routeFrom: "Da Nang",
     routeTo: "Nha Trang",
-    departureAtUtc: new Date("2030-06-20T00:00:00.000Z"),
+    departureAtUtc: new Date("2026-06-28T00:00:00.000Z"),
     departureTimezone: "Asia/Ho_Chi_Minh",
+    pickupPointCodes: ["DAD_TERMINAL", "DAD_CENTER"],
     capacity: 20,
     operationalStatus: "SCHEDULED",
     currency: "VND",
@@ -157,7 +172,7 @@ test("rejects non-canonical schedule headers before accepting any row", () => {
   const filePath = writeTempFixture(
     [
       "publicId,routeCode,routeFrom,routeTo,localMonth,localDay,localTime,pickupPoints,capacity,farePerSeatMinor,depositAmountMinor,pricePolicyVersion,refundPolicyVersion",
-      "dep_old,HUE-NHA,Hue,Nha Trang,5,25,07:00,HUE_TERMINAL,20,420000,50000,BUS-PRICE-V1,BUS-V1/1.0"
+      "dep_old,DAD-NHA,Da Nang,Nha Trang,5,25,07:00,DAD_TERMINAL,20,420000,50000,BUS-PRICE-V1,BUS-V1/1.0"
     ].join("\n")
   );
 
@@ -173,15 +188,15 @@ test("rejects duplicate public ids and duplicate natural keys with row numbers",
   const duplicatePublicId = writeTempFixture(
     [
       scheduleHeader,
-      "dep_x,HUE-NHA,HUE-NHA-0700,ctc_demo_own,OWN_FLEET,HUE,Hue,NHA,Nha Trang,2030-06-20,07:00,Asia/Ho_Chi_Minh,HUE_TERMINAL,20,420000,DEPOSIT_50K,BUS-PRICE-V1,BUS-V1/1.0,SRRRO-V1,SCHEDULED",
-      "dep_x,HUE-NHA,HUE-NHA-0730,ctc_demo_own,OWN_FLEET,HUE,Hue,NHA,Nha Trang,2030-06-20,07:30,Asia/Ho_Chi_Minh,HUE_TERMINAL,20,420000,DEPOSIT_50K,BUS-PRICE-V1,BUS-V1/1.0,SRRRO-V1,SCHEDULED"
+      "dep_x,DAD-NHA,DAD-NHA-0700,ctc_demo_own,OWN_FLEET,DAD,Da Nang,NHA,Nha Trang,2026-06-28,07:00,Asia/Ho_Chi_Minh,DAD_TERMINAL,20,420000,DEPOSIT_50K,BUS-PRICE-V1,BUS-V1/1.0,SRRRO-V1,SCHEDULED",
+      "dep_x,DAD-NHA,DAD-NHA-0730,ctc_demo_own,OWN_FLEET,DAD,Da Nang,NHA,Nha Trang,2026-06-28,07:30,Asia/Ho_Chi_Minh,DAD_TERMINAL,20,420000,DEPOSIT_50K,BUS-PRICE-V1,BUS-V1/1.0,SRRRO-V1,SCHEDULED"
     ].join("\n")
   );
   const duplicateNaturalKey = writeTempFixture(
     [
       scheduleHeader,
-      "dep_x,HUE-NHA,HUE-NHA-0700,ctc_demo_own,OWN_FLEET,HUE,Hue,NHA,Nha Trang,2030-06-20,07:00,Asia/Ho_Chi_Minh,HUE_TERMINAL,20,420000,DEPOSIT_50K,BUS-PRICE-V1,BUS-V1/1.0,SRRRO-V1,SCHEDULED",
-      "dep_y,HUE-NHA,HUE-NHA-0700,ctc_demo_own,OWN_FLEET,HUE,Hue,NHA,Nha Trang,2030-06-20,07:00,Asia/Ho_Chi_Minh,HUE_TERMINAL,20,420000,DEPOSIT_50K,BUS-PRICE-V1,BUS-V1/1.0,SRRRO-V1,SCHEDULED"
+      "dep_x,DAD-NHA,DAD-NHA-0700,ctc_demo_own,OWN_FLEET,DAD,Da Nang,NHA,Nha Trang,2026-06-28,07:00,Asia/Ho_Chi_Minh,DAD_TERMINAL,20,420000,DEPOSIT_50K,BUS-PRICE-V1,BUS-V1/1.0,SRRRO-V1,SCHEDULED",
+      "dep_y,DAD-NHA,DAD-NHA-0700,ctc_demo_own,OWN_FLEET,DAD,Da Nang,NHA,Nha Trang,2026-06-28,07:00,Asia/Ho_Chi_Minh,DAD_TERMINAL,20,420000,DEPOSIT_50K,BUS-PRICE-V1,BUS-V1/1.0,SRRRO-V1,SCHEDULED"
     ].join("\n")
   );
 
@@ -201,7 +216,7 @@ test("rejects invalid schedule values instead of silently normalizing", () => {
   const invalid = writeTempFixture(
     [
       scheduleHeader,
-      "dep_x,HUE-NHA-0700,HUE-NHA-0700,ctc_demo_own,OWN_FLEET,HUE,Hue,NHA,Nha Trang,20/06/2030,7:00,Asia/Bangkok,HUE_TERMINAL,0,-1,DEPOSIT_UNKNOWN,BUS-PRICE-V1,BUS-V1/1.0,SRRRO-V1,SCHEDULED"
+      "dep_x,DAD-NHA-0700,DAD-NHA-0700,ctc_demo_own,OWN_FLEET,DAD,Da Nang,NHA,Nha Trang,28/06/2026,7:00,Asia/Bangkok,DAD_TERMINAL,0,-1,DEPOSIT_UNKNOWN,BUS-PRICE-V1,BUS-V1/1.0,SRRRO-V1,SCHEDULED"
     ].join("\n")
   );
 
@@ -255,4 +270,84 @@ test("accepts cancelled control rows into the catalogue but maps them as non-sch
 
   assert.equal(rows[0]?.status, "CANCELLED");
   assert.equal(tripScheduleRowToDepartureSeed(rows[0]!).operationalStatus, "CANCELLED");
+});
+
+test("demo catalogue seed deactivates stale demo departures and pickup aliases only inside its namespace", async () => {
+  const operations: Array<{ model: string; input: Record<string, unknown> }> = [];
+  const transaction = {
+    tripDeparture: {
+      updateMany: async (input: Record<string, unknown>) => {
+        operations.push({ model: "tripDeparture.updateMany", input });
+        return {};
+      },
+      upsert: async (input: Record<string, unknown>) => {
+        operations.push({ model: "tripDeparture.upsert", input });
+        return { id: "dep_internal", publicId: "dep_demo_dad_nha_20260628_0700_own" };
+      },
+      findUniqueOrThrow: async () => ({
+        id: "dep_internal",
+        publicId: "dep_demo_dad_nha_20260628_0700_own",
+        routeFrom: "Da Nang",
+        routeTo: "Nha Trang",
+        departureAtUtc: new Date("2026-06-28T00:00:00.000Z"),
+        farePerSeatMinor: 420000,
+        depositAmountMinor: 50000,
+        refundPolicyVersion: "BUS-V1/1.0"
+      })
+    },
+    cataloguePickupPoint: {
+      updateMany: async (input: Record<string, unknown>) => {
+        operations.push({ model: "cataloguePickupPoint.updateMany", input });
+        return {};
+      },
+      upsert: async (input: Record<string, unknown>) => {
+        operations.push({ model: "cataloguePickupPoint.upsert", input });
+        return {};
+      }
+    },
+    booking: { upsert: async () => ({ id: "booking_internal" }) },
+    inventoryHold: { upsert: async () => ({}) }
+  };
+  const client = {
+    $transaction: async <T>(operation: (tx: typeof transaction) => Promise<T>) =>
+      operation(transaction)
+  };
+  const pickupRows = loadPickupPointRows(pickupPath);
+  const scheduleRows = loadTripScheduleRows(schedulePath, {
+    pickupRows,
+    policyRows: loadRevenueTwinPolicyRows(policyPath)
+  }).slice(0, 1);
+
+  await applyDemoCatalogueFixtures(client, { scheduleRows, pickupRows });
+
+  assert.deepEqual(operations[0], {
+    model: "tripDeparture.updateMany",
+    input: {
+      where: {
+        catalogueSource: DEMO_CATALOGUE_SOURCE,
+        catalogueVersion: DEMO_CATALOGUE_VERSION,
+        publicId: { notIn: ["dep_demo_dad_nha_20260628_0700_own"] }
+      },
+      data: { operationalStatus: "CANCELLED" }
+    }
+  });
+  assert.deepEqual(operations[1], {
+    model: "cataloguePickupPoint.updateMany",
+    input: {
+      where: {
+        catalogueSource: DEMO_CATALOGUE_SOURCE,
+        catalogueVersion: DEMO_CATALOGUE_VERSION,
+        pickupPointCode: { notIn: ["DAD_TERMINAL", "DAD_CENTER"] }
+      },
+      data: { active: false }
+    }
+  });
+  assert.equal(
+    operations.some(
+      (operation) =>
+        operation.model === "tripDeparture.updateMany" &&
+        JSON.stringify(operation.input).includes("LEGACY")
+    ),
+    false
+  );
 });

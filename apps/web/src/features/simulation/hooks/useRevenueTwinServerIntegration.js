@@ -40,3 +40,20 @@ export function useAcceptRevenueTwinOffer({ apiClient, callIdRef, requestRecover
     [apiClient, callIdRef, requestRecovery, stateRef]
   );
 }
+
+export function useDeclineRevenueTwinOffer({ apiClient, callIdRef, requestRecovery, stateRef }) {
+  return useCallback(
+    async ({ evaluationId, offerId }) => {
+      const callId = callIdRef.current ?? stateRef.current.callId;
+      if (!apiClient || !callId || !evaluationId || !offerId) return null;
+      const decision = await apiClient.declineRevenueTwinOffer(callId, offerId, {
+        callId,
+        evaluationId,
+        offerId
+      });
+      await requestRecovery(callId, { bookingId: stateRef.current.bookingId });
+      return decision;
+    },
+    [apiClient, callIdRef, requestRecovery, stateRef]
+  );
+}

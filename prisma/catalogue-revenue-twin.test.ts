@@ -41,13 +41,13 @@ async function seedCatalogueFixtures(prisma: ReturnType<typeof createPrismaClien
   await applyDemoCatalogueFixtures(prisma, {
     scheduleRows,
     inventoryRows,
-    now: new Date("2030-06-20T00:00:00.000Z")
+    now: new Date("2026-06-28T00:00:00.000Z")
   });
 }
 
 async function createAnchorBooking(prisma: ReturnType<typeof createPrismaClient>, suffix: string) {
   const primary = await prisma.tripDeparture.findUniqueOrThrow({
-    where: { publicId: "dep_demo_hue_nha_20300620_0700_own" }
+    where: { publicId: "dep_demo_dad_nha_20260628_0700_own" }
   });
   const call = await prisma.callSession.create({
     data: {
@@ -67,7 +67,7 @@ async function createAnchorBooking(prisma: ReturnType<typeof createPrismaClient>
       routeTo: primary.routeTo,
       departureAtUtc: primary.departureAtUtc,
       passengerCount: 3,
-      pickupPointDisplay: "Ben xe phia Nam Hue",
+      pickupPointDisplay: "Ben xe Trung tam Da Nang",
       totalAmountMinor: primary.farePerSeatMinor * 3,
       depositAmountMinor: primary.depositAmountMinor,
       refundPolicyVersion: primary.refundPolicyVersion
@@ -96,24 +96,24 @@ test(
     const demand = loadRevenueTwinDemandRows(
       fixturePath("revenue-twin-demand-demo.csv"),
       pickupRows
-    ).find((row) => row.requestId === "rtw_req_hue_anchor");
+    ).find((row) => row.requestId === "rtw_req_dad_anchor");
     assert.ok(demand);
 
     await applyDemoCatalogueFixtures(prisma, {
       scheduleRows,
       inventoryRows,
-      now: new Date("2030-06-20T00:00:00.000Z")
+      now: new Date("2026-06-28T00:00:00.000Z")
     });
     await applyDemoCatalogueFixtures(prisma, {
       scheduleRows,
       inventoryRows,
-      now: new Date("2030-06-20T00:00:00.000Z")
+      now: new Date("2026-06-28T00:00:00.000Z")
     });
     assert.equal(
       await prisma.inventoryHold.count({
         where: {
           publicId: {
-            startsWith: "hold_demo_inventory_dep_demo_hue_nha_20300620_0700_own_"
+            startsWith: "hold_demo_inventory_dep_demo_dad_nha_20260628_0700_own_"
           }
         }
       }),
@@ -122,13 +122,13 @@ test(
 
     const suffix = uniqueSuffix();
     const primary = await prisma.tripDeparture.findUniqueOrThrow({
-      where: { publicId: "dep_demo_hue_nha_20300620_0700_own" }
+      where: { publicId: "dep_demo_dad_nha_20260628_0700_own" }
     });
     const cancelled = await prisma.tripDeparture.findUniqueOrThrow({
-      where: { publicId: "dep_demo_hue_nha_20300620_0745_cancelled" }
+      where: { publicId: "dep_demo_dad_nha_20260628_0745_cancelled" }
     });
     const outsideFlex = await prisma.tripDeparture.findUniqueOrThrow({
-      where: { publicId: "dep_demo_hue_nha_20300620_0800_own" }
+      where: { publicId: "dep_demo_dad_nha_20260628_0800_own" }
     });
     const call = await prisma.callSession.create({
       data: {
@@ -148,7 +148,7 @@ test(
         routeTo: primary.routeTo,
         departureAtUtc: primary.departureAtUtc,
         passengerCount: demand.passengerCount,
-        pickupPointDisplay: "Ben xe phia Nam Hue",
+        pickupPointDisplay: "Ben xe Trung tam Da Nang",
         totalAmountMinor: primary.farePerSeatMinor * demand.passengerCount,
         depositAmountMinor: primary.depositAmountMinor,
         refundPolicyVersion: primary.refundPolicyVersion
@@ -174,7 +174,7 @@ test(
     assert.equal(evaluation.requestedDepartureId, primary.publicId);
     assert.equal(
       evaluation.offers[0]?.alternativeDepartureId,
-      "dep_demo_hue_nha_20300620_0730_own"
+      "dep_demo_dad_nha_20260628_0730_own"
     );
     assert.equal(
       evaluation.offers.some((offer) => offer.alternativeDepartureId === cancelled.publicId),
@@ -242,9 +242,9 @@ test(
     await seedCatalogueFixtures(prisma);
     const suffix = uniqueSuffix();
     const { call, booking } = await createAnchorBooking(prisma, `stale_${suffix}`);
-    const topAlternative = await prisma.tripDeparture.findUniqueOrThrow({
-      where: { publicId: "dep_demo_hue_nha_20300620_0730_own" }
-    });
+  const topAlternative = await prisma.tripDeparture.findUniqueOrThrow({
+    where: { publicId: "dep_demo_dad_nha_20260628_0730_own" }
+  });
     await prisma.inventoryHold.updateMany({
       where: {
         departureId: topAlternative.id,
@@ -385,10 +385,10 @@ test(
       routeFrom: "Rollback A",
       routeToCode: "RBB",
       routeTo: "Rollback B",
-      serviceDate: "2030-06-20",
+      serviceDate: "2026-06-28",
       localTime: "07:00",
       timezone: "Asia/Ho_Chi_Minh",
-      pickupPointCodes: ["HUE_TERMINAL"],
+      pickupPointCodes: ["DAD_TERMINAL"],
       capacity: 20,
       farePerSeatMinor: 100000,
       depositRuleCode: "DEPOSIT_50K",
@@ -397,7 +397,7 @@ test(
       refundPolicyVersion: "BUS-V1/1.0",
       incentivePolicyVersion: "SRRRO-V1",
       status: "SCHEDULED",
-      departureAtUtc: new Date("2030-06-20T00:00:00.000Z")
+      departureAtUtc: new Date("2026-06-28T00:00:00.000Z")
     };
     const conflicting: TripScheduleRow = {
       ...base,

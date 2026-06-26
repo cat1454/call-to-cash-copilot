@@ -6,80 +6,80 @@ import { extractReplayFacts } from "./replay-extractor.js";
 const options = {
   departures: [
     {
+      routeCode: "DAD-NHA",
       routeFrom: "Da Nang",
-      routeTo: "Ha Noi",
-      departureAtUtc: new Date("2026-06-28T12:00:00.000Z")
+      routeTo: "Nha Trang",
+      departureAtUtc: new Date("2026-06-28T00:00:00.000Z")
     }
   ],
   now: new Date("2026-06-22T00:00:00.000Z")
 };
 
 test("extracts every separately spoken Agora happy-path phrase", () => {
-  assert.deepEqual(extractReplayFacts("Tôi muốn đặt vé xe từ Đà Nẵng đến Hà Nội.", options), {
+  assert.deepEqual(extractReplayFacts("Toi muon dat ve xe tu Da Nang den Nha Trang.", options), {
     routeFrom: "Da Nang",
-    routeTo: "Ha Noi"
+    routeTo: "Nha Trang"
   });
-  assert.deepEqual(extractReplayFacts("Ngày khởi hành là ngày hai mươi tám tháng sáu."), {
+  assert.deepEqual(extractReplayFacts("Ngay khoi hanh la ngay hai muoi tam thang sau."), {
     departureDay: 28,
     departureMonth: 6
   });
-  assert.deepEqual(extractReplayFacts("Giờ khởi hành là mười chín giờ."), {
-    departureLocalTime: "19:00"
+  assert.deepEqual(extractReplayFacts("Gio khoi hanh la bay gio."), {
+    departureLocalTime: "07:00"
   });
-  assert.equal(extractReplayFacts("Số lượng hành khách là ba người.").passengerCount, 3);
+  assert.equal(extractReplayFacts("So luong hanh khach la ba nguoi.").passengerCount, 3);
   assert.equal(
-    extractReplayFacts("Số điện thoại là không chín không một hai ba bốn năm sáu bảy.")
+    extractReplayFacts("So dien thoai la khong chin khong mot hai ba bon nam sau bay.")
       .contactPhoneMasked,
     "0901***567"
   );
   assert.equal(
-    extractReplayFacts("Số điện thoại làkhông, chín không, mộthai, ba, bốn, năm, sáu, bảy.")
+    extractReplayFacts("So dien thoai la khong, chin khong, mothai, ba, bon, nam, sau, bay.")
       .contactPhoneMasked,
     "0901***567"
   );
   assert.equal(
-    extractReplayFacts("Số điện thoại là chín trăm lẻ một hai ba bốn năm sáu bảy.")
+    extractReplayFacts("So dien thoai la chin tram le mot hai ba bon nam sau bay.")
       .contactPhoneMasked,
     "0901***567"
   );
   assert.equal(
-    extractReplayFacts("không chín không một hai ba bốn năm sáu bảy.").contactPhoneMasked,
+    extractReplayFacts("khong chin khong mot hai ba bon nam sau bay.").contactPhoneMasked,
     undefined
   );
   assert.equal(
-    extractReplayFacts("một hai ba bốn năm sáu bảy tám chín.").contactPhoneMasked,
+    extractReplayFacts("mot hai ba bon nam sau bay tam chin.").contactPhoneMasked,
     undefined
   );
   assert.equal(
-    extractReplayFacts("Điểm đón là bến xe trung tâm Đà Nẵng.").pickupPoint,
+    extractReplayFacts("Diem don la ben xe trung tam Da Nang.", options).pickupPoint,
     "Ben xe Trung tam Da Nang"
   );
   assert.equal(
-    extractReplayFacts("Điểm đón là bảy xe trung tâm Đà Nẵng.").pickupPoint,
+    extractReplayFacts("Diem don la bay xe trung tam Da Nang.", options).pickupPoint,
     "Ben xe Trung tam Da Nang"
   );
   assert.equal(
-    extractReplayFacts("Điểm đốn là bảy xe trung tâm Đà Nẵng.").pickupPoint,
+    extractReplayFacts("Diem don la bay xe trung tam Da Nang.", options).pickupPoint,
     "Ben xe Trung tam Da Nang"
   );
   assert.equal(
-    extractReplayFacts(
-      "Tôi muốn sửa số lượng hành khách từ ba người thành bốn người. Các thông tin khác giữ nguyên."
-    ).passengerCount,
-    4
+    extractReplayFacts("Toi giu so luong hanh khach la ba nguoi. Cac thong tin khac giu nguyen.")
+      .passengerCount,
+    3
   );
   assert.deepEqual(
     extractReplayFacts(
-      "Tôi xác nhận chuyến từ Đà Nẵng đến Hà Nội, ngày hai mươi tám tháng sáu, lúc mười chín giờ, cho bốn người. Tôi đồng ý đặt cọc theo điều khoản vừa đọc.",
+      "Toi xac nhan chuyen tu Da Nang den Nha Trang, ngay hai muoi tam thang sau, luc bay gio, cho ba nguoi. Toi dong y dat coc theo dieu khoan vua doc.",
       options
     ),
     {
       routeFrom: "Da Nang",
-      routeTo: "Ha Noi",
-      departureLocalTime: "19:00",
+      routeTo: "Nha Trang",
+      departureLocalTime: "07:00",
       departureDay: 28,
       departureMonth: 6,
-      passengerCount: 4
+      passengerCount: 3
     }
   );
 });

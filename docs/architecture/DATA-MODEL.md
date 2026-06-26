@@ -267,10 +267,13 @@ The following tables are the minimum production-shaped schema. A hackathon may i
 | -------------------------- | ------------------------------------------------ | ------------------------------- |
 | `id`                       | UUID PK                                          | internal                        |
 | `public_id`                | `dep_...` unique                                 | API/operator-safe identifier    |
+| `catalogue_source`         | `DEMO_CSV`, `LEGACY`, provider source code       | authoritative namespace         |
+| `catalogue_version`        | `trip-schedule-demo:v1` nullable                 | runtime filters current demo    |
 | `route_code`               | `HN-SAPA-20260620-2230`                          | stable operational code         |
 | `route_from`, `route_to`   | controlled text/code                             | normalized route                |
 | `departure_at_utc`         | timestamptz                                      | authoritative scheduled instant |
 | `departure_timezone`       | IANA timezone                                    | display/operations context      |
+| `pickup_point_codes`       | JSON array of fixture pickup codes               | server-derived pickup support   |
 | `capacity`                 | positive integer                                 | total sellable seats            |
 | `operational_status`       | `SCHEDULED`, `BOARDING`, `DEPARTED`, `CANCELLED` | holds require `SCHEDULED`       |
 | `currency`                 | `VND`                                            | MVP fixed                       |
@@ -281,21 +284,42 @@ The following tables are the minimum production-shaped schema. A hackathon may i
 | `version`                  | integer                                          | optimistic concurrency input    |
 | `created_at`, `updated_at` | timestamptz                                      | required                        |
 
-**Constraints:** unique `(route_code, departure_at_utc)`; positive capacity; non-negative fare; positive deposit. Availability is derived under a row lock from active, unexpired and consumed holds; browser counters are never authoritative.
+**Constraints:** unique `(route_code, departure_at_utc)`; indexed `(catalogue_source, catalogue_version, operational_status, departure_at_utc)` for current-catalogue matching; positive capacity; non-negative fare; positive deposit. Availability is derived under a row lock from active, unexpired and consumed holds; browser counters are never authoritative.
 
-**Demo schedule input:** Phase 10.5 keeps the database model unchanged and imports the
-Excel-editable CSV fixture `prisma/fixtures/trip-schedule-demo.csv` into `trip_departures` during
-the idempotent seed. The strict CSV uses ISO `serviceDate`, `HH:mm` `localTime`, IANA timezone,
-physical `routeCode`, time-specific `serviceCode`, operator relation, policy versions, pickup
-point codes, capacity, fare, deposit rule, and status. Supporting fixtures
-`pickup-point-demo.csv`, `trip-inventory-demo.csv`, `revenue-twin-demand-demo.csv`, and
-`revenue-twin-policy-demo.csv` provide deterministic parser and Revenue Twin rehearsal metadata
-without changing the current DB schema. Runtime availability remains derived from
-`trip_departures` plus `inventory_holds`; do not encode authoritative "available seats" directly in
-the schedule CSV.
-When the Phase 11 runtime needs pickup compatibility, the API adapter maps fixture pickup codes
-(`HUE_TERMINAL`) into shared runtime IDs (`pickup_HUE_TERMINAL`) and applies them as server-derived
-constraints. This does not add a new pickup table or migration in this slice.
+**Demo schedule input:** Phase 10.5 imports the Excel-editable CSV fixture
+`prisma/fixtures/trip-schedule-demo.csv` into `trip_departures` during the idempotent seed and marks
+those rows with `catalogue_source = DEMO_CSV` plus the current `catalogue_version`. The strict CSV
+uses ISO `serviceDate`, `HH:mm` `localTime`, IANA timezone, physical `routeCode`, time-specific
+`serviceCode`, operator relation, policy versions, pickup point codes, capacity, fare, deposit rule,
+and status. Runtime parser and booking queries must filter to the current demo catalogue namespace
+and version; stale demo rows are deactivated, not allowed to influence matching. Runtime
+availability remains derived from `trip_departures` plus `inventory_holds`; do not encode
+authoritative "available seats" directly in the schedule CSV.
+
+---
+
+### 5.7.1 `catalogue_pickup_points`
+
+**Purpose:** Stores catalogue-backed pickup points and aliases used by parser validation and
+Revenue Twin pickup compatibility. This keeps pickup aliases in the same seeded catalogue boundary
+as departures instead of in frontend or parser-only hardcode.
+
+| Field                      | Type / example               | Notes                         |
+| -------------------------- | ---------------------------- | ----------------------------- |
+| `id`                       | UUID PK                      | internal                      |
+| `public_id`                | `pickup_DAD_TERMINAL` unique | API/operator-safe identifier  |
+| `catalogue_source`         | `DEMO_CSV`                   | authoritative namespace       |
+| `catalogue_version`        | `trip-schedule-demo:v1`      | runtime filters current demo  |
+| `pickup_point_code`        | `DAD_TERMINAL`               | fixture join key              |
+| `route_from_code`          | `DAD`                        | route-origin compatibility    |
+| `canonical_name`           | `Ben xe Trung tam Da Nang`   | value persisted in booking UI |
+| `aliases`                  | JSON array                   | normalized spoken variants    |
+| `active`                   | boolean                      | stale demo aliases deactivate |
+| `created_at`, `updated_at` | timestamptz                  | required                      |
+
+**Constraints:** unique `(catalogue_source, catalogue_version, pickup_point_code)`; runtime alias
+matching returns `canonical_name`, not the spoken alias. Hardcoded route-origin terminal fallbacks
+may remain for legacy/local tests but must not override active database catalogue aliases.
 
 ---
 

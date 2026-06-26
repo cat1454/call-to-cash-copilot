@@ -55,6 +55,7 @@ export default function App() {
   const sim = useCallSimulation();
   const [lang, setLang] = useState("vi");
   const [acceptingOffer, setAcceptingOffer] = useState(false);
+  const [decliningOffer, setDecliningOffer] = useState(false);
   const agentReplyStatus = useAgentReplyStatus(
     sim.transcript,
     sim.simStatus === "Cuộc gọi đang trực tiếp"
@@ -68,6 +69,7 @@ export default function App() {
         paymentGate: sim.paymentGate,
         evaluation: sim.serverAuthority.revenueTwin.evaluation,
         dashboard: sim.serverAuthority.revenueTwin.dashboard,
+        mockRevenueTwinOverride: sim.serverAuthority.revenueTwin.mockOverride ?? null,
         decision: null,
         streamStatus: sim.streamStatus,
         simStatus: sim.simStatus
@@ -96,13 +98,28 @@ export default function App() {
     }
   };
 
+  const declineOffer = async () => {
+    if (!model.decision.canDecline || decliningOffer) return;
+    setDecliningOffer(true);
+    try {
+      await sim.declineRevenueTwinOffer({
+        evaluationId: model.decision.evaluationId,
+        offerId: model.decision.offerId
+      });
+    } finally {
+      setDecliningOffer(false);
+    }
+  };
+
   return (
     <FleetRevenueTwinDashboard
       model={model}
       lang={lang}
       phone={<CustomerPhone sim={sim} agentReplyStatus={agentReplyStatus} lang={lang} setLang={setLang} />}
       accepting={acceptingOffer}
+      declining={decliningOffer}
       onAcceptOffer={acceptOffer}
+      onDeclineOffer={declineOffer}
       onStartCall={sim.startSimulation}
       onEndCall={sim.endVoiceSession ?? sim.resetSimulation}
     />

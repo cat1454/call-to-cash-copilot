@@ -85,7 +85,7 @@ $env:TEST_DATABASE_URL='postgresql://call_to_cash:call_to_cash@127.0.0.1:55400/c
 ```
 
 Result: pass, 2 tests, 0 skipped. Covered idempotent fixture DB seed, rollback on a later
-database natural-key violation, and the HUE-NHA Phase 11 anchor from real `trip_departures` through
+database natural-key violation, and the DAD-NHA Phase 11 anchor from real `trip_departures` through
 persisted offer acceptance and transactional hold creation.
 Latest result: pass, 4 tests, 0 skipped. Added DB-backed proof that expired holds do not reduce
 availability, stale inventory versions require reevaluation without creating a hold, and expired

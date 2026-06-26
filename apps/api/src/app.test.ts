@@ -181,6 +181,200 @@ async function seedFutureDeparture(resetDatabase = true) {
   await prisma.$disconnect();
 }
 
+async function seedDemoCatalogue(resetDatabase = true) {
+  assert.ok(databaseUrl);
+  const prisma = createPrismaClient({ databaseUrl });
+
+  if (resetDatabase) {
+    await prisma.$transaction([
+      prisma.revenueTwinOffer.deleteMany(),
+      prisma.revenueTwinWaitlistEntry.deleteMany(),
+      prisma.revenueTwinEvaluation.deleteMany(),
+      prisma.trustReceipt.deleteMany(),
+      prisma.proofRecord.deleteMany(),
+      prisma.paymentTransaction.deleteMany(),
+      prisma.paymentIntent.deleteMany(),
+      prisma.agreement.deleteMany(),
+      prisma.inventoryHold.deleteMany(),
+      prisma.riskAssessment.deleteMany(),
+      prisma.bookingExtraction.deleteMany(),
+      prisma.consentRecord.deleteMany(),
+      prisma.transcriptTurn.deleteMany(),
+      prisma.callSession.updateMany({ data: { bookingId: null } }),
+      prisma.booking.deleteMany(),
+      prisma.callSession.deleteMany(),
+      prisma.tripDeparture.deleteMany(),
+      prisma.cataloguePickupPoint.deleteMany()
+    ]);
+  }
+
+  const catalogueSource = "DEMO_CSV";
+  const catalogueVersion = "trip-schedule-demo:v1";
+  const pickupPointCodes = ["DAD_TERMINAL", "DAD_CENTER"];
+  const departures = [
+    {
+      publicId: "dep_demo_dad_nha_20260628_0700_own",
+      routeCode: "DAD-NHA",
+      routeFrom: "Da Nang",
+      routeTo: "Nha Trang",
+      departureAtUtc: new Date("2026-06-28T00:00:00.000Z"),
+      operationalStatus: "SCHEDULED" as const,
+      capacity: 20,
+      confirmedSeatCount: 18
+    },
+    {
+      publicId: "dep_demo_dad_nha_20260628_0730_own",
+      routeCode: "DAD-NHA",
+      routeFrom: "Da Nang",
+      routeTo: "Nha Trang",
+      departureAtUtc: new Date("2026-06-28T00:30:00.000Z"),
+      operationalStatus: "SCHEDULED" as const,
+      capacity: 20,
+      confirmedSeatCount: 8
+    },
+    {
+      publicId: "dep_demo_dad_nha_20260628_0800_own",
+      routeCode: "DAD-NHA",
+      routeFrom: "Da Nang",
+      routeTo: "Nha Trang",
+      departureAtUtc: new Date("2026-06-28T01:00:00.000Z"),
+      operationalStatus: "SCHEDULED" as const,
+      capacity: 20,
+      confirmedSeatCount: 5
+    },
+    {
+      publicId: "dep_demo_dad_nha_20260628_0745_cancelled",
+      routeCode: "DAD-NHA",
+      routeFrom: "Da Nang",
+      routeTo: "Nha Trang",
+      departureAtUtc: new Date("2026-06-28T00:45:00.000Z"),
+      operationalStatus: "CANCELLED" as const,
+      capacity: 20,
+      confirmedSeatCount: 0
+    }
+  ];
+
+  await prisma.cataloguePickupPoint.createMany({
+    data: [
+      {
+        publicId: "pickup_DAD_TERMINAL",
+        catalogueSource,
+        catalogueVersion,
+        pickupPointCode: "DAD_TERMINAL",
+        routeFromCode: "DAD",
+        canonicalName: "Ben xe Trung tam Da Nang",
+        aliases: ["ben xe da nang", "ben xe trung tam da nang", "da nang terminal"]
+      },
+      {
+        publicId: "pickup_DAD_CENTER",
+        catalogueSource,
+        catalogueVersion,
+        pickupPointCode: "DAD_CENTER",
+        routeFromCode: "DAD",
+        canonicalName: "Trung tam Da Nang",
+        aliases: ["trung tam da nang", "hai chau"]
+      }
+    ]
+  });
+
+  for (const departure of departures) {
+    const created = await prisma.tripDeparture.create({
+      data: {
+        publicId: departure.publicId,
+        catalogueSource,
+        catalogueVersion,
+        routeCode: departure.routeCode,
+        routeFrom: departure.routeFrom,
+        routeTo: departure.routeTo,
+        departureAtUtc: departure.departureAtUtc,
+        departureTimezone: "Asia/Ho_Chi_Minh",
+        pickupPointCodes,
+        capacity: departure.capacity,
+        operationalStatus: departure.operationalStatus,
+        currency: "VND",
+        farePerSeatMinor: 420_000,
+        depositAmountMinor: 50_000,
+        pricePolicyVersion: "BUS-PRICE-V1",
+        refundPolicyVersion: "BUS-V1/1.0"
+      }
+    });
+    if (departure.confirmedSeatCount > 0) {
+      const occupiedBooking = await prisma.booking.create({
+        data: {
+          publicId: `bk_seed_${departure.publicId}`,
+          tripDepartureId: created.id,
+          status: "BOOKING_CONFIRMED",
+          routeFrom: departure.routeFrom,
+          routeTo: departure.routeTo,
+          departureAtUtc: departure.departureAtUtc,
+          passengerCount: departure.confirmedSeatCount,
+          totalAmountMinor: departure.confirmedSeatCount * 420_000,
+          depositAmountMinor: departure.confirmedSeatCount * 50_000,
+          refundPolicyVersion: "BUS-V1/1.0"
+        }
+      });
+      await prisma.inventoryHold.create({
+        data: {
+          publicId: `hold_seed_${departure.publicId}`,
+          idempotencyKey: `seed-${departure.publicId}`,
+          bookingId: occupiedBooking.id,
+          departureId: created.id,
+          quantity: departure.confirmedSeatCount,
+          status: "CONSUMED",
+          expiresAt: new Date("2026-06-28T02:00:00.000Z")
+        }
+      });
+    }
+  }
+  await prisma.$disconnect();
+}
+
+async function createDemoCatalogueReplayBooking(app: ReturnType<typeof buildApp>) {
+  await seedDemoCatalogue();
+
+  const callResponse = await app.inject({
+    method: "POST",
+    url: "/v1/calls",
+    payload: {
+      channelPurpose: "BOOKING",
+      sourceMode: "TRANSCRIPT_REPLAY"
+    }
+  });
+  assert.equal(callResponse.statusCode, 201);
+  const call = callResponse.json().data;
+
+  const turnResponse = await app.inject({
+    method: "POST",
+    url: `/v1/calls/${call.callId}/transcript-turns`,
+    payload: {
+      turn: {
+        clientTurnId: `turn-client-${uniqueSuffix()}`,
+        sequenceNo: 1,
+        speaker: "CUSTOMER",
+        content:
+          "Toi muon di Da Nang Nha Trang ngay 28 thang 6 luc 7 gio, 3 nguoi, don o ben xe trung tam Da Nang, so 0912345678.",
+        language: "vi-VN",
+        isFinal: true,
+        source: "REPLAY"
+      }
+    }
+  });
+  assert.equal(turnResponse.statusCode, 202, turnResponse.body);
+
+  const callReadResponse = await app.inject({
+    method: "GET",
+    url: `/v1/calls/${call.callId}`
+  });
+  assert.equal(callReadResponse.statusCode, 200);
+  const callRead = callReadResponse.json().data;
+  assert.ok(callRead.booking);
+
+  return {
+    callId: call.callId as string,
+    bookingId: callRead.booking.bookingId as string
+  };
+}
+
 function parseSseEvents(payload: string) {
   return payload
     .split("\n\n")
@@ -263,13 +457,13 @@ async function seedRevenueTwinOverflow() {
   assert.ok(databaseUrl);
   const prisma = createPrismaClient({ databaseUrl });
   const suffix = uniqueSuffix();
-  const now = new Date("2030-06-20T15:00:00.000Z");
+  const now = new Date("2026-06-28T00:00:00.000Z");
   const primary = await prisma.tripDeparture.create({
     data: {
       publicId: `dep_rtw_primary_${suffix}`,
       routeCode: `RTW-${suffix}`,
       routeFrom: "Da Nang",
-      routeTo: "Ba Na",
+      routeTo: "Nha Trang",
       departureAtUtc: now,
       departureTimezone: "Asia/Ho_Chi_Minh",
       capacity: 2,
@@ -286,7 +480,7 @@ async function seedRevenueTwinOverflow() {
       publicId: `dep_rtw_alternative_${suffix}`,
       routeCode: primary.routeCode,
       routeFrom: "Da Nang",
-      routeTo: "Ba Na",
+      routeTo: "Nha Trang",
       departureAtUtc: new Date(now.getTime() + 30 * 60_000),
       departureTimezone: "Asia/Ho_Chi_Minh",
       capacity: 20,
@@ -313,7 +507,7 @@ async function seedRevenueTwinOverflow() {
       tripDepartureId: primary.id,
       status: "AGREEMENT_READY",
       routeFrom: "Da Nang",
-      routeTo: "Ba Na",
+      routeTo: "Nha Trang",
       departureAtUtc: primary.departureAtUtc,
       passengerCount: 1,
       totalAmountMinor: 200_000,
@@ -329,7 +523,7 @@ async function seedRevenueTwinOverflow() {
       status: "AGREEMENT_LOCKED",
       passengerCount: 2,
       routeFrom: "Da Nang",
-      routeTo: "Ba Na",
+      routeTo: "Nha Trang",
       departureAtUtc: primary.departureAtUtc,
       totalAmountMinor: 400_000,
       depositAmountMinor: 60_000,
@@ -350,8 +544,10 @@ async function seedRevenueTwinOverflow() {
   await prisma.$disconnect();
   return {
     callId: call.publicId,
+    bookingId: booking.publicId,
     primaryDepartureId: primary.publicId,
-    alternativeDepartureId: alternative.publicId
+    alternativeDepartureId: alternative.publicId,
+    alternativeDepartureAt: alternative.departureAtUtc.toISOString()
   };
 }
 
@@ -560,6 +756,14 @@ test(
     const accepted = acceptResponse.json().data;
     assert.equal(accepted.status, "ACCEPTED");
     assert.match(accepted.inventoryHoldId, /^hold_/u);
+
+    const bookingResponse = await app.inject({
+      method: "GET",
+      url: `/v1/bookings/${fixture.bookingId}`
+    });
+    assert.equal(bookingResponse.statusCode, 200, bookingResponse.body);
+    assert.equal(bookingResponse.json().data.departureAt, fixture.alternativeDepartureAt);
+    assert.equal(bookingResponse.json().data.fareTotalVnd, offer.finalFareAmountMinor);
 
     const replayResponse = await app.inject({
       method: "POST",
@@ -889,7 +1093,7 @@ test(
   { skip: phase5SkipReason() },
   async () => {
     const app = buildApp(demoConfig);
-    const { callId, bookingId } = await createReplayBooking(app);
+    const { callId, bookingId } = await createDemoCatalogueReplayBooking(app);
 
     const riskResponse = await app.inject({
       method: "GET",
@@ -952,7 +1156,7 @@ test(
       url: `/v1/bookings/${bookingId}`
     });
     assert.equal(bookingResponse.statusCode, 200);
-    assert.equal(bookingResponse.json().data.status, "AGREEMENT_READY");
+    assert.equal(bookingResponse.json().data.status, "FIELDS_PARTIAL");
 
     const endResponse = await app.inject({
       method: "POST",
@@ -996,7 +1200,7 @@ test(
           clientTurnId: `agent-turn-${uniqueSuffix()}`,
           sequenceNo: 2,
           speaker: "AGENT",
-          content: "Tôi đã đổi thành 9 vé Huế đi Cần Thơ.",
+          content: "Tôi đã đổi thành 9 vé Đà Nẵng đi Cần Thơ.",
           language: "vi-VN",
           isFinal: true,
           source: "REPLAY"

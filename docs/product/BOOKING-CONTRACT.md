@@ -1,7 +1,7 @@
 # Call-to-Cash Risk Copilot — Booking Contract
 
 > **Status:** MVP v1  
-> **Vertical:** Catalogue-backed intercity bus / tour booking — demo departures include Hà Nội → Sa Pa and Đà Nẵng → Hà Nội
+> **Vertical:** Catalogue-backed intercity bus / tour booking — demo departures include Hà Nội → Sa Pa and Đà Nẵng → Nha Trang
 > **Owner:** Product Lead + Backend Lead  
 > **Related docs:** [Pipeline](../architecture/PIPELINE.md), [Decisions](../architecture/DECISIONS.md), [Risk Scoring](./RISK-SCORING.md)
 

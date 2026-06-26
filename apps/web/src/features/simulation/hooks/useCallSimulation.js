@@ -33,7 +33,6 @@ export default function useCallSimulation() {
     useApiMode();
   const [currentScenarioIdx, setCurrentScenarioIdx] = useState(0);
   const [voiceMode, setVoiceMode] = useState(VOICE_PROVIDER);
-  // ---- Mock simulation state (used only when apiMode=false) -----------
   const [isSimulating, setIsSimulating] = useState(false);
   const [simStatus, setSimStatus] = useState("Sẵn sàng");
   const [mobileTab, setMobileTab] = useState("call");
@@ -58,6 +57,7 @@ export default function useCallSimulation() {
   const [showPrefetch, setShowPrefetch] = useState(false);
   const [timelineSteps, setTimelineSteps] = useState([]);
   const [ledgerLogs, setLedgerLogs] = useState(createInitialLedgerLogs);
+  const [mockRevenueTwin, setMockRevenueTwin] = useState(null);
   const { clearTimeouts, scheduleTimeout } = useTimeoutRegistry();
   const mockSetters = {
     setBookingData,
@@ -83,7 +83,8 @@ export default function useCallSimulation() {
     setSimStatus,
     setSubtitles,
     setTimelineSteps,
-    setTranscript
+    setTranscript,
+    setMockRevenueTwin
   };
   useCallDurationTimer({
     isWaveAnimating,
@@ -98,7 +99,6 @@ export default function useCallSimulation() {
     setBtnPhonePayText,
     setDrawerTimerText
   });
-  // ---- API simulation (always called unconditionally for hook rules) ---
   const server = useServerSimulation(
     apiMode ? apiClient : null,
     apiBaseUrl,
@@ -118,15 +118,16 @@ export default function useCallSimulation() {
     server.streamStatus === "error"
       ? { status: "unreachable", message: "Kết nối realtime đã mất. Demo đã được khóa để bảo toàn trạng thái." }
       : demoReadiness;
-
   useEffect(() => {
     if (!apiMode || !server.showBoardingPass) return;
     const timer = setTimeout(() => setMobileTab("ticket"), 0);
     return () => clearTimeout(timer);
   }, [apiMode, server.showBoardingPass]);
-
   // ---- Mock simulation actions (apiMode=false) -------------------------
-  const mockReset = () => resetSimulationState(mockSetters, clearTimeouts);
+  const mockReset = () => {
+    setMockRevenueTwin(null);
+    resetSimulationState(mockSetters, clearTimeouts);
+  };
   const mockIssueReceipt = (currentBookingData) =>
     issueBoardingPass(currentBookingData, mockSetters);
   const mockSimulateWalletPayment = () => {
@@ -138,7 +139,6 @@ export default function useCallSimulation() {
     });
   };
   const mockHandleTamper = () => tamperAgreement(bookingData, mockSetters);
-
   const selectScenario = (idx) => {
     if (apiMode ? server.isSimulating : isSimulating) {
       alert(
@@ -147,16 +147,12 @@ export default function useCallSimulation() {
       return;
     }
     setCurrentScenarioIdx(idx);
-    // Named scenarios are deterministic replay fixtures.  Selecting one must
-    // not leave the next Start action pointed at the ambient Agora mode.
     if (apiMode) {
       setVoiceMode("replay");
       server.resetSimulation();
     }
     else mockReset();
   };
-
-  // ---- Unified surface (picks API or mock branch) ----------------------
   if (apiMode) {
     const retryLiveVoice = async () => {
       await liveVoice.stop();
@@ -252,7 +248,10 @@ export default function useCallSimulation() {
     retryDemoReadiness,
     streamStatus: isProbing ? "connecting" : "demo",
     paymentGate: null,
-    serverAuthority: { booking: null, revenueTwin: { evaluation: null, dashboard: null } },
+    serverAuthority: {
+      booking: null,
+      revenueTwin: { evaluation: null, dashboard: null, mockOverride: mockRevenueTwin }
+    },
     isMobile,
     currentScenarioIdx,
     isSimulating,

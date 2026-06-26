@@ -12,7 +12,14 @@ function Step({ icon: Icon, title, children }) {
   );
 }
 
-export function RevenueTwinDecision({ model, accepting = false, onAcceptOffer, lang = "vi" }) {
+export function RevenueTwinDecision({
+  model,
+  accepting = false,
+  declining = false,
+  onAcceptOffer,
+  onDeclineOffer,
+  lang = "vi"
+}) {
   const decision = model.decision;
   const booking = model.booking;
   const fields = [
@@ -92,7 +99,7 @@ export function RevenueTwinDecision({ model, accepting = false, onAcceptOffer, l
                       .replace("Chua co danh gia Revenue Twin", "No Revenue Twin evaluation yet")
                       .replace("Backend chua tra ve offer", "Server hasn't returned offer")
                       .replace("Khong dung du lieu suc chua tu trinh duyet", "Not using browser capacity data")
-                      .replace("Chap nhan se tai kiem tra ton kho tren server", "Accepting will revalidate inventory on-chain")
+                      .replace("Chap nhan se tai kiem tra ton kho tren server", "Accepting will revalidate inventory in the backend")
                       .replace("do backend xep hang", "ranked by backend")
                       .replace("tai thoi diem danh gia", "at evaluation time")
                       .replace("ghe", "seats");
@@ -144,6 +151,14 @@ export function RevenueTwinDecision({ model, accepting = false, onAcceptOffer, l
               <TrendingUp size={17} />
               {accepting ? (lang === "vi" ? "Đang chốt..." : "Confirming...") : (lang === "vi" ? "Chốt đề xuất" : "Confirm offer")}
             </button>
+            <button
+              type="button"
+              disabled={!decision.canDecline || declining || accepting}
+              onClick={onDeclineOffer}
+            >
+              <ClipboardList size={17} />
+              {declining ? "Declining..." : "Decline"}
+            </button>
           </div>
         </Step>
 
@@ -152,12 +167,12 @@ export function RevenueTwinDecision({ model, accepting = false, onAcceptOffer, l
             {decision.confirmations.map((item) => {
               const CONFIRMATION_LABELS = lang === "vi" ? {
                 "Offer persisted": "Đã lưu đề xuất chuyến",
-                "Inventory revalidated": "Đã kiểm kho tồn xe",
+                "Inventory revalidated": "Đã tái kiểm kho qua máy chủ",
                 "Hold created": "Đã giữ chỗ thành công",
                 "Booking saved": "Đã lưu thông tin vé tạm"
               } : {
-                "Offer persisted": "Offer persisted on-chain",
-                "Inventory revalidated": "Inventory hold revalidated",
+                "Offer persisted": "Offer persisted in PostgreSQL",
+                "Inventory revalidated": "Inventory revalidated by backend",
                 "Hold created": "Booking hold created",
                 "Booking saved": "Temporary ticket saved"
               };

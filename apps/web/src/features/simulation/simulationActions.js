@@ -54,7 +54,7 @@ export function issueBoardingPass(currentBookingData, setters) {
   setters.setMobileTab("receipt");
   setters.setSubtitles({
     speaker: "Hệ thống bảo mật",
-    text: "Vé xe khách điện tử đã được ký số và neo băm on-chain bảo mật. Bạn có thể lên xe!"
+    text: "Vé xe khách điện tử đã được đối chiếu với proof cọc Devnet. Bạn có thể lên xe!"
   });
   setters.setLedgerLogs((prev) => ({
     ...prev,
@@ -97,8 +97,8 @@ export function runWalletPaymentSequence({ bookingData, issueReceipt, scheduleTi
 
   const steps = [
     ["Mạng lưới: Phát hiện giao dịch...", "Mạng lưới phát hiện yêu cầu đặt cọc giữ chỗ (Mã 0x3b8a)...", 1000],
-    ["Mạng lưới: Đã nhận tiền cọc...", "Mạng lưới blockchain đồng thuận! Giao dịch cọc thành công.", 1200],
-    ["Đang neo băm thỏa thuận đặt vé...", "Đang tính toán mã băm SHA-256 và neo biên nhận lên sổ cái Solana...", 1200],
+    ["Mạng lưới: Đã nhận tiền cọc...", "Backend đã xác minh giao dịch cọc Devnet theo reference thanh toán.", 1200],
+    ["Đang lưu proof thanh toán...", "Đang lưu proof hash và metadata xác minh vào PostgreSQL, không lưu PII lên Solana.", 1200],
     ["Giao dịch thành công!", "Khóa chỗ và kích hoạt vé điện tử thành công!", 1000]
   ];
 
@@ -191,6 +191,10 @@ function applyStepUpdates(updates, { bookingData, setters, triggerPayment }) {
     setters.setShowPrefetch(false);
   }
   if (updates.timeline) setters.setTimelineSteps(updates.timeline);
+  // Drive the mock Revenue Twin panel for Scenario 5 phase 0–11
+  if (updates.revenueTwin && setters.setMockRevenueTwin) {
+    setters.setMockRevenueTwin(updates.revenueTwin);
+  }
   if (!updates.gateUnlocked) return false;
 
   triggerPayment(updates.entities?.deposit || bookingData.deposit);
@@ -198,6 +202,7 @@ function applyStepUpdates(updates, { bookingData, setters, triggerPayment }) {
   setters.setSimStatus("Chờ thanh toán cọc");
   return true;
 }
+
 
 export function tamperAgreement(bookingData, setters) {
   const { hackedRoute, hackedSeats } = createRandomTamperDetails();

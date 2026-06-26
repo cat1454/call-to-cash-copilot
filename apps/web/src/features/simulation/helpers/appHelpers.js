@@ -64,7 +64,7 @@ export function getAIDecision(sim) {
       missing: "Không. Đang đợi hành khách quét mã chuyển tiền cọc.",
       risk: "AN TOÀN / THẤP",
       gate: "ĐÃ MỞ / SẴN SÀNG",
-      next: "Đang kiểm tra xác thực mạng lưới Solana & neo băm thỏa thuận đặt vé."
+      next: "Đang xác minh proof thanh toán Devnet và lưu đối soát trong PostgreSQL."
     };
   }
 

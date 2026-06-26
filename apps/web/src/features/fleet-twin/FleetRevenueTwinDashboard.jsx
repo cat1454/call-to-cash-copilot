@@ -10,7 +10,9 @@ export default function FleetRevenueTwinDashboard({
   model,
   phone,
   accepting = false,
+  declining = false,
   onAcceptOffer,
+  onDeclineOffer,
   onStartCall,
   onEndCall,
   lang = "vi"
@@ -79,8 +81,8 @@ export default function FleetRevenueTwinDashboard({
 
             <p className="hero-tagline">
               {lang === "vi"
-                ? "Giám sát rủi ro hội thoại thời gian thực · Đối soát tự động · Neo băm cọc trên Solana"
-                : "Real-time conversational risk scoring · Auto reconciliation · On-chain deposit anchoring"}
+                ? "Giám sát rủi ro hội thoại thời gian thực · Đối soát tự động · Xác minh proof cọc Devnet"
+                : "Real-time conversational risk scoring · Auto reconciliation · Devnet payment proof"}
             </p>
 
             <div className="hero-actions">
@@ -155,7 +157,7 @@ export default function FleetRevenueTwinDashboard({
             <span className="tech-card-dot tech-card-dot-purple" />
             <div>
               <h3>Solana Devnet</h3>
-              <p>{lang === "vi" ? "Băm cọc an toàn on-chain" : "On-chain secure anchoring"}</p>
+              <p>{lang === "vi" ? "Xác minh proof cọc Devnet" : "Devnet payment proof verified"}</p>
             </div>
           </div>
           <strong className="tech-card-value">ACTIVE</strong>
@@ -174,7 +176,14 @@ export default function FleetRevenueTwinDashboard({
         </section>
 
         <aside className="right-column">
-          <RevenueTwinDecision model={model} accepting={accepting} onAcceptOffer={onAcceptOffer} lang={lang} />
+          <RevenueTwinDecision
+            model={model}
+            accepting={accepting}
+            declining={declining}
+            onAcceptOffer={onAcceptOffer}
+            onDeclineOffer={onDeclineOffer}
+            lang={lang}
+          />
         </aside>
       </div>
 

@@ -25,10 +25,17 @@ const SCENARIOS = [
   },
   {
     idx: 3,
-    title: "Kịch bản 4: Đà Nẵng → Hà Nội + Solana Devnet",
+    title: "Kịch bản 4: Revenue Twin Đà Nẵng → Nha Trang",
+    badge: "Tối ưu doanh thu",
+    type: "success",
+    desc: "Đà Nẵng → Nha Trang 3 khách. 07:00 chỉ còn 2 chỗ; Revenue Twin đề xuất 07:30 còn 12 chỗ, xử lý dispute, mở cổng cọc."
+  },
+  {
+    idx: 4,
+    title: "Kịch bản 5: Đà Nẵng → Nha Trang + Solana Devnet",
     badge: "Quét ví Devnet",
     type: "success",
-    desc: "Replay dữ liệu đặt 3 khách rồi đổi 4 khách; sau xác nhận sẽ mở QR Solana Devnet thật."
+    desc: "Replay dữ liệu đặt 3 khách ngày 28/06 lúc 07:00; sau xác nhận sẽ mở QR Solana Devnet thật."
   }
 ];
 

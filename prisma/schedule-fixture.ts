@@ -72,11 +72,14 @@ export type RevenueTwinDemandRow = {
 
 export type TripDepartureSeedRow = {
   publicId: string;
+  catalogueSource: string;
+  catalogueVersion: string;
   routeCode: string;
   routeFrom: string;
   routeTo: string;
   departureAtUtc: Date;
   departureTimezone: "Asia/Ho_Chi_Minh";
+  pickupPointCodes: string[];
   capacity: number;
   operationalStatus: "SCHEDULED" | "CANCELLED";
   currency: "VND";
@@ -88,6 +91,7 @@ export type TripDepartureSeedRow = {
 
 export type DemoCatalogueFixtureSet = {
   scheduleRows: readonly TripScheduleRow[];
+  pickupRows?: readonly PickupPointRow[];
   inventoryRows?: readonly TripInventoryRow[];
   now?: Date;
 };
@@ -96,6 +100,7 @@ type CatalogueTransaction = {
   $transaction?: never;
   tripDeparture: {
     upsert(input: Record<string, unknown>): Promise<{ id: string; publicId: string }>;
+    updateMany(input: Record<string, unknown>): Promise<unknown>;
     findUniqueOrThrow(input: Record<string, unknown>): Promise<{
       id: string;
       publicId: string;
@@ -106,6 +111,10 @@ type CatalogueTransaction = {
       depositAmountMinor: number;
       refundPolicyVersion: string;
     }>;
+  };
+  cataloguePickupPoint: {
+    upsert(input: Record<string, unknown>): Promise<unknown>;
+    updateMany(input: Record<string, unknown>): Promise<unknown>;
   };
   booking: {
     upsert(input: Record<string, unknown>): Promise<{ id: string }>;
@@ -188,6 +197,9 @@ const POLICY_HEADERS = [
 const DEPOSIT_RULES = {
   DEPOSIT_50K: 50_000
 } as const;
+
+export const DEMO_CATALOGUE_SOURCE = "DEMO_CSV";
+export const DEMO_CATALOGUE_VERSION = "trip-schedule-demo:v1";
 
 const KNOWN_PRICE_POLICIES = new Set(["BUS-PRICE-V1"]);
 const KNOWN_REFUND_POLICIES = new Set(["BUS-V1/1.0"]);
@@ -515,11 +527,14 @@ export function loadRevenueTwinDemandRows(
 export function tripScheduleRowToDepartureSeed(row: TripScheduleRow): TripDepartureSeedRow {
   return {
     publicId: row.publicId,
+    catalogueSource: DEMO_CATALOGUE_SOURCE,
+    catalogueVersion: DEMO_CATALOGUE_VERSION,
     routeCode: row.routeCode,
     routeFrom: row.routeFrom,
     routeTo: row.routeTo,
     departureAtUtc: row.departureAtUtc,
     departureTimezone: row.timezone,
+    pickupPointCodes: row.pickupPointCodes,
     capacity: row.capacity,
     operationalStatus: row.status,
     currency: "VND",
@@ -536,11 +551,14 @@ async function upsertTripDeparture(
   version?: number
 ) {
   const data = {
+    catalogueSource: row.catalogueSource,
+    catalogueVersion: row.catalogueVersion,
     routeCode: row.routeCode,
     routeFrom: row.routeFrom,
     routeTo: row.routeTo,
     departureAtUtc: row.departureAtUtc,
     departureTimezone: row.departureTimezone,
+    pickupPointCodes: row.pickupPointCodes,
     capacity: row.capacity,
     operationalStatus: row.operationalStatus,
     currency: row.currency,
@@ -556,6 +574,37 @@ async function upsertTripDeparture(
     create: {
       publicId: row.publicId,
       ...data
+    }
+  });
+}
+
+async function upsertPickupPoint(
+  transaction: CatalogueTransaction,
+  row: PickupPointRow
+): Promise<void> {
+  await transaction.cataloguePickupPoint.upsert({
+    where: {
+      catalogueSource_catalogueVersion_pickupPointCode: {
+        catalogueSource: DEMO_CATALOGUE_SOURCE,
+        catalogueVersion: DEMO_CATALOGUE_VERSION,
+        pickupPointCode: row.pickupPointCode
+      }
+    },
+    update: {
+      routeFromCode: row.routeFromCode,
+      canonicalName: row.canonicalName,
+      aliases: row.aliases,
+      active: true
+    },
+    create: {
+      publicId: `pickup_${row.pickupPointCode}`,
+      catalogueSource: DEMO_CATALOGUE_SOURCE,
+      catalogueVersion: DEMO_CATALOGUE_VERSION,
+      pickupPointCode: row.pickupPointCode,
+      routeFromCode: row.routeFromCode,
+      canonicalName: row.canonicalName,
+      aliases: row.aliases,
+      active: true
     }
   });
 }
@@ -641,6 +690,32 @@ export async function applyDemoCatalogueFixtures(
   const now = fixtures.now ?? new Date();
 
   await client.$transaction(async (transaction) => {
+    const currentDepartureIds = fixtures.scheduleRows.map((row) => row.publicId);
+    const currentPickupCodes = (fixtures.pickupRows ?? []).map((row) => row.pickupPointCode);
+
+    await transaction.tripDeparture.updateMany({
+      where: {
+        catalogueSource: DEMO_CATALOGUE_SOURCE,
+        catalogueVersion: DEMO_CATALOGUE_VERSION,
+        publicId: { notIn: currentDepartureIds }
+      },
+      data: {
+        operationalStatus: "CANCELLED"
+      }
+    });
+    await transaction.cataloguePickupPoint.updateMany({
+      where: {
+        catalogueSource: DEMO_CATALOGUE_SOURCE,
+        catalogueVersion: DEMO_CATALOGUE_VERSION,
+        pickupPointCode: { notIn: currentPickupCodes }
+      },
+      data: { active: false }
+    });
+
+    for (const pickupRow of fixtures.pickupRows ?? []) {
+      await upsertPickupPoint(transaction, pickupRow);
+    }
+
     for (const scheduleRow of fixtures.scheduleRows) {
       const inventory = inventoryByDeparture.get(scheduleRow.publicId);
       await upsertTripDeparture(

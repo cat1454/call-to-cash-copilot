@@ -114,6 +114,9 @@ const candidateFieldToBookingField = {
   contactPhoneCandidate: "contactPhone"
 } as const;
 
+const DEMO_CATALOGUE_SOURCE = "DEMO_CSV";
+const DEMO_CATALOGUE_VERSION = "trip-schedule-demo:v1";
+
 type CandidateFieldName = keyof typeof candidateFieldToBookingField;
 
 function unique<T>(values: readonly T[]): T[] {
@@ -218,6 +221,23 @@ export function nextAgreementVersion(agreements: ReadonlyArray<{ version: number
 }
 
 const LLM_FIELD_CONFIDENCE_MINIMUM = 0.9;
+const LLM_NUMBER_WORD = "(?:khong|mot|hai|ba|bon|tu|nam|lam|sau|bay|tam|chin)";
+const LLM_NUMBER_EXPRESSION =
+  `(?:\\d{1,2}|${LLM_NUMBER_WORD}\\s+muoi(?:\\s+${LLM_NUMBER_WORD})?|` +
+  `muoi(?:\\s+${LLM_NUMBER_WORD})?|${LLM_NUMBER_WORD})`;
+const LLM_PASSENGER_UNIT = "(?:ve|khach|hanh\\s+khach|nguoi|cho)";
+
+function hasExplicitPassengerCountEvidence(transcript: string): boolean {
+  const normalized = normalizeForSearch(transcript).replace(/\s+/gu, " ").trim();
+  const patterns = [
+    new RegExp(`\\b${LLM_NUMBER_EXPRESSION}\\s*${LLM_PASSENGER_UNIT}\\b`, "u"),
+    new RegExp(
+      `\\b(?:thanh|doi\\s+(?:sang|qua)|sua(?:\\s+lai)?\\s+thanh)\\s+${LLM_NUMBER_EXPRESSION}\\s*${LLM_PASSENGER_UNIT}\\b`,
+      "u"
+    )
+  ];
+  return patterns.some((pattern) => pattern.test(normalized));
+}
 
 function currentTurnCandidate<T>(
   value:
@@ -365,7 +385,8 @@ export function mergeValidatedCandidateFacts(
   facts: Parameters<typeof deterministicCandidateFromFacts>[0],
   candidate: BookingExtractionCandidate | undefined,
   sourceTurnId: string,
-  departures: ReadonlyArray<{ routeFrom: string; routeTo: string; departureAtUtc: Date }>
+  departures: ReadonlyArray<{ routeFrom: string; routeTo: string; departureAtUtc: Date }>,
+  sourceTranscript?: string
 ) {
   const parsed = BookingExtractionCandidateSchema.safeParse(candidate);
   if (!parsed.success) return facts;
@@ -413,6 +434,8 @@ export function mergeValidatedCandidateFacts(
       ? undefined
       : extractReplayFacts(proposedPickup, { departures }).pickupPoint;
   const proposedPassengerCount = currentTurnCandidate(fields.passengerCount, sourceTurnId);
+  const passengerCountHasEvidence =
+    sourceTranscript === undefined || hasExplicitPassengerCountEvidence(sourceTranscript);
 
   return {
     ...facts,
@@ -429,7 +452,9 @@ export function mergeValidatedCandidateFacts(
           departureMonth: localDeparture.month
         }
       : {}),
-    ...(facts.passengerCount === undefined && proposedPassengerCount !== undefined
+    ...(facts.passengerCount === undefined &&
+    proposedPassengerCount !== undefined &&
+    passengerCountHasEvidence
       ? { passengerCount: proposedPassengerCount }
       : {}),
     ...(facts.pickupPoint === undefined && pickupPoint !== undefined ? { pickupPoint } : {})
@@ -583,12 +608,51 @@ export async function appendTranscriptTurn(
         !mayContainRevenueTwinVoiceSelection(input.turn.content);
       const departures = extractsBookingFacts
         ? await transaction.tripDeparture.findMany({
-            where: { operationalStatus: "SCHEDULED", departureAtUtc: { gt: now } },
-            select: { routeCode: true, routeFrom: true, routeTo: true, departureAtUtc: true }
+            where: {
+              catalogueSource: DEMO_CATALOGUE_SOURCE,
+              catalogueVersion: DEMO_CATALOGUE_VERSION,
+              operationalStatus: "SCHEDULED",
+              departureAtUtc: { gt: now }
+            },
+            select: {
+              routeCode: true,
+              routeFrom: true,
+              routeTo: true,
+              departureAtUtc: true,
+              pickupPointCodes: true
+            }
           })
         : [];
+      const pickupRows = extractsBookingFacts
+        ? await transaction.cataloguePickupPoint.findMany({
+            where: {
+              catalogueSource: DEMO_CATALOGUE_SOURCE,
+              catalogueVersion: DEMO_CATALOGUE_VERSION,
+              active: true
+            },
+            select: { pickupPointCode: true, canonicalName: true, aliases: true }
+          })
+        : [];
+      const pickupByCode = new Map(
+        pickupRows.map((row) => [
+          row.pickupPointCode,
+          {
+            canonicalName: row.canonicalName,
+            aliases: ((Array.isArray(row.aliases) ? row.aliases : []) as string[]).filter(Boolean)
+          }
+        ])
+      );
+      const departureCandidates = departures.map((departure) => ({
+        ...departure,
+        pickupPoints: (
+          (Array.isArray(departure.pickupPointCodes) ? departure.pickupPointCodes : []) as string[]
+        ).flatMap((code) => {
+          const pickup = pickupByCode.get(code);
+          return pickup === undefined ? [] : [pickup];
+        })
+      }));
       const facts = extractsBookingFacts
-        ? extractReplayFacts(input.turn.content, { departures, now })
+        ? extractReplayFacts(input.turn.content, { departures: departureCandidates, now })
         : {};
       const sequenceNo =
         (await transaction.transcriptTurn.count({ where: { callSessionId: call.id } })) + 1;
@@ -678,7 +742,13 @@ export async function appendTranscriptTurn(
       });
       const validatedFacts =
         extraction.provider === "openai"
-          ? mergeValidatedCandidateFacts(facts, extraction.candidate, turn.publicId, departures)
+          ? mergeValidatedCandidateFacts(
+              facts,
+              extraction.candidate,
+              turn.publicId,
+              departureCandidates,
+              input.turn.content
+            )
           : retainCorroboratedCandidateFacts(facts, extraction.candidate, turn.publicId);
       const persistedCandidate = safeCandidateForPersistence(extraction.candidate);
       const diagnostics = buildExtractionDiagnostics(extraction.candidate);

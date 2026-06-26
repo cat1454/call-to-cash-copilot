@@ -241,11 +241,14 @@ model User {
 model TripDeparture {
   id                  String              @id @default(uuid()) @db.Uuid
   publicId            String              @unique @map("public_id")
+  catalogueSource     String              @default("LEGACY") @map("catalogue_source")
+  catalogueVersion    String?             @map("catalogue_version")
   routeCode           String              @map("route_code")
   routeFrom           String              @map("route_from")
   routeTo             String              @map("route_to")
   departureAtUtc      DateTime            @map("departure_at_utc") @db.Timestamptz(3)
   departureTimezone   String              @map("departure_timezone")
+  pickupPointCodes    Json                @default("[]") @map("pickup_point_codes")
   capacity            Int
   operationalStatus   TripDepartureStatus @default(SCHEDULED) @map("operational_status")
   currency            Currency            @default(VND)
@@ -261,38 +264,58 @@ model TripDeparture {
   revenueTwinOffers   RevenueTwinOffer[]
 
   @@unique([routeCode, departureAtUtc])
+  @@index([catalogueSource, catalogueVersion, operationalStatus, departureAtUtc])
   @@index([routeFrom, routeTo, departureAtUtc])
   @@index([operationalStatus, departureAtUtc])
   @@map("trip_departures")
 }
 
+model CataloguePickupPoint {
+  id               String   @id @default(uuid()) @db.Uuid
+  publicId         String   @unique @map("public_id")
+  catalogueSource  String   @map("catalogue_source")
+  catalogueVersion String   @map("catalogue_version")
+  pickupPointCode  String   @map("pickup_point_code")
+  routeFromCode    String   @map("route_from_code")
+  canonicalName    String   @map("canonical_name")
+  aliases          Json     @default("[]")
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([catalogueSource, catalogueVersion, pickupPointCode])
+  @@index([catalogueSource, catalogueVersion, active])
+  @@index([routeFromCode, active])
+  @@map("catalogue_pickup_points")
+}
+
 model CallSession {
-  id                     String                  @id @default(uuid()) @db.Uuid
-  publicId               String                  @unique @map("public_id")
-  customerId             String?                 @map("customer_id") @db.Uuid
-  operatorId             String?                 @map("operator_id") @db.Uuid
-  bookingId              String?                 @unique @map("booking_id") @db.Uuid
-  status                 CallStatus              @default(CREATED)
-  channelName            String                  @unique @map("channel_name")
-  purpose                CallPurpose             @default(BOOKING)
-  startedAt              DateTime?               @map("started_at") @db.Timestamptz(3)
-  endedAt                DateTime?               @map("ended_at") @db.Timestamptz(3)
-  audioRecordingEnabled  Boolean                 @default(false) @map("audio_recording_enabled")
-  analysisEnabled        Boolean                 @default(false) @map("analysis_enabled")
-  sourceMode             CallSourceMode          @map("source_mode")
-  createdAt              DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt              DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
-  customer               User?                   @relation("CallCustomer", fields: [customerId], references: [id], onDelete: SetNull)
-  operator               User?                   @relation("CallOperator", fields: [operatorId], references: [id], onDelete: SetNull)
-  booking                Booking?                @relation("CallCurrentBooking", fields: [bookingId], references: [id], onDelete: SetNull)
-  originatedBooking      Booking?                @relation("BookingOriginCall")
-  consentRecords         ConsentRecord[]
-  transcriptTurns        TranscriptTurn[]
-  bookingExtractions     BookingExtraction[]
-  riskAssessments        RiskAssessment[]
-  objectAssets           ObjectAsset[]
-    revenueTwinEvaluations RevenueTwinEvaluation[]
-    revenueTwinWaitlistEntries RevenueTwinWaitlistEntry[]
+  id                         String                     @id @default(uuid()) @db.Uuid
+  publicId                   String                     @unique @map("public_id")
+  customerId                 String?                    @map("customer_id") @db.Uuid
+  operatorId                 String?                    @map("operator_id") @db.Uuid
+  bookingId                  String?                    @unique @map("booking_id") @db.Uuid
+  status                     CallStatus                 @default(CREATED)
+  channelName                String                     @unique @map("channel_name")
+  purpose                    CallPurpose                @default(BOOKING)
+  startedAt                  DateTime?                  @map("started_at") @db.Timestamptz(3)
+  endedAt                    DateTime?                  @map("ended_at") @db.Timestamptz(3)
+  audioRecordingEnabled      Boolean                    @default(false) @map("audio_recording_enabled")
+  analysisEnabled            Boolean                    @default(false) @map("analysis_enabled")
+  sourceMode                 CallSourceMode             @map("source_mode")
+  createdAt                  DateTime                   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                  DateTime                   @updatedAt @map("updated_at") @db.Timestamptz(3)
+  customer                   User?                      @relation("CallCustomer", fields: [customerId], references: [id], onDelete: SetNull)
+  operator                   User?                      @relation("CallOperator", fields: [operatorId], references: [id], onDelete: SetNull)
+  booking                    Booking?                   @relation("CallCurrentBooking", fields: [bookingId], references: [id], onDelete: SetNull)
+  originatedBooking          Booking?                   @relation("BookingOriginCall")
+  consentRecords             ConsentRecord[]
+  transcriptTurns            TranscriptTurn[]
+  bookingExtractions         BookingExtraction[]
+  riskAssessments            RiskAssessment[]
+  objectAssets               ObjectAsset[]
+  revenueTwinEvaluations     RevenueTwinEvaluation[]
+  revenueTwinWaitlistEntries RevenueTwinWaitlistEntry[]
 
   @@index([customerId, createdAt])
   @@index([status, createdAt])
@@ -407,44 +430,44 @@ model RiskAssessment {
 }
 
 model Booking {
-  id                     String                  @id @default(uuid()) @db.Uuid
-  publicId               String                  @unique @map("public_id")
-  callSessionId          String?                 @unique @map("call_session_id") @db.Uuid
-  customerId             String?                 @map("customer_id") @db.Uuid
-  providerId             String?                 @map("provider_id") @db.Uuid
-  tripDepartureId        String?                 @map("trip_departure_id") @db.Uuid
-  status                 BookingStatus           @default(DRAFT)
-  routeFrom              String?                 @map("route_from")
-  routeTo                String?                 @map("route_to")
-  departureAtUtc         DateTime?               @map("departure_at_utc") @db.Timestamptz(3)
-  departureTimezone      String                  @default("Asia/Ho_Chi_Minh") @map("departure_timezone")
-  passengerCount         Int?                    @map("passenger_count")
-  pickupPointEncrypted   String?                 @map("pickup_point_encrypted")
-  pickupPointDisplay     String?                 @map("pickup_point_display")
-  contactPhoneEncrypted  String?                 @map("contact_phone_encrypted")
-  contactPhoneMasked     String?                 @map("contact_phone_masked")
-  currency               Currency                @default(VND)
-  totalAmountMinor       Int?                    @map("total_amount_minor")
-  depositAmountMinor     Int?                    @map("deposit_amount_minor")
-  refundPolicyVersion    String?                 @map("refund_policy_version")
-  inventoryHoldExpiresAt DateTime?               @map("inventory_hold_expires_at") @db.Timestamptz(3)
-  version                Int                     @default(1)
-  createdAt              DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt              DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
-  callSession            CallSession?            @relation("BookingOriginCall", fields: [callSessionId], references: [id], onDelete: SetNull)
-  currentForCall         CallSession?            @relation("CallCurrentBooking")
-  customer               User?                   @relation("BookingCustomer", fields: [customerId], references: [id], onDelete: SetNull)
-  provider               User?                   @relation("BookingProvider", fields: [providerId], references: [id], onDelete: SetNull)
-  tripDeparture          TripDeparture?          @relation(fields: [tripDepartureId], references: [id], onDelete: SetNull)
-  inventoryHolds         InventoryHold[]
-  riskAssessments        RiskAssessment[]
-  agreements             Agreement[]
-  paymentIntents         PaymentIntent[]
-  proofRecords           ProofRecord[]
-  trustReceipts          TrustReceipt[]
-  objectAssets           ObjectAsset[]
-    revenueTwinEvaluations RevenueTwinEvaluation[]
-    revenueTwinWaitlistEntries RevenueTwinWaitlistEntry[]
+  id                         String                     @id @default(uuid()) @db.Uuid
+  publicId                   String                     @unique @map("public_id")
+  callSessionId              String?                    @unique @map("call_session_id") @db.Uuid
+  customerId                 String?                    @map("customer_id") @db.Uuid
+  providerId                 String?                    @map("provider_id") @db.Uuid
+  tripDepartureId            String?                    @map("trip_departure_id") @db.Uuid
+  status                     BookingStatus              @default(DRAFT)
+  routeFrom                  String?                    @map("route_from")
+  routeTo                    String?                    @map("route_to")
+  departureAtUtc             DateTime?                  @map("departure_at_utc") @db.Timestamptz(3)
+  departureTimezone          String                     @default("Asia/Ho_Chi_Minh") @map("departure_timezone")
+  passengerCount             Int?                       @map("passenger_count")
+  pickupPointEncrypted       String?                    @map("pickup_point_encrypted")
+  pickupPointDisplay         String?                    @map("pickup_point_display")
+  contactPhoneEncrypted      String?                    @map("contact_phone_encrypted")
+  contactPhoneMasked         String?                    @map("contact_phone_masked")
+  currency                   Currency                   @default(VND)
+  totalAmountMinor           Int?                       @map("total_amount_minor")
+  depositAmountMinor         Int?                       @map("deposit_amount_minor")
+  refundPolicyVersion        String?                    @map("refund_policy_version")
+  inventoryHoldExpiresAt     DateTime?                  @map("inventory_hold_expires_at") @db.Timestamptz(3)
+  version                    Int                        @default(1)
+  createdAt                  DateTime                   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                  DateTime                   @updatedAt @map("updated_at") @db.Timestamptz(3)
+  callSession                CallSession?               @relation("BookingOriginCall", fields: [callSessionId], references: [id], onDelete: SetNull)
+  currentForCall             CallSession?               @relation("CallCurrentBooking")
+  customer                   User?                      @relation("BookingCustomer", fields: [customerId], references: [id], onDelete: SetNull)
+  provider                   User?                      @relation("BookingProvider", fields: [providerId], references: [id], onDelete: SetNull)
+  tripDeparture              TripDeparture?             @relation(fields: [tripDepartureId], references: [id], onDelete: SetNull)
+  inventoryHolds             InventoryHold[]
+  riskAssessments            RiskAssessment[]
+  agreements                 Agreement[]
+  paymentIntents             PaymentIntent[]
+  proofRecords               ProofRecord[]
+  trustReceipts              TrustReceipt[]
+  objectAssets               ObjectAsset[]
+  revenueTwinEvaluations     RevenueTwinEvaluation[]
+  revenueTwinWaitlistEntries RevenueTwinWaitlistEntry[]
 
   @@index([customerId, createdAt])
   @@index([status, departureAtUtc])
@@ -477,20 +500,20 @@ model InventoryHold {
 }
 
 model RevenueTwinEvaluation {
-  id                   String             @id @default(uuid()) @db.Uuid
-  publicId             String             @unique @map("public_id")
-  callSessionId        String             @map("call_session_id") @db.Uuid
-  bookingId            String?            @map("booking_id") @db.Uuid
-  requestedDepartureId String             @map("requested_departure_id")
+  id                   String                     @id @default(uuid()) @db.Uuid
+  publicId             String                     @unique @map("public_id")
+  callSessionId        String                     @map("call_session_id") @db.Uuid
+  bookingId            String?                    @map("booking_id") @db.Uuid
+  requestedDepartureId String                     @map("requested_departure_id")
   status               String
-  policyVersion        String             @map("policy_version")
-  demandContext        Json               @map("demand_context")
+  policyVersion        String                     @map("policy_version")
+  demandContext        Json                       @map("demand_context")
   impact               Json
-  createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
-  callSession          CallSession        @relation(fields: [callSessionId], references: [id], onDelete: Cascade)
-  booking              Booking?           @relation(fields: [bookingId], references: [id], onDelete: SetNull)
-    offers               RevenueTwinOffer[]
-    waitlistEntries      RevenueTwinWaitlistEntry[]
+  createdAt            DateTime                   @default(now()) @map("created_at") @db.Timestamptz(3)
+  callSession          CallSession                @relation(fields: [callSessionId], references: [id], onDelete: Cascade)
+  booking              Booking?                   @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  offers               RevenueTwinOffer[]
+  waitlistEntries      RevenueTwinWaitlistEntry[]
 
   @@index([callSessionId, createdAt])
   @@index([bookingId, createdAt])

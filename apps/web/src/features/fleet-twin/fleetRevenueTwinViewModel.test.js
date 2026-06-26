@@ -31,10 +31,10 @@ test("Fleet Twin view model renders server offer data without local authority fi
   const vm = buildFleetRevenueTwinViewModel({
     booking: {
       bookingId: "bk_public01",
-      routeFrom: "Hue",
+      routeFrom: "Da Nang",
       routeTo: "Nha Trang",
       passengerCount: 3,
-      pickupPoint: "Ben xe Hue",
+      pickupPoint: "Ben xe Trung tam Da Nang",
       contactPhoneMasked: "0912***678"
     },
     evaluation: {
@@ -66,6 +66,7 @@ test("Fleet Twin view model renders server offer data without local authority fi
   assert.equal(vm.decision.offerId, "rtw_offer_public1");
   assert.equal(vm.decision.options[0].seats, "12 ghe");
   assert.equal(vm.decision.canAccept, true);
+  assert.equal(vm.decision.canDecline, true);
 });
 
 test("Fleet Twin confirmation requires backend acceptance or hold proof", () => {

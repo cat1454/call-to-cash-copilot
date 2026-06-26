@@ -3,6 +3,7 @@ import { EventName } from "@call-to-cash/shared";
 import { ACTION } from "./serverSimulationState.js";
 
 export const recoveryEvents = new Set([
+  EventName.TranscriptAnalysisUpdated,
   EventName.BookingCreated,
   EventName.BookingUpdated,
   EventName.AgreementLocked,
