@@ -7,14 +7,14 @@
   margin: 0 auto 28px;
   border-radius: 28px;
   background:
-    radial-gradient(ellipse 80% 60% at 10% 50%, rgba(5, 150, 105, 0.20) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 80% at 90% 20%, rgba(5, 150, 105, 0.10) 0%, transparent 55%),
-    linear-gradient(135deg, #071c14 0%, #0a2218 40%, #0d2b1e 100%);
+    radial-gradient(ellipse 80% 60% at 10% 50%, rgba(16, 185, 129, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 80% at 90% 20%, rgba(16, 185, 129, 0.05) 0%, transparent 55%),
+    linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 50%, #f0fdf4 100%);
   padding: 44px 48px 40px;
+  border: 1px solid #d1fae5;
   box-shadow:
-    0 32px 80px rgba(5, 150, 105, 0.18),
-    0 8px 24px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    0 20px 40px rgba(5, 150, 105, 0.04),
+    0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
 /* Animated glow orbs */
@@ -22,29 +22,29 @@
   position: absolute;
   border-radius: 50%;
   pointer-events: none;
-  animation: hero-orb-pulse 6s ease-in-out infinite;
+  animation: hero-orb-pulse-light 6s ease-in-out infinite;
 }
 .hero-orb-1 {
   width: 380px; height: 380px;
   top: -120px; left: -80px;
-  background: radial-gradient(circle, rgba(5, 150, 105, 0.25) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, transparent 70%);
   animation-delay: 0s;
 }
 .hero-orb-2 {
   width: 260px; height: 260px;
   bottom: -80px; right: 200px;
-  background: radial-gradient(circle, rgba(5, 150, 105, 0.14) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.08) 0%, transparent 70%);
   animation-delay: 2s;
 }
 .hero-orb-3 {
   width: 180px; height: 180px;
   top: 20px; right: -40px;
-  background: radial-gradient(circle, rgba(5, 150, 105, 0.08) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.05) 0%, transparent 70%);
   animation-delay: 4s;
 }
-@keyframes hero-orb-pulse {
-  0%, 100% { transform: scale(1); opacity: 0.8; }
-  50% { transform: scale(1.12); opacity: 1; }
+@keyframes hero-orb-pulse-light {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.1); opacity: 0.9; }
 }
 
 .hero-inner {
@@ -76,19 +76,19 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(16, 185, 129, 0.2);
   border-radius: 999px;
   padding: 6px 14px 6px 10px;
-  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.04);
 }
 
 .hero-logo-dot {
   width: 8px; height: 8px;
   border-radius: 50%;
   background: #059669;
-  box-shadow: 0 0 8px rgba(5, 150, 105, 0.9);
-  animation: hero-orb-pulse 2s ease-in-out infinite;
+  box-shadow: 0 0 8px rgba(5, 150, 105, 0.6);
+  animation: hero-orb-pulse-light 2s ease-in-out infinite;
   flex-shrink: 0;
 }
 
@@ -96,7 +96,7 @@
   font-size: 15px;
   font-weight: 800;
   letter-spacing: -0.02em;
-  color: #ffffff;
+  color: #0f172a;
 }
 
 .hero-logo-sub {
@@ -125,27 +125,36 @@
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.35);
+  color: #64748b;
 }
 
 .hero-partner-chip {
   display: inline-flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-  padding: 4px 10px;
-  transition: background 0.2s, border-color 0.2s;
+  padding: 5px 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  transition: all 0.2s ease;
 }
 .hero-partner-chip:hover {
-  background: rgba(255, 255, 255, 0.10);
-  border-color: rgba(255, 255, 255, 0.18);
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+}
+
+.hero-partner-img {
+  height: 16px;
+  object-fit: contain;
+  display: block;
 }
 
 .hero-partners-sep {
   font-size: 12px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.25);
+  color: #cbd5e1;
 }
 
 .hero-headline {
@@ -153,7 +162,7 @@
   font-weight: 900;
   line-height: 1.08;
   letter-spacing: -0.04em;
-  color: #ffffff;
+  color: #0f172a;
   margin: 0;
   text-wrap: balance;
 }
@@ -168,8 +177,8 @@
 
 .hero-tagline {
   font-size: 13px;
-  font-weight: 400;
-  color: rgba(255, 255, 255, 0.45);
+  font-weight: 500;
+  color: #475569;
   line-height: 1.5;
   margin: 0;
 }
@@ -187,16 +196,17 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 14px;
   padding: 12px 16px;
-  backdrop-filter: blur(8px);
-  transition: background 0.2s, border-color 0.2s;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+  transition: all 0.2s ease;
 }
 .hero-metric-card:hover {
-  background: rgba(5, 150, 105, 0.08);
-  border-color: rgba(5, 150, 105, 0.28);
+  background: #f0fdf4;
+  border-color: rgba(5, 150, 105, 0.3);
+  transform: translateY(-1px);
 }
 
 /* Colored status dots */
@@ -207,9 +217,9 @@
   flex-shrink: 0;
   box-shadow: 0 0 6px currentColor;
 }
-.hero-metric-dot-green  { background: #059669; color: #059669; box-shadow: 0 0 8px rgba(5,150,105,0.7); }
-.hero-metric-dot-amber  { background: #d97706; color: #d97706; box-shadow: 0 0 8px rgba(217,119,6,0.6); }
-.hero-metric-dot-purple { background: #7c3aed; color: #7c3aed; box-shadow: 0 0 8px rgba(124,58,237,0.6); }
+.hero-metric-dot-green  { background: #059669; color: #059669; box-shadow: 0 0 8px rgba(5,150,105,0.4); }
+.hero-metric-dot-amber  { background: #d97706; color: #d97706; box-shadow: 0 0 8px rgba(217,119,6,0.3); }
+.hero-metric-dot-purple { background: #7c3aed; color: #7c3aed; box-shadow: 0 0 8px rgba(124,58,237,0.3); }
 
 .hero-metric-card div {
   display: flex;
@@ -220,13 +230,13 @@
 .hero-metric-card strong {
   font-size: 13px;
   font-weight: 700;
-  color: #ffffff;
+  color: #0f172a;
   line-height: 1.2;
 }
 
 .hero-metric-card span {
   font-size: 11px;
-  font-weight: 400;
-  color: rgba(255, 255, 255, 0.45);
+  font-weight: 500;
+  color: #475569;
   line-height: 1.3;
 }

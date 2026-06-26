@@ -57,39 +57,14 @@ export default function FleetRevenueTwinDashboard({
               <span className="hero-partners-label">Powered by</span>
               {/* Agora logo */}
               <div className="hero-partner-chip" title="Agora">
-                <svg height="18" viewBox="0 0 80 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Agora">
-                  <circle cx="12" cy="12" r="10" fill="#00C2FF" opacity="0.15"/>
-                  <circle cx="12" cy="12" r="6" fill="#00C2FF" opacity="0.4"/>
-                  <circle cx="12" cy="12" r="3" fill="#00C2FF"/>
-                  <text x="27" y="17" fontFamily="system-ui,sans-serif" fontWeight="700" fontSize="13" fill="white" letterSpacing="-0.3">Agora</text>
-                </svg>
+                <img className="hero-partner-img" src="/agora-logo.svg" alt="Agora Logo" />
+                <span style={{ fontSize: "13px", fontWeight: "700", color: "#0f172a" }}>Agora</span>
               </div>
               <span className="hero-partners-sep">×</span>
               {/* Solana logo */}
               <div className="hero-partner-chip" title="Solana">
-                <svg height="18" viewBox="0 0 96 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Solana">
-                  {/* Solana icon - 3 stacked parallelogram bars */}
-                  <g transform="translate(0,2)">
-                    <rect x="0" y="0" width="18" height="4" rx="1" fill="url(#sol-grad1)" transform="skewX(-10)"/>
-                    <rect x="0" y="7" width="18" height="4" rx="1" fill="url(#sol-grad2)" transform="skewX(-10)"/>
-                    <rect x="0" y="14" width="18" height="4" rx="1" fill="url(#sol-grad3)" transform="skewX(-10)"/>
-                    <defs>
-                      <linearGradient id="sol-grad1" x1="0" y1="0" x2="18" y2="0">
-                        <stop offset="0%" stopColor="#9945FF"/>
-                        <stop offset="100%" stopColor="#14F195"/>
-                      </linearGradient>
-                      <linearGradient id="sol-grad2" x1="0" y1="0" x2="18" y2="0">
-                        <stop offset="0%" stopColor="#9945FF"/>
-                        <stop offset="100%" stopColor="#14F195"/>
-                      </linearGradient>
-                      <linearGradient id="sol-grad3" x1="0" y1="0" x2="18" y2="0">
-                        <stop offset="0%" stopColor="#9945FF"/>
-                        <stop offset="100%" stopColor="#14F195"/>
-                      </linearGradient>
-                    </defs>
-                  </g>
-                  <text x="26" y="17" fontFamily="system-ui,sans-serif" fontWeight="700" fontSize="13" fill="white" letterSpacing="-0.3">Solana</text>
-                </svg>
+                <img className="hero-partner-img" src="/solana-logo.png" alt="Solana Logo" />
+                <span style={{ fontSize: "13px", fontWeight: "700", color: "#0f172a" }}>Solana</span>
               </div>
             </div>
 
