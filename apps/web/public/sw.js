@@ -1,4 +1,4 @@
-const CACHE_NAME = "risk-copilot-cache-v2";
+const CACHE_NAME = "risk-copilot-cache-v3";
 const ASSETS = [
   "/manifest.json",
   "/favicon.svg",
