@@ -4,20 +4,20 @@
   overflow: hidden;
   width: 100%;
   max-width: 1480px;
-  margin: 0 auto 28px;
-  border-radius: 28px;
+  margin: 0 auto 20px;
+  border-radius: 20px;
   background:
-    radial-gradient(ellipse 80% 60% at 10% 50%, rgba(16, 185, 129, 0.08) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 80% at 90% 20%, rgba(16, 185, 129, 0.05) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 80% at 10% 50%, rgba(16, 185, 129, 0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 60% at 90% 50%, rgba(16, 185, 129, 0.04) 0%, transparent 65%),
     linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 50%, #f0fdf4 100%);
-  padding: 44px 48px 40px;
+  padding: 24px 32px;
   border: 1px solid #d1fae5;
   box-shadow:
-    0 20px 40px rgba(5, 150, 105, 0.04),
-    0 1px 3px rgba(0, 0, 0, 0.02);
+    0 10px 30px rgba(5, 150, 105, 0.03),
+    0 1px 2px rgba(0, 0, 0, 0.01);
 }
 
-/* Animated glow orbs */
+/* Animated glow orbs - simplified and smaller */
 .hero-orb {
   position: absolute;
   border-radius: 50%;
@@ -25,26 +25,26 @@
   animation: hero-orb-pulse-light 6s ease-in-out infinite;
 }
 .hero-orb-1 {
-  width: 380px; height: 380px;
-  top: -120px; left: -80px;
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, transparent 70%);
+  width: 200px; height: 200px;
+  top: -60px; left: -40px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.1) 0%, transparent 70%);
   animation-delay: 0s;
 }
 .hero-orb-2 {
-  width: 260px; height: 260px;
-  bottom: -80px; right: 200px;
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.08) 0%, transparent 70%);
+  width: 150px; height: 150px;
+  bottom: -40px; right: 100px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.06) 0%, transparent 70%);
   animation-delay: 2s;
 }
 .hero-orb-3 {
-  width: 180px; height: 180px;
-  top: 20px; right: -40px;
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.05) 0%, transparent 70%);
+  width: 100px; height: 100px;
+  top: 10px; right: -20px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.04) 0%, transparent 70%);
   animation-delay: 4s;
 }
 @keyframes hero-orb-pulse-light {
-  0%, 100% { transform: scale(1); opacity: 0.6; }
-  50% { transform: scale(1.1); opacity: 0.9; }
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.08); opacity: 0.8; }
 }
 
 .hero-inner {
@@ -53,62 +53,56 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 40px;
+  gap: 24px;
+  flex-wrap: wrap; /* Wraps cleanly on smaller screens */
 }
 
 /* ── Brand side ── */
 .hero-brand {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   flex: 1;
-  min-width: 0;
+  min-width: 280px;
 }
 
 .hero-logo-row {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
 .hero-logo-pill {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  background: rgba(255, 255, 255, 0.85);
-  border: 1px solid rgba(16, 185, 129, 0.2);
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(16, 185, 129, 0.25);
   border-radius: 999px;
-  padding: 6px 14px 6px 10px;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.04);
+  padding: 4px 12px 4px 8px;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.03);
 }
 
 .hero-logo-dot {
-  width: 8px; height: 8px;
+  width: 6px; height: 6px;
   border-radius: 50%;
   background: #059669;
-  box-shadow: 0 0 8px rgba(5, 150, 105, 0.6);
+  box-shadow: 0 0 6px rgba(5, 150, 105, 0.5);
   animation: hero-orb-pulse-light 2s ease-in-out infinite;
   flex-shrink: 0;
 }
 
 .hero-logo-text {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
   color: #0f172a;
-}
-
-.hero-logo-sub {
-  font-size: 15px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: #059669;
 }
 
 .hero-badges {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
@@ -116,14 +110,15 @@
 .hero-partners {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
+  margin-top: 2px;
 }
 
 .hero-partners-label {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: #64748b;
 }
@@ -131,12 +126,12 @@
 .hero-partner-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 5px 12px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  border-radius: 6px;
+  padding: 3px 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.01);
   transition: all 0.2s ease;
 }
 .hero-partner-chip:hover {
@@ -146,24 +141,24 @@
 }
 
 .hero-partner-img {
-  height: 16px;
+  height: 12px;
   object-fit: contain;
   display: block;
 }
 
 .hero-partners-sep {
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 700;
   color: #cbd5e1;
 }
 
 .hero-headline {
-  font-size: clamp(28px, 3.2vw, 48px);
-  font-weight: 900;
-  line-height: 1.08;
-  letter-spacing: -0.04em;
+  font-size: clamp(20px, 2.2vw, 28px);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
   color: #0f172a;
-  margin: 0;
+  margin: 2px 0 0;
   text-wrap: balance;
 }
 
@@ -176,67 +171,69 @@
 }
 
 .hero-tagline {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   color: #475569;
-  line-height: 1.5;
+  line-height: 1.4;
   margin: 0;
 }
 
-/* ── Metric cards side ── */
+/* ── Metric cards side - horizontal layout ── */
 .hero-metrics {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 10px;
   flex-shrink: 0;
-  width: 240px;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 .hero-metric-card {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 12px 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+  border-radius: 10px;
+  padding: 8px 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.01);
   transition: all 0.2s ease;
+  min-width: 140px;
 }
 .hero-metric-card:hover {
   background: #f0fdf4;
-  border-color: rgba(5, 150, 105, 0.3);
+  border-color: rgba(5, 150, 105, 0.25);
   transform: translateY(-1px);
 }
 
 /* Colored status dots */
 .hero-metric-dot {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
-  box-shadow: 0 0 6px currentColor;
+  box-shadow: 0 0 4px currentColor;
 }
-.hero-metric-dot-green  { background: #059669; color: #059669; box-shadow: 0 0 8px rgba(5,150,105,0.4); }
-.hero-metric-dot-amber  { background: #d97706; color: #d97706; box-shadow: 0 0 8px rgba(217,119,6,0.3); }
-.hero-metric-dot-purple { background: #7c3aed; color: #7c3aed; box-shadow: 0 0 8px rgba(124,58,237,0.3); }
+.hero-metric-dot-green  { background: #059669; color: #059669; box-shadow: 0 0 6px rgba(5,150,105,0.3); }
+.hero-metric-dot-amber  { background: #d97706; color: #d97706; box-shadow: 0 0 6px rgba(217,119,6,0.2); }
+.hero-metric-dot-purple { background: #7c3aed; color: #7c3aed; box-shadow: 0 0 6px rgba(124,58,237,0.2); }
 
 .hero-metric-card div {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .hero-metric-card strong {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   color: #0f172a;
-  line-height: 1.2;
+  line-height: 1.1;
 }
 
 .hero-metric-card span {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
   color: #475569;
-  line-height: 1.3;
+  line-height: 1.2;
 }

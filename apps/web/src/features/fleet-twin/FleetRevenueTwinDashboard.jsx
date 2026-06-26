@@ -42,8 +42,7 @@ export default function FleetRevenueTwinDashboard({
             <div className="hero-logo-row">
               <div className="hero-logo-pill">
                 <span className="hero-logo-dot" aria-hidden="true" />
-                <span className="hero-logo-text">Call-to-Cash</span>
-                <span className="hero-logo-sub">Risk Copilot</span>
+                <span className="hero-logo-text">Call to Cash</span>
               </div>
               <div className="hero-badges">
                 <Badge><Activity size={11} style={{ marginRight: "5px" }} />{lang === "vi" ? "Thoại trực tiếp" : "Live voice"}</Badge>
