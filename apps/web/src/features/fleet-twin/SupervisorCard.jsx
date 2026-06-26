@@ -4,9 +4,12 @@ export function SupervisorCard({ model, lang = "vi" }) {
   const booking = model.booking;
   const risk = model.risk;
 
+  const isSafe = risk.status === "An toan" || risk.status === "An toàn";
+  const accentClass = isSafe ? "accent-green" : "accent-red";
+
   return (
     <section className="fleet-card supervisor-card" aria-labelledby="ai-supervisor">
-      <div className="fleet-card-header compact">
+      <div className={`fleet-card-header compact ${accentClass}`}>
         <div>
           <p className="fleet-eyebrow">{lang === "vi" ? "Giám sát AI" : "AI Supervision"}</p>
           <h2 id="ai-supervisor">{lang === "vi" ? "Trợ Lý Giám Sát Giao Dịch AI" : "AI Transaction Supervisor Assistant"}</h2>

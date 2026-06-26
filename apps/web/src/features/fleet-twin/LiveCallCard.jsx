@@ -11,7 +11,7 @@ export function LiveCallCard({ model, onStartCall, onEndCall, lang = "vi" }) {
 
   return (
     <section className="fleet-card live-call-card" aria-labelledby="agora-live-call">
-      <div className="fleet-card-header">
+      <div className="fleet-card-header accent-blue">
         <div>
           <p className="fleet-eyebrow">{lang === "vi" ? "Điều khiển cuộc gọi" : "Call control"}</p>
           <h2 id="agora-live-call">{lang === "vi" ? "Cuộc thoại trực tiếp Agora" : "Agora Live Voice Call"}</h2>

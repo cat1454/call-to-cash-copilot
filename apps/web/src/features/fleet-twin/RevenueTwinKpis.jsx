@@ -31,7 +31,7 @@ export function RevenueTwinKpis({ model, lang = "vi" }) {
 
   return (
     <section className="fleet-card kpi-card" aria-labelledby="fleet-kpi">
-      <div className="fleet-card-header compact">
+      <div className="fleet-card-header compact accent-green">
         <div>
           <p className="fleet-eyebrow">{lang === "vi" ? "Hiệu suất" : "Performance"}</p>
           <h2 id="fleet-kpi">{lang === "vi" ? "Chỉ số KPI Revenue Twin" : "Revenue Twin KPI Metrics"}</h2>

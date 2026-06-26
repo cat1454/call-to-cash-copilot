@@ -41,9 +41,11 @@ export function RevenueTwinDecision({ model, accepting = false, onAcceptOffer, l
     return status === "DA CHOT" ? "CONFIRMED" : status === "DE XUAT" ? "OPTIMIZED" : status === "CAN KIEM TRA" ? "REVIEW" : status;
   };
 
+  const accentClass = booking.paymentGate === "UNLOCKED" ? "accent-green" : "accent-purple";
+
   return (
     <section className="fleet-card decision-card" aria-labelledby="revenue-twin-decision">
-      <div className="fleet-card-header">
+      <div className={`fleet-card-header ${accentClass}`}>
         <div>
           <p className="fleet-eyebrow">{lang === "vi" ? "Công cụ ra quyết định" : "Decision Tool"}</p>
           <h2 id="revenue-twin-decision">{lang === "vi" ? "Đề xuất chốt giá AI Revenue Twin" : "AI Revenue Twin Offer Optimizer"}</h2>

@@ -64,9 +64,15 @@
 }
 
 .fleet-card-header > div:first-child {
-  border-left: 3px solid #10b981;
+  border-left: 3px solid #10b981; /* Default emerald */
   padding-left: 12px;
 }
+
+.fleet-card-header.accent-blue > div:first-child { border-left-color: #3b82f6; }
+.fleet-card-header.accent-purple > div:first-child { border-left-color: #8b5cf6; }
+.fleet-card-header.accent-orange > div:first-child { border-left-color: #f59e0b; }
+.fleet-card-header.accent-red > div:first-child { border-left-color: #ef4444; }
+.fleet-card-header.accent-green > div:first-child { border-left-color: #10b981; }
 
 .fleet-card-header.compact {
   padding-top: 14px;
