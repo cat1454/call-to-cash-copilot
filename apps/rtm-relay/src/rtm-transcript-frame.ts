@@ -165,7 +165,11 @@ function normalizeTranscriptPayload(payload: unknown): unknown {
   if (typeof normalized.language !== "string" || normalized.language.trim().length === 0) {
     delete normalized.language;
   }
-  if (normalized.words !== undefined && normalized.words !== null && !Array.isArray(normalized.words)) {
+  if (
+    normalized.words !== undefined &&
+    normalized.words !== null &&
+    !Array.isArray(normalized.words)
+  ) {
     normalized.words = null;
   }
   if (normalized.object === "assistant.transcription") {
