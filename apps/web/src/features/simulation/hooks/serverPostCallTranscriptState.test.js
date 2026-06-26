@@ -59,6 +59,21 @@ test("keeps the live transcript surface available while post-call history is rec
   ]);
 });
 
+test("REST transcript sync updates phone subtitles to the latest recovered turn", () => {
+  const state = reducer(makeInitialState(), {
+    type: ACTION.TRANSCRIPT_SYNCED,
+    transcript: {
+      turns: [
+        { turnId: "turn_public1", sequenceNo: 1, speaker: "CUSTOMER", content: "Hello" },
+        { turnId: "turn_agent1", sequenceNo: 2, speaker: "AGENT", content: "I can help." }
+      ]
+    }
+  });
+
+  assert.equal(state.subtitles.speaker, "Tổng đài AI");
+  assert.equal(state.subtitles.text, "I can help.");
+});
+
 test("projects an AI transcript turn into the left-side AI conversation surface", () => {
   const state = reducer(makeInitialState(), {
     type: ACTION.SERVER_EVENT,

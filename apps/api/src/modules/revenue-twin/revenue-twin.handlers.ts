@@ -416,7 +416,12 @@ export function createRevenueTwinHandlers(databaseClient?: DatabaseClient): Reve
       const client = requireClient(databaseClient);
       const evaluation = await client.revenueTwinEvaluation.findFirst({
         where: { callSession: { publicId: callId } },
-        include: { offers: { include: { alternativeDeparture: true }, orderBy: { rank: "asc" } } },
+        include: {
+          offers: {
+            include: { alternativeDeparture: true, inventoryHold: true },
+            orderBy: { rank: "asc" }
+          }
+        },
         orderBy: { createdAt: "desc" }
       });
       if (evaluation === null) return null;
@@ -429,6 +434,7 @@ export function createRevenueTwinHandlers(databaseClient?: DatabaseClient): Reve
           rank: offer.rank,
           finalFareAmountMinor: offer.finalFareAmountMinor,
           discountAmountMinor: offer.discountAmountMinor,
+          inventoryHoldId: offer.inventoryHold?.publicId,
           status: offer.status,
           expiresAt: offer.expiresAt.toISOString()
         })),

@@ -12,15 +12,16 @@ import { usePostCallTranscriptSync } from "./usePostCallTranscriptSync.js";
 import { useAgreementConfirmation } from "./useAgreementConfirmation.js";
 import { useServerSimulationReset } from "./useServerSimulationReset.js";
 import { usePaymentIntentCreation } from "./usePaymentIntentCreation.js";
+import { useServerEventBatch } from "./useServerEventBatch.js";
+import { useAcceptRevenueTwinOffer, useRevenueTwinDashboardSync } from "./useRevenueTwinServerIntegration.js";
 export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, scenarios) {
   const [state, dispatch] = useReducer(reducer, undefined, makeInitialState);
   const [currentTurnIdx, setCurrentTurnIdx] = useState(0);
-  const stateRef = useRef(state);
-  const sseRef = useRef(null);
-  const callIdRef = useRef(null);
-  const sequenceRef = useRef(1);
-  const recoveryCoordinatorRef = useRef(null);
+  const stateRef = useRef(state), sseRef = useRef(null), callIdRef = useRef(null);
+  const sequenceRef = useRef(1), recoveryCoordinatorRef = useRef(null);
   useEffect(() => { stateRef.current = state; }, [state]);
+  useRevenueTwinDashboardSync(apiClient, dispatch);
+  const { clearQueuedServerEvents, flushQueuedServerEvents, queueServerEvent } = useServerEventBatch(dispatch);
   const recoverServerState = useCallback(
     (callId, hints = {}) => {
       if (!apiClient || !callId) return Promise.resolve({});
@@ -43,14 +44,16 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
   const connectSse = useCallback(
     (callId) => {
       if (!apiBaseUrl) return;
+      clearQueuedServerEvents();
       sseRef.current?.disconnect();
       sseRef.current = createSseClient({
         baseUrl: apiBaseUrl,
         callId,
         onEvent(eventName, envelope) {
-          dispatch({ type: ACTION.SERVER_EVENT, envelope });
+          queueServerEvent(envelope);
           const hints = recoveryHintsForEvent(eventName, envelope);
           if (hints !== null) {
+            flushQueuedServerEvents();
             void requestRecovery(callId, hints).catch((caught) => {
               dispatch({ type: ACTION.ERROR, error: toError(caught) });
             });
@@ -69,7 +72,7 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
         }
       });
     },
-    [apiBaseUrl, requestRecovery]
+    [apiBaseUrl, clearQueuedServerEvents, flushQueuedServerEvents, queueServerEvent, requestRecovery]
   );
   const clearSession = useServerSessionRecovery({
     apiClient,
@@ -150,7 +153,6 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
       dispatch({ type: ACTION.ERROR, error: toError(caught) });
     }
   }, [apiClient, connectSse]);
-
   const connectLiveCall = useCallback(
     (call) => {
       callIdRef.current = call.callId;
@@ -160,6 +162,9 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
     },
     [connectSse]
   );
+  const applyLiveTranscriptFrame = useCallback((frame) => {
+    dispatch({ type: ACTION.LIVE_TRANSCRIPT_FRAME, frame });
+  }, []);
   const triggerPayment = usePaymentIntentCreation({ apiClient, dispatch, idempotencyKey, stateRef, toError });
   const agreementConfirmation = useAgreementConfirmation({
     apiClient,
@@ -172,7 +177,6 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
     booking: state.booking,
     paymentGate: state.paymentGate
   });
-
   const simulateWalletPayment = useCallback(async () => {
     const intent = stateRef.current.paymentIntent;
     if (!apiClient || !intent || stateRef.current.paymentActionPending) return;
@@ -202,7 +206,6 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
       } else dispatch({ type: ACTION.ERROR, error });
     }
   }, [apiClient, requestRecovery]);
-
   const tamperAgreement = useCallback(async () => {
     const receiptId = stateRef.current.receiptId;
     if (!apiClient || !receiptId) return;
@@ -221,7 +224,13 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
     if (stateRef.current.paymentIntent?.provider === "solana_devnet") dispatch({ type: ACTION.PAYMENT_WALLET_OPENED });
   }, []);
 
-  const resetSimulation = useServerSimulationReset({
+  const acceptRevenueTwinOffer = useAcceptRevenueTwinOffer({
+    apiClient,
+    callIdRef,
+    requestRecovery,
+    stateRef
+  });
+  const resetServerSimulation = useServerSimulationReset({
     apiClient,
     callIdRef,
     clearSession,
@@ -232,7 +241,10 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
     sseRef,
     stateRef
   });
-
+  const resetSimulation = useCallback(() => {
+    clearQueuedServerEvents();
+    resetServerSimulation();
+  }, [clearQueuedServerEvents, resetServerSimulation]);
   useEffect(() => {
     if (!state.isSimulating || !state.replayInputEnabled || !state.callId || !apiClient) return;
     const turns = scenarios[scenarioIdx] ?? [];
@@ -250,7 +262,6 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
     state.replayInputEnabled,
     submitNextTurn
   ]);
-
   useEffect(() => {
     if (
       state.booking?.status === "AGREEMENT_LOCKED" &&
@@ -260,32 +271,28 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
       void triggerPayment();
     }
   }, [state.booking?.status, state.paymentGate, state.paymentIntentId, triggerPayment]);
-
   useEffect(() => {
     if (state.needsRecovery && state.callId) void requestRecovery(state.callId).catch((caught) => {
       dispatch({ type: ACTION.ERROR, error: toError(caught) });
     });
   }, [requestRecovery, state.callId, state.needsRecovery]);
-
   useSolanaPaymentPolling(state, simulateWalletPayment);
-
   useEffect(
     () => () => {
+      clearQueuedServerEvents();
       sseRef.current?.disconnect();
     },
-    []
+    [clearQueuedServerEvents]
   );
 
   return {
     ...state,
-    currentTurnIdx,
-    startSimulation,
-    connectLiveCall,
+    currentTurnIdx, startSimulation, connectLiveCall, applyLiveTranscriptFrame,
     startPostCallTranscriptSync: postCallTranscriptSync.start,
     agreementConfirmation,
+    acceptRevenueTwinOffer,
     simulateWalletPayment,
     markPaymentWalletOpened,
-    tamperAgreement,
-    resetSimulation
+    tamperAgreement, resetSimulation
   };
 }

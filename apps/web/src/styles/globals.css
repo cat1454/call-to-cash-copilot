@@ -1,4 +1,12 @@
 @import "tailwindcss";
+@import "./fleet-revenue-twin-layout.css";
+@import "./fleet-revenue-twin-hero.css";
+@import "./fleet-revenue-twin-livecall.css";
+
+@import "./fleet-revenue-twin-phone.css";
+@import "./fleet-revenue-twin-decision.css";
+@import "./fleet-revenue-twin-kpi.css";
+@import "./fleet-revenue-twin-telemetry.css";
 
 /* =============================================================
    DESIGN TOKENS — Call-to-Cash Risk Copilot
@@ -6,7 +14,7 @@
    ============================================================= */
 @theme {
   /* Typography */
-  --font-sans: "Outfit", "Inter", "SF Pro Display", "Segoe UI", sans-serif;
+  --font-sans: "Plus Jakarta Sans", "Outfit", "Lexend", "Inter", sans-serif;
 
   /* Surfaces */
   --color-canvas: #ffffff;

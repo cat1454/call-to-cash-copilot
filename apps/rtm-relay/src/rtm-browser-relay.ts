@@ -89,7 +89,10 @@ export class AgoraRtmBrowserRelay {
       500,
       undefined,
       undefined,
-      (error) => console.error("RTM transcript forwarding failed", error)
+      (error) => {
+        this.transcriptStats.recordForwardFailed("AGENT");
+        console.error("RTM transcript forwarding failed", error);
+      }
     );
     const browser = await chromium.launch({
       headless: true,
@@ -201,16 +204,17 @@ export class AgoraRtmBrowserRelay {
   ): boolean {
     const parsed = parseRtmTranscriptFrame(rawMessage, publisher, binding);
     if (!parsed.accepted) {
-      this.transcriptStats.recordRejected(parsed.reason);
+      this.transcriptStats.recordRejected(parsed.reason, rawMessage);
       return false;
     }
     this.transcriptStats.recordAccepted(parsed.event.turn.speaker);
     if (parsed.event.turn.speaker === "AGENT") {
       assistantTurns.push(parsed.event, deliveryModeForRtmFrame(rawMessage));
     } else {
-      void this.forward(parsed.event).catch((error) =>
-        console.error("RTM transcript forwarding failed", error)
-      );
+      void this.forward(parsed.event).catch((error) => {
+        this.transcriptStats.recordForwardFailed("CUSTOMER");
+        console.error("RTM transcript forwarding failed", error);
+      });
     }
     return true;
   }

@@ -1,0 +1,282 @@
+.decision-card {
+  overflow: hidden;
+}
+
+.decision-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 20px 20px;
+}
+
+.decision-step {
+  border-bottom: 1px solid #edf2f7;
+  padding-bottom: 16px;
+}
+
+.decision-step:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.step-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 12px;
+  color: #059669;
+}
+
+.step-title h3 {
+  color: #111827;
+  font-size: 15px;
+}
+
+.field-grid,
+.analysis-grid,
+.kpi-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.field-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.field-grid div,
+.mini-panel,
+.confirmation-list div {
+  border: 1px solid #f1f5f9;
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 12px;
+  transition: all 0.2s ease;
+}
+
+.analysis-grid {
+  grid-template-columns: 1fr 0.82fr;
+}
+
+.mini-panel h4 {
+  margin-bottom: 8px;
+  color: #374151;
+  font-size: 13px;
+}
+
+.mini-panel ul {
+  padding-left: 18px;
+  color: #4b5563;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.option-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.option-list div {
+  display: grid;
+  grid-template-columns: 52px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 9px;
+  font-size: 12px;
+}
+
+.option-list em {
+  color: #64748b;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.recommended-option {
+  outline: 1px solid #10b981;
+}
+
+.recommendation-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 14px;
+  border: 1px solid #f1f5f9;
+}
+
+.recommendation-details {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+}
+
+.recommendation-details div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.recommendation-panel strong {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #111827;
+}
+
+.offer-chips {
+  flex-direction: row !important;
+  flex-wrap: wrap;
+}
+
+.offer-chips span {
+  border-radius: 999px;
+  background: #ecfdf5;
+  padding: 6px 9px;
+  color: #047857;
+  font-weight: 700;
+}
+
+.recommendation-panel button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  background: #059669;
+  color: #ffffff;
+  padding: 0 18px;
+  width: 100%;
+  min-height: 44px;
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(5, 150, 105, 0.15);
+  font-weight: 700;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.recommendation-panel button:hover:not(:disabled) {
+  background: #047857;
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(5, 150, 105, 0.25);
+}
+
+.recommendation-panel button:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.recommendation-panel button:disabled {
+  cursor: not-allowed;
+  background: #94a3b8;
+  box-shadow: none;
+}
+
+.confirmation-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.confirmation-list div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #047857;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.confirmation-list .confirmation-pending {
+  color: #94a3b8;
+}
+
+
+
+
+.audit-log-card {
+  margin-top: 22px;
+  padding: 16px 18px;
+}
+
+.audit-log-line {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #475569;
+  font-size: 13px;
+}
+
+.audit-log-line svg {
+  color: #059669;
+}
+
+.audit-log-card button {
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #475569;
+  padding: 0 14px;
+}
+
+@media (max-width: 1240px) {
+  .fleet-dashboard-grid {
+    grid-template-columns: minmax(320px, 1fr) minmax(360px, 0.9fr);
+  }
+
+  .phone-anchor {
+    grid-column: 1 / 2;
+    grid-row: 1;
+  }
+
+  .left-column {
+    grid-column: 2 / 3;
+    grid-row: 1;
+  }
+
+  .right-column {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 860px) {
+  body {
+    padding: 12px;
+  }
+
+  .fleet-topbar,
+  .audit-log-card,
+  .recommendation-panel {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .topbar-status {
+    justify-content: flex-start;
+  }
+
+  .fleet-dashboard-grid {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .phone-anchor {
+    order: -1;
+  }
+
+  .phone-shell-demo {
+    min-height: 720px;
+  }
+
+  .field-grid,
+  .analysis-grid,
+  .confirmation-list,
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}

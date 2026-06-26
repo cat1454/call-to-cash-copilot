@@ -9,7 +9,16 @@ export function deliveryModeForRtmFrame(rawMessage: unknown): RtmDeliveryMode {
   if (typeof rawMessage !== "string") return "immediate";
   try {
     const payload = JSON.parse(rawMessage) as Record<string, unknown>;
-    return payload.object === "assistant.transcription" && payload.turn_status === undefined
+    if (payload.object !== "assistant.transcription") return "immediate";
+    const status =
+      typeof payload.turn_status === "string"
+        ? payload.turn_status.trim().toLowerCase()
+        : payload.turn_status;
+    return status === undefined ||
+      status === 0 ||
+      status === "0" ||
+      status === "partial" ||
+      status === "in_progress"
       ? "debounced"
       : "immediate";
   } catch {

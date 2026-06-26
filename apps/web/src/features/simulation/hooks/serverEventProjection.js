@@ -1,9 +1,7 @@
 import { EventEnvelopeSchema, EventName } from "@call-to-cash/shared";
 import { hasCustomerAndAgentTurns } from "./transcriptCompleteness.js";
-import {
-  projectTranscriptTurnForDisplay,
-  sanitizePublicText
-} from "./transcriptDisplayProjection.js";
+import { mergeAuthoritativeTranscriptTurn } from "./liveTranscriptProjection.js";
+import { sanitizePublicText } from "./transcriptDisplayProjection.js";
 import {
   formatDepartureDate,
   formatDepartureTime,
@@ -209,9 +207,8 @@ export function applyServerEvent(state, input) {
       };
     case EventName.TranscriptTurnCreated: {
       if (next.transcript.some((turn) => turn.turnId === data.turnId)) return next;
-      const displayTurn = projectTranscriptTurnForDisplay(data);
+      const { transcript, displayTurn } = mergeAuthoritativeTranscriptTurn(next.transcript, data);
       const text = displayTurn.text;
-      const transcript = [...next.transcript, displayTurn];
       const transcriptComplete = hasCustomerAndAgentTurns(transcript);
       return {
         ...next,

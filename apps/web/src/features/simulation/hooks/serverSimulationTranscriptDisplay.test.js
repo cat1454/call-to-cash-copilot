@@ -75,6 +75,126 @@ describe("server simulation transcript display projection", () => {
     assert.equal(state.subtitles.text, "Dạ, em muốn, đặt ba chỗ.");
   });
 
+  test("live customer interim snapshots replace the same provider turn", () => {
+    const first = reducer(makeInitialState(), {
+      type: ACTION.LIVE_TRANSCRIPT_FRAME,
+      frame: {
+        providerTurnId: "agora-customer-1",
+        speaker: "CUSTOMER",
+        rawText: "Toi muon dat",
+        final: false,
+        timestamp: occurredAt
+      }
+    });
+    const updated = reducer(first, {
+      type: ACTION.LIVE_TRANSCRIPT_FRAME,
+      frame: {
+        providerTurnId: "agora-customer-1",
+        speaker: "CUSTOMER",
+        rawText: "Toi muon dat ve di Ha Noi",
+        final: false,
+        timestamp: occurredAt
+      }
+    });
+
+    assert.equal(updated.transcript.length, 1);
+    assert.deepEqual(updated.transcript[0], {
+      sender: "customer",
+      text: "Toi muon dat ve di Ha Noi",
+      turnId: "agora-customer-1",
+      providerTurnId: "agora-customer-1",
+      authoritative: false,
+      final: false,
+      timestamp: occurredAt
+    });
+    assert.equal(updated.subtitles.speaker, "Khách hàng");
+  });
+
+  test("live AI final frames create a visible AI bubble immediately", () => {
+    const state = reducer(makeInitialState(), {
+      type: ACTION.LIVE_TRANSCRIPT_FRAME,
+      frame: {
+        providerTurnId: "agora-agent-1",
+        speaker: "AGENT",
+        rawText: "Minh da ghi nhan, ban muon di ngay nao?",
+        final: true,
+        timestamp: occurredAt
+      }
+    });
+
+    assert.deepEqual(state.transcript, [
+      {
+        sender: "ai",
+        text: "Minh da ghi nhan, ban muon di ngay nao?",
+        turnId: "agora-agent-1",
+        providerTurnId: "agora-agent-1",
+        authoritative: false,
+        final: true,
+        timestamp: occurredAt
+      }
+    ]);
+    assert.equal(state.subtitles.speaker, "Tổng đài AI");
+  });
+
+  test("final SSE promotes the matching live bubble without duplication", () => {
+    const live = reducer(makeInitialState(), {
+      type: ACTION.LIVE_TRANSCRIPT_FRAME,
+      frame: {
+        providerTurnId: "agora-agent-1",
+        speaker: "AGENT",
+        rawText: "Minh da ghi nhan.",
+        final: true,
+        timestamp: occurredAt
+      }
+    });
+    const authoritative = reducer(live, {
+      type: ACTION.SERVER_EVENT,
+      envelope: envelope(EventName.TranscriptTurnCreated, {
+        turnId: "turn_public_agent1",
+        sequenceNo: 2,
+        speaker: "AGENT",
+        content: "Minh da ghi nhan.",
+        isFinal: true,
+        timestamp: occurredAt
+      })
+    });
+
+    assert.deepEqual(authoritative.transcript, [
+      {
+        sender: "ai",
+        text: "Minh da ghi nhan.",
+        turnId: "turn_public_agent1",
+        timestamp: occurredAt
+      }
+    ]);
+    assert.equal(authoritative.subtitles.text, "Minh da ghi nhan.");
+  });
+
+  test("late live interim frames cannot overwrite a finalized live turn", () => {
+    const final = reducer(makeInitialState(), {
+      type: ACTION.LIVE_TRANSCRIPT_FRAME,
+      frame: {
+        providerTurnId: "agora-agent-1",
+        speaker: "AGENT",
+        rawText: "Da ro.",
+        final: true,
+        sequence: 2
+      }
+    });
+    const late = reducer(final, {
+      type: ACTION.LIVE_TRANSCRIPT_FRAME,
+      frame: {
+        providerTurnId: "agora-agent-1",
+        speaker: "AGENT",
+        rawText: "Dang noi",
+        final: false,
+        sequence: 3
+      }
+    });
+
+    assert.deepEqual(late.transcript, final.transcript);
+  });
+
   test("REST transcript recovery uses the same masking and display normalization", () => {
     const state = reducer(makeInitialState(), {
       type: ACTION.TRANSCRIPT_SYNCED,

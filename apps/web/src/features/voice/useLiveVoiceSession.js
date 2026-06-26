@@ -8,6 +8,7 @@ export function useLiveVoiceSession(apiClient, onCreated) {
   const clientRef = useRef(null);
   const callIdRef = useRef(null);
   const startingRef = useRef(false);
+  const mountedRef = useRef(true);
   const agentStartGateRef = useRef(createAgentStartGate());
   const [callId, setCallId] = useState(null);
   const start = useCallback(async () => {
@@ -38,9 +39,13 @@ export function useLiveVoiceSession(apiClient, onCreated) {
       await agentStartGateRef.current.start(readiness, () =>
         apiClient.startVoiceSession(voice.callId, readiness)
       );
-      dispatch({ type: "CONNECTED" });
+      if (mountedRef.current) dispatch({ type: "CONNECTED" });
     } catch (error) {
-      dispatch({ type: error?.code === "AGORA_CHANNEL_UNAVAILABLE" ? "UNAVAILABLE" : "FAILED" });
+      if (mountedRef.current) {
+        dispatch({
+          type: error?.code === "AGORA_CHANNEL_UNAVAILABLE" ? "UNAVAILABLE" : "FAILED"
+        });
+      }
       await client.disconnect().catch(() => {});
     } finally {
       startingRef.current = false;
@@ -64,9 +69,12 @@ export function useLiveVoiceSession(apiClient, onCreated) {
   }, []);
   useEffect(
     () => () => {
-      void stop();
+      mountedRef.current = false;
+      void clientRef.current?.disconnect().catch(() => {});
+      clientRef.current = null;
+      agentStartGateRef.current.reset();
     },
-    [stop]
+    []
   );
   return { connectionState, start, stop, callId };
 }

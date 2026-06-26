@@ -60,6 +60,16 @@ function matchesDeparture(
   );
 }
 
+export function selectUniqueCatalogueDeparture<T extends { departureAtUtc: Date }>(
+  candidates: readonly T[],
+  facts: UpsertBookingFromFactsInput["facts"]
+): T | null {
+  const exactDepartures = candidates.filter((candidate) =>
+    matchesDeparture(candidate.departureAtUtc, facts)
+  );
+  return exactDepartures.length === 1 ? exactDepartures[0]! : null;
+}
+
 export function resolveDepartureRoute(
   facts: UpsertBookingFromFactsInput["facts"],
   existing: { routeFrom: string | null; routeTo: string | null } | null
@@ -101,13 +111,7 @@ export async function upsertBookingFromFacts(
           orderBy: { departureAtUtc: "asc" }
         })
       : [];
-  const exactDepartures = departureCandidates.filter((candidate) =>
-    matchesDeparture(candidate.departureAtUtc, facts)
-  );
-  const departure =
-    exactDepartures.length === 1 || facts.departureLocalTime !== undefined
-      ? (exactDepartures[0] ?? null)
-      : null;
+  const departure = selectUniqueCatalogueDeparture(departureCandidates, facts);
   const passengerCount = facts.passengerCount ?? existing?.passengerCount ?? null;
   const existingDeparture =
     departure === null &&

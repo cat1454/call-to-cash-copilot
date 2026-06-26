@@ -27,14 +27,12 @@ import { usePaymentIntentCountdown } from "./usePaymentIntentCountdown";
 import useServerSimulation from "./useServerSimulation";
 import { VOICE_PROVIDER } from "../../../config/runtime";
 import { useLiveVoiceSession } from "../../voice/useLiveVoiceSession";
-
 export default function useCallSimulation() {
   const isMobile = useViewportMode();
   const { apiMode, apiBaseUrl, apiClient, isProbing, demoReady, demoReadiness, retryDemoReadiness } =
     useApiMode();
   const [currentScenarioIdx, setCurrentScenarioIdx] = useState(0);
   const [voiceMode, setVoiceMode] = useState(VOICE_PROVIDER);
-
   // ---- Mock simulation state (used only when apiMode=false) -----------
   const [isSimulating, setIsSimulating] = useState(false);
   const [simStatus, setSimStatus] = useState("Sẵn sàng");
@@ -61,7 +59,6 @@ export default function useCallSimulation() {
   const [timelineSteps, setTimelineSteps] = useState([]);
   const [ledgerLogs, setLedgerLogs] = useState(createInitialLedgerLogs);
   const { clearTimeouts, scheduleTimeout } = useTimeoutRegistry();
-
   const mockSetters = {
     setBookingData,
     setBrainMode,
@@ -88,7 +85,6 @@ export default function useCallSimulation() {
     setTimelineSteps,
     setTranscript
   };
-
   useCallDurationTimer({
     isWaveAnimating,
     callDuration,
@@ -102,7 +98,6 @@ export default function useCallSimulation() {
     setBtnPhonePayText,
     setDrawerTimerText
   });
-
   // ---- API simulation (always called unconditionally for hook rules) ---
   const server = useServerSimulation(
     apiMode ? apiClient : null,
@@ -190,6 +185,7 @@ export default function useCallSimulation() {
       retryDemoReadiness,
       streamStatus: server.streamStatus,
       paymentGate: server.paymentGate,
+      serverAuthority: { booking: server.booking, revenueTwin: server.revenueTwin },
       isMobile,
       currentScenarioIdx,
       isSimulating: server.isSimulating,
@@ -222,11 +218,13 @@ export default function useCallSimulation() {
       ledgerLogs: server.ledgerLogs,
       selectScenario,
       startSimulation: voiceMode === "agora" ? liveVoice.start : server.startSimulation,
+      applyLiveTranscriptFrame: server.applyLiveTranscriptFrame,
       resetSimulation: () => {
         setMobileTab("call");
         server.resetSimulation();
       },
       simulateWalletPayment: server.simulateWalletPayment,
+      acceptRevenueTwinOffer: server.acceptRevenueTwinOffer,
       markPaymentWalletOpened: server.markPaymentWalletOpened,
       tamperAgreement: server.tamperAgreement,
       agreementConfirmation: server.agreementConfirmation,
@@ -254,6 +252,7 @@ export default function useCallSimulation() {
     retryDemoReadiness,
     streamStatus: isProbing ? "connecting" : "demo",
     paymentGate: null,
+    serverAuthority: { booking: null, revenueTwin: { evaluation: null, dashboard: null } },
     isMobile,
     currentScenarioIdx,
     isSimulating,
@@ -283,9 +282,10 @@ export default function useCallSimulation() {
     timelineSteps,
     ledgerLogs,
     selectScenario,
-    startSimulation: () => {},
+    startSimulation: () => {}, applyLiveTranscriptFrame: () => {},
     resetSimulation: mockReset,
     simulateWalletPayment: mockSimulateWalletPayment,
+    acceptRevenueTwinOffer: async () => null,
     markPaymentWalletOpened: () => {},
     tamperAgreement: mockHandleTamper,
     agreementConfirmation: inactiveAgreementConfirmation,

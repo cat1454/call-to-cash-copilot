@@ -63,6 +63,22 @@ test("classifies terminal assistant frames for immediate delivery", () => {
     ),
     "debounced"
   );
+  assert.equal(
+    deliveryModeForRtmFrame(
+      JSON.stringify({
+        object: "assistant.transcription",
+        text: "Đang nói",
+        turn_status: "in_progress"
+      })
+    ),
+    "debounced"
+  );
+  assert.equal(
+    deliveryModeForRtmFrame(
+      JSON.stringify({ object: "assistant.transcription", text: "Đang nói", turn_status: 0 })
+    ),
+    "debounced"
+  );
 });
 
 test("relay statistics expose counts without transcript content", () => {
@@ -72,12 +88,18 @@ test("relay statistics expose counts without transcript content", () => {
   );
   stats.recordReceived(JSON.stringify({ object: "assistant.transcription" }));
   stats.recordAccepted("AGENT");
-  stats.recordRejected("PARTIAL");
+  stats.recordRejected(
+    "PARTIAL",
+    JSON.stringify({ object: "assistant.transcription", text: "Nội dung nhạy cảm" })
+  );
+  stats.recordForwardFailed("AGENT");
 
   const snapshot = stats.snapshot(1);
   assert.deepEqual(snapshot.received, { customer: 0, agent: 2, unknown: 0 });
   assert.deepEqual(snapshot.accepted, { customer: 0, agent: 1 });
   assert.deepEqual(snapshot.rejected, { PARTIAL: 1 });
+  assert.deepEqual(snapshot.rejectedBySource.agent, { PARTIAL: 1 });
+  assert.deepEqual(snapshot.forwardFailed, { customer: 0, agent: 1 });
   assert.deepEqual(snapshot.assistantText, { direct: 1, alternate: 0, missing: 1, nonString: 0 });
   assert.doesNotMatch(JSON.stringify(snapshot), /Nội dung nhạy cảm/u);
 });

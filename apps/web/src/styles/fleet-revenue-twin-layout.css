@@ -1,0 +1,104 @@
+.fleet-twin-page {
+  min-height: calc(100vh - 48px);
+  padding: 24px;
+  background: radial-gradient(circle at 5% 5%, rgba(5, 150, 105, 0.03) 0%, transparent 40%),
+              radial-gradient(circle at 95% 95%, rgba(16, 185, 129, 0.03) 0%, transparent 40%),
+              #f8fafc;
+  color: #111827;
+}
+
+
+.fleet-dashboard-grid,
+.kpi-card,
+.audit-log-card {
+  width: 100%;
+  max-width: 1480px;
+  margin: 0 auto;
+}
+
+
+/* Hero styles are moved to fleet-revenue-twin-hero.css */
+
+
+
+.fleet-dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.9fr) minmax(360px, 0.92fr) minmax(420px, 1.18fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.left-column,
+.right-column {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.fleet-card,
+.audit-log-card {
+  width: 100%;
+  border: 1px solid #f1f5f9;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 10px 30px -4px rgba(15, 23, 42, 0.04), 0 4px 12px -2px rgba(15, 23, 42, 0.02);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.fleet-card-header,
+.audit-log-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.fleet-card-header {
+  padding: 20px 20px 14px;
+  border-bottom: 1px solid #edf2f7;
+}
+
+.fleet-card-header.compact {
+  padding-bottom: 16px;
+}
+
+.fleet-card h2,
+.audit-log-card h2 {
+  margin-top: 3px;
+  font-size: 18px;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.fleet-badge {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  border-radius: 999px;
+  padding: 5px 10px;
+  border: 1px solid #a7f3d0;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.fleet-badge-slate {
+  border-color: #e5e7eb;
+  background: #f9fafb;
+  color: #475569;
+}
+
+.fleet-badge-amber {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+
+
+
+

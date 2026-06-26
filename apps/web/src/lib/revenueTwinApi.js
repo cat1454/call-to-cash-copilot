@@ -6,6 +6,11 @@ export function createRevenueTwinApi(post, get) {
     getLatestRevenueTwinEvaluation(callId) {
       return get(`/v1/calls/${callId}/revenue-twin/evaluations/latest`);
     },
+    acceptRevenueTwinOffer(callId, offerId, command, idempotencyKey) {
+      return post(`/v1/calls/${callId}/revenue-twin/offers/${offerId}/accept`, command, {
+        "Idempotency-Key": idempotencyKey
+      });
+    },
     getRevenueTwinDashboard() {
       return get("/v1/revenue-twin/dashboard");
     }

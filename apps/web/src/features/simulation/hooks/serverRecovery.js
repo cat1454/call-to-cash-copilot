@@ -12,7 +12,13 @@ export const recoveryEvents = new Set([
   EventName.PaymentFailed,
   EventName.ReceiptCreated,
   EventName.ReceiptVerified,
-  EventName.CallEnded
+  EventName.CallEnded,
+  EventName.RevenueTwinEvaluated,
+  EventName.RevenueTwinOfferAccepted,
+  EventName.RevenueTwinOfferDeclined,
+  EventName.RevenueTwinOfferExpired,
+  EventName.RevenueTwinReevaluationRequired,
+  EventName.RevenueTwinWaitlistJoined
 ]);
 
 /**
@@ -89,6 +95,26 @@ export async function recoverServerState(apiClient, dispatch, state, callId, hin
     result.verification = verification;
     dispatch({ type: ACTION.RECEIPT_SYNCED, receipt });
     dispatch({ type: ACTION.VERIFICATION_SYNCED, verification });
+  }
+
+  const canSyncRevenueTwin =
+    typeof apiClient.getLatestRevenueTwinEvaluation === "function" ||
+    typeof apiClient.getRevenueTwinDashboard === "function";
+  if (typeof apiClient.getLatestRevenueTwinEvaluation === "function") {
+    result.revenueTwinEvaluation = await apiClient.getLatestRevenueTwinEvaluation(callId);
+  }
+
+  if (typeof apiClient.getRevenueTwinDashboard === "function") {
+    result.revenueTwinDashboard = await apiClient.getRevenueTwinDashboard();
+  }
+  if (canSyncRevenueTwin) {
+    dispatch({
+      type: ACTION.REVENUE_TWIN_SYNCED,
+      revenueTwin: {
+        evaluation: result.revenueTwinEvaluation ?? null,
+        dashboard: result.revenueTwinDashboard ?? null
+      }
+    });
   }
 
   dispatch({ type: ACTION.RECOVERY_COMPLETE });

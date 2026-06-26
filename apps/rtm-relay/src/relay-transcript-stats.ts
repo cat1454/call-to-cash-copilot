@@ -8,22 +8,39 @@ export class RelayTranscriptStats {
   private readonly accepted = { customer: 0, agent: 0 };
   private readonly assistantText = { direct: 0, alternate: 0, missing: 0, nonString: 0 };
   private readonly rejected: Partial<Record<RejectionReason, number>> = {};
+  private readonly rejectedBySource = {
+    customer: {} as Partial<Record<RejectionReason, number>>,
+    agent: {} as Partial<Record<RejectionReason, number>>,
+    unknown: {} as Partial<Record<RejectionReason, number>>
+  };
+  private readonly forwardFailed = { customer: 0, agent: 0 };
 
-  recordReceived(rawMessage: unknown): void {
+  private sourceFor(rawMessage: unknown): "customer" | "agent" | "unknown" {
     if (typeof rawMessage !== "string") {
-      this.received.unknown += 1;
-      return;
+      return "unknown";
     }
     try {
       const payload = JSON.parse(rawMessage) as Record<string, unknown>;
-      if (payload.object === "user.transcription") this.received.customer += 1;
-      else if (payload.object === "assistant.transcription") {
-        this.received.agent += 1;
-        const source = assistantTextSource(payload);
-        if (source !== undefined) this.assistantText[source] += 1;
-      } else this.received.unknown += 1;
+      if (payload.object === "user.transcription") return "customer";
+      if (payload.object === "assistant.transcription") return "agent";
+      return "unknown";
     } catch {
-      this.received.unknown += 1;
+      return "unknown";
+    }
+  }
+
+  recordReceived(rawMessage: unknown): void {
+    const source = this.sourceFor(rawMessage);
+    this.received[source] += 1;
+    if (source !== "agent" || typeof rawMessage !== "string") return;
+    try {
+      const payload = JSON.parse(rawMessage) as Record<string, unknown>;
+      if (payload.object === "assistant.transcription") {
+        const textSource = assistantTextSource(payload);
+        if (textSource !== undefined) this.assistantText[textSource] += 1;
+      }
+    } catch {
+      return;
     }
   }
 
@@ -31,8 +48,14 @@ export class RelayTranscriptStats {
     this.accepted[speaker === "CUSTOMER" ? "customer" : "agent"] += 1;
   }
 
-  recordRejected(reason: RejectionReason): void {
+  recordRejected(reason: RejectionReason, rawMessage?: unknown): void {
     this.rejected[reason] = (this.rejected[reason] ?? 0) + 1;
+    const source = this.sourceFor(rawMessage);
+    this.rejectedBySource[source][reason] = (this.rejectedBySource[source][reason] ?? 0) + 1;
+  }
+
+  recordForwardFailed(speaker: "CUSTOMER" | "AGENT"): void {
+    this.forwardFailed[speaker === "CUSTOMER" ? "customer" : "agent"] += 1;
   }
 
   snapshot(activeSessions: number) {
@@ -41,7 +64,13 @@ export class RelayTranscriptStats {
       received: { ...this.received },
       accepted: { ...this.accepted },
       assistantText: { ...this.assistantText },
-      rejected: { ...this.rejected }
+      rejected: { ...this.rejected },
+      rejectedBySource: {
+        customer: { ...this.rejectedBySource.customer },
+        agent: { ...this.rejectedBySource.agent },
+        unknown: { ...this.rejectedBySource.unknown }
+      },
+      forwardFailed: { ...this.forwardFailed }
     };
   }
 }

@@ -1,0 +1,156 @@
+.phone-anchor {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.phone-shell-demo {
+  position: relative;
+  width: min(100%, 390px);
+  min-height: 780px;
+  border: 10px solid #172033;
+  border-radius: 52px;
+  background: #ffffff;
+  overflow: hidden;
+  box-shadow: 0 36px 80px rgba(15, 23, 42, 0.22);
+}
+
+.phone-status {
+  display: flex;
+  justify-content: space-between;
+  padding: 18px 26px 8px;
+  color: #111827;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.phone-icons {
+  color: #475569;
+}
+
+.phone-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+}
+
+.phone-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  border-radius: 28px;
+  background: #f8fafc;
+  padding: 22px 16px;
+  text-align: center;
+}
+
+.phone-live-icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.phone-hero h2 {
+  font-size: 18px;
+}
+
+.phone-hero p {
+  color: #059669;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.waveform {
+  display: flex;
+  height: 34px;
+  align-items: center;
+  gap: 4px;
+}
+
+.waveform span {
+  width: 4px;
+  border-radius: 999px;
+  background: #10b981;
+}
+
+.phone-transcript-card,
+.booking-summary-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  background: #ffffff;
+  padding: 16px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+}
+
+.phone-transcript-card span,
+.booking-summary-card span {
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.phone-transcript-card strong {
+  display: block;
+  margin-top: 8px;
+  color: #111827;
+  font-size: 17px;
+}
+
+.phone-transcript-card p {
+  margin-top: 8px;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.booking-summary-card h3 {
+  margin-bottom: 10px;
+  color: #059669;
+  font-size: 15px;
+}
+
+.booking-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.booking-rows div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid #f3f4f6;
+  padding: 10px 0;
+}
+
+.booking-rows strong {
+  color: #111827;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.phone-home {
+  position: absolute;
+  right: 50%;
+  bottom: 12px;
+  width: 112px;
+  height: 5px;
+  transform: translateX(50%);
+  border-radius: 999px;
+  background: #111827;
+}
+
+.phone-caption {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #64748b;
+  font-size: 12px;
+}

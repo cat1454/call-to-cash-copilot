@@ -247,3 +247,147 @@ test("accepts a text-mode assistant transcript whose provider names the text con
   assert.equal(result.accepted, true);
   if (result.accepted) assert.equal(result.event.turn.text, "Mình đã ghi nhận yêu cầu của bạn.");
 });
+
+test("accepts a text-mode assistant transcript nested under data transcript", () => {
+  const result = parseRtmTranscriptFrame(
+    JSON.stringify({
+      object: "assistant.transcription",
+      data: {
+        transcript: "Mình đã ghi nhận, bạn muốn đi ngày nào?"
+      },
+      turn_id: 4
+    }),
+    "9001",
+    binding,
+    new Date("2026-06-22T10:00:04.000Z")
+  );
+
+  assert.equal(result.accepted, true);
+  if (result.accepted) {
+    assert.equal(result.event.turn.speaker, "AGENT");
+    assert.equal(result.event.turn.text, "Mình đã ghi nhận, bạn muốn đi ngày nào?");
+  }
+});
+
+test("accepts assistant provider frames with string numeric metadata", () => {
+  const result = parseRtmTranscriptFrame(
+    JSON.stringify({
+      object: "assistant.transcription",
+      text: "Mình đã ghi nhận.",
+      start_ms: "1200",
+      duration_ms: "800",
+      language: "",
+      turn_id: "5",
+      stream_id: "0",
+      user_id: 9001,
+      words: { items: [{ text: "Mình" }] },
+      turn_status: "1"
+    }),
+    "9001",
+    binding,
+    new Date("2026-06-22T10:00:05.000Z")
+  );
+
+  assert.equal(result.accepted, true);
+  if (result.accepted) {
+    assert.equal(result.event.turn.speaker, "AGENT");
+    assert.equal(result.event.turn.sequenceNo, 12);
+    assert.equal(result.event.turn.language, "vi-VN");
+    assert.equal(result.event.turn.text, "Mình đã ghi nhận.");
+  }
+});
+
+test("accepts terminal assistant provider frames with text turn status", () => {
+  const result = parseRtmTranscriptFrame(
+    JSON.stringify({
+      object: "assistant.transcription",
+      text: "Bạn muốn đón ở điểm nào?",
+      turn_id: "6",
+      turn_status: "completed"
+    }),
+    "9001",
+    binding,
+    new Date("2026-06-22T10:00:06.000Z")
+  );
+
+  assert.equal(result.accepted, true);
+  if (result.accepted) {
+    assert.equal(result.event.turn.speaker, "AGENT");
+    assert.equal(result.event.turn.sequenceNo, 14);
+  }
+});
+
+test("accepts in-progress assistant provider frames as displayable AI turns", () => {
+  const result = parseRtmTranscriptFrame(
+    JSON.stringify({
+      object: "assistant.transcription",
+      text: "Bạn muốn",
+      turn_id: "7",
+      turn_status: "in_progress"
+    }),
+    "9001",
+    binding,
+    new Date("2026-06-22T10:00:07.000Z")
+  );
+
+  assert.equal(result.accepted, true);
+  if (result.accepted) {
+    assert.equal(result.event.turn.speaker, "AGENT");
+    assert.equal(result.event.turn.text, "Bạn muốn");
+    assert.equal(result.event.turn.final, true);
+  }
+});
+
+test("accepts assistant text even when optional provider metadata has unexpected shapes", () => {
+  const result = parseRtmTranscriptFrame(
+    JSON.stringify({
+      object: "assistant.transcription",
+      text: "Mình kiểm tra lại lịch cho bạn.",
+      start_ms: { value: 1200 },
+      duration_ms: "not-a-number",
+      language: null,
+      turn_id: "provider-turn-a",
+      stream_id: false,
+      user_id: null,
+      words: { items: [] },
+      turn_status: { state: "speaking" }
+    }),
+    "9001",
+    binding,
+    new Date("2026-06-22T10:00:08.000Z")
+  );
+
+  assert.equal(result.accepted, true);
+  if (result.accepted) {
+    assert.equal(result.event.turn.speaker, "AGENT");
+    assert.equal(result.event.turn.sequenceNo, 2);
+    assert.equal(result.event.turn.language, "vi-VN");
+    assert.equal(result.event.turn.text, "Mình kiểm tra lại lịch cho bạn.");
+  }
+});
+
+test("accepts assistant text when provider metadata would fail the strict customer schema", () => {
+  const result = parseRtmTranscriptFrame(
+    JSON.stringify({
+      object: "assistant.transcription",
+      text: "Mình đã có chuyến phù hợp.",
+      language: "vi-VN-provider-extra-label-that-is-longer-than-the-contract",
+      user_id: "",
+      turn_id: "",
+      stream_id: "",
+      words: { unexpected: true },
+      turn_status: "provider-specific-status"
+    }),
+    "9001",
+    binding,
+    new Date("2026-06-22T10:00:09.000Z")
+  );
+
+  assert.equal(result.accepted, true);
+  if (result.accepted) {
+    assert.equal(result.event.turn.speaker, "AGENT");
+    assert.equal(result.event.turn.sequenceNo, 2);
+    assert.equal(result.event.turn.language, "vi-VN");
+    assert.equal(result.event.turn.text, "Mình đã có chuyến phù hợp.");
+  }
+});

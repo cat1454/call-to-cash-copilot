@@ -146,6 +146,19 @@ async function seedFutureDeparture(resetDatabase = true) {
       prisma.callSession.deleteMany(),
       prisma.tripDeparture.deleteMany()
     ]);
+  } else {
+    const existing = await prisma.tripDeparture.findFirst({
+      where: {
+        routeFrom: "Ha Noi",
+        routeTo: "Sa Pa",
+        departureAtUtc: new Date("2030-06-20T15:30:00.000Z"),
+        operationalStatus: "SCHEDULED"
+      }
+    });
+    if (existing !== null) {
+      await prisma.$disconnect();
+      return;
+    }
   }
   await prisma.tripDeparture.create({
     data: {

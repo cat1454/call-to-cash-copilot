@@ -81,7 +81,7 @@ export function LiveCallPreview() {
               </p>
 
               <p className="mt-0.5 truncate text-[13px] leading-5 font-semibold text-[#111827]">
-                Tổng đài xe khách Sa Pa
+                Tổng đài xe ba miền
               </p>
             </div>
           </div>

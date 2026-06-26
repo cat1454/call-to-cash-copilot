@@ -19,10 +19,37 @@ export default function PhoneCallView({
   agreementEditRequested,
   webConfirmationPending,
   confirmAgreementFromWeb,
-  requestAgreementEdit
+  requestAgreementEdit,
+  lang = "vi"
 }) {
   const isCompleted =
     simStatus === "Đã hoàn thành" || simStatus === "Đang đồng bộ hội thoại sau cuộc gọi...";
+
+  const getTranslatedPhoneCallStatus = (text) => {
+    if (lang === "vi" || !text) return text || "";
+    const m = {
+      "Đang đổ chuông": "Ringing...", "Đang kết nối": "Connecting...",
+      "Đang chờ kết nối từ hành khách": "Waiting for passenger connection...",
+      "Đang chờ cuộc gọi": "Waiting for call...", "Đang chuẩn bị": "Preparing...",
+      "Cuộc gọi kết thúc": "Call ended", "Đã kết thúc": "Finished",
+      "Đang đồng bộ hội thoại sau cuộc gọi": "Syncing post-call conversation...",
+      "Đang đồng bộ hội thoại": "Syncing conversation...", "Đã hoàn thành": "Completed",
+      "Lỗi": "Error", "Kết nối thất bại": "Connection failed", "Đang ngắt kết nối": "Disconnecting..."
+    };
+    for (const [k, v] of Object.entries(m)) {
+      if (text.includes(k)) return v;
+    }
+    return text.replace("Đang đàm thoại", "In call").replace("Cuộc gọi đang diễn ra", "Call in progress");
+  };
+
+  const getSpeakerLabel = (s) => lang === "vi" ? s : s === "Khách hàng" ? "Customer" : s === "Tổng đài AI" ? "AI Operator" : s;
+
+  const getBookingLabel = (lbl) => lang === "vi" ? lbl : ({
+    "Hành trình:": "Route:", "Ngày đi:": "Departure date:", "Giờ đi:": "Departure time:",
+    "Số ghế:": "Seats:", "SĐT liên lạc:": "Contact phone:", "Tổng cộng:": "Total:", "Số tiền cọc:": "Deposit:"
+  }[lbl] || lbl);
+
+  const formatValue = (key, val) => !val ? "—" : (key === "Số ghế:" ? String(val).replace(/ghe|ghế/g, lang === "vi" ? " ghế" : " seats") : val);
 
   return (
     <div className="flex min-h-full flex-col overflow-y-auto">
@@ -51,7 +78,7 @@ export default function PhoneCallView({
 
         <div>
           <p className="text-balance text-center text-base leading-6 font-semibold text-[#111827]">
-            Tổng đài xe khách Sa Pa
+            {lang === "vi" ? "Tổng đài xe ba miền" : "Three Regions Bus Hotline"}
           </p>
 
           <p
@@ -66,7 +93,7 @@ export default function PhoneCallView({
                   : ""
               }
             />
-            {phoneCallStatusText}
+            {getTranslatedPhoneCallStatus(phoneCallStatusText)}
           </p>
         </div>
       </div>
@@ -99,7 +126,7 @@ export default function PhoneCallView({
             color: subtitles.speaker === "Khách hàng" ? "#059669" : "#6b7280"
           }}
         >
-          {subtitles.speaker}
+          {getSpeakerLabel(subtitles.speaker)}
         </p>
 
         <p
@@ -120,8 +147,8 @@ export default function PhoneCallView({
               className="h-1.5 w-1.5 rounded-full bg-[#059669] [animation:pulse-primary_2s_ease-in-out_infinite] motion-reduce:animate-none"
             />
             {agentReplyStatus === "slow"
-              ? "Phụ đề AI đang chậm; cuộc gọi vẫn tiếp tục."
-              : "Tổng đài AI đang xử lý..."}
+              ? (lang === "vi" ? "Phụ đề AI đang chậm; cuộc gọi vẫn tiếp tục." : "AI subtitles are slow; call continues.")
+              : (lang === "vi" ? "Tổng đài AI đang xử lý..." : "AI operator is processing...")}
           </p>
         )}
       </div>
@@ -131,7 +158,11 @@ export default function PhoneCallView({
         <div className="flex flex-col items-center gap-2 py-4">
           <IconButton
             aria-label={
-              isSimulating ? "Đang ghi âm" : isCompleted ? "Cuộc gọi kết thúc" : "Bắt đầu đàm thoại"
+              isSimulating
+                ? (lang === "vi" ? "Đang ghi âm" : "Recording")
+                : isCompleted
+                ? (lang === "vi" ? "Cuộc gọi kết thúc" : "Call ended")
+                : (lang === "vi" ? "Bắt đầu đàm thoại" : "Start call")
             }
             variant="primary"
             size="lg"
@@ -148,10 +179,10 @@ export default function PhoneCallView({
 
           <span className="text-xs leading-[18px] font-normal text-[#6b7280]">
             {isSimulating
-              ? "Đang ghi âm..."
+              ? (lang === "vi" ? "Đang ghi âm..." : "Recording...")
               : isCompleted
-                ? "Cuộc gọi kết thúc"
-                : "Bấm để bắt đầu đàm thoại"}
+                ? (lang === "vi" ? "Cuộc gọi kết thúc" : "Call ended")
+                : (lang === "vi" ? "Bấm để bắt đầu đàm thoại" : "Tap to start call")}
           </span>
         </div>
       )}
@@ -160,7 +191,7 @@ export default function PhoneCallView({
       <div className="mx-4 mb-8 overflow-hidden rounded-xl border border-[#e5e7eb] bg-white">
         <div className="border-b border-[#e5e7eb] bg-[#f9fafb] p-4">
           <p className="text-balance text-sm leading-5 font-semibold text-[#059669]">
-            Thông Tin Hành Trình (Booking Summary)
+            {lang === "vi" ? "Thông Tin Hành Trình" : "Booking Summary"}
           </p>
         </div>
 
@@ -179,7 +210,7 @@ export default function PhoneCallView({
             }
           ].map(({ label, val, accent }) => (
             <div key={label} className="flex items-center justify-between gap-3 px-4 py-2.5">
-              <span className="text-xs leading-4 font-normal text-[#6b7280]">{label}</span>
+              <span className="text-xs leading-4 font-normal text-[#6b7280]">{getBookingLabel(label)}</span>
 
               <span
                 className={cn(
@@ -188,7 +219,7 @@ export default function PhoneCallView({
                   val ? (accent ? "text-[#059669]" : "text-[#111827]") : "text-[#9ca3af]"
                 )}
               >
-                {val || "—"}
+                {formatValue(label, val)}
               </span>
             </div>
           ))}
@@ -198,13 +229,17 @@ export default function PhoneCallView({
       {agreementConfirmationRequired && (
         <section
           className="sticky bottom-3 z-10 mx-4 mb-5 rounded-2xl border border-[#a7f3d0] bg-white p-4 shadow-[0_12px_30px_rgba(5,150,105,0.16)]"
-          aria-label="Xác nhận điều khoản đặt cọc"
+          aria-label={lang === "vi" ? "Xác nhận điều khoản đặt cọc" : "Confirm deposit terms"}
         >
           <p className="text-balance text-sm leading-5 font-semibold text-[#111827]">
-            Xác nhận đặt cọc {bookingData.deposit || ""}
+            {lang === "vi" ? `Xác nhận đặt cọc ${bookingData.deposit || ""}` : `Confirm deposit of ${bookingData.deposit || ""}`}
           </p>
           <p className="mt-1 text-xs leading-4 text-[#6b7280]">
-            Bạn đang giữ {bookingData.seats || "chỗ"}. Xác nhận để khóa điều khoản hiện tại và mở thanh toán.
+            {lang === "vi" ? (
+              <>Bạn đang giữ {formatValue("Số ghế:", bookingData.seats) || "chỗ"}. Xác nhận để khóa điều khoản hiện tại và mở thanh toán.</>
+            ) : (
+              <>You are holding {formatValue("Số ghế:", bookingData.seats) || "seats"}. Confirm to lock terms and open payment.</>
+            )}
           </p>
           <Button
             variant="primary"
@@ -213,7 +248,9 @@ export default function PhoneCallView({
             onClick={confirmAgreementFromWeb}
             disabled={webConfirmationPending}
           >
-            {webConfirmationPending ? "Đang xác nhận..." : "Xác nhận điều khoản & mở thanh toán"}
+            {webConfirmationPending
+              ? (lang === "vi" ? "Đang xác nhận..." : "Confirming...")
+              : (lang === "vi" ? "Xác nhận điều khoản & mở thanh toán" : "Confirm terms & open payment")}
           </Button>
           <Button
             variant="secondary"
@@ -222,17 +259,23 @@ export default function PhoneCallView({
             onClick={requestAgreementEdit}
             disabled={webConfirmationPending}
           >
-            Sửa thông tin
+            {lang === "vi" ? "Sửa thông tin" : "Edit details"}
           </Button>
           <p className="mt-3 text-center text-xs leading-4 text-[#6b7280]">
-            Hoặc nói: <span className="font-medium text-[#374151]">“Tôi xác nhận”</span>
+            {lang === "vi" ? (
+              <>Hoặc nói: <span className="font-medium text-[#374151]">“Tôi xác nhận”</span></>
+            ) : (
+              <>Or say: <span className="font-medium text-[#374151]">“I confirm”</span></>
+            )}
           </p>
         </section>
       )}
 
       {agreementEditRequested && (
         <p className="mx-4 mb-5 rounded-xl border border-[#fde68a] bg-[#fffbeb] p-3 text-center text-xs leading-4 text-[#92400e]" role="status">
-          Hãy nói thông tin cần chỉnh sửa. Em sẽ đọc lại điều khoản mới trước khi mở thanh toán.
+          {lang === "vi"
+            ? "Hãy nói thông tin cần chỉnh sửa. Em sẽ đọc lại điều khoản mới trước khi mở thanh toán."
+            : "Please state the details you want to edit. I will read back the new terms before opening payment."}
         </p>
       )}
     </div>

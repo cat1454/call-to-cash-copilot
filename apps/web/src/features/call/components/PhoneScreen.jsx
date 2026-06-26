@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Wifi, Signal, Battery, Smartphone } from "lucide-react";
 import { cn } from "../../../lib/cn";
 import { Button } from "../../../components/ui/Button";
@@ -20,6 +21,27 @@ import { getVoiceModeLabel } from "../../../config/runtime";
  * - Dark bezel, rounded corners, top notch, home indicator
  * - Customer app rendered inside a realistic phone viewport
  */
+function LanguageToggle({ lang, setLang, className }) {
+  return (
+    <div className={cn("flex items-center gap-1 rounded-full border border-[#e5e7eb] bg-[#f9fafb] p-0.5 shadow-sm", className)}>
+      {[{ id: "vi", flag: "VN", label: "Tiếng Việt" }, { id: "en", flag: "EN", label: "English" }].map((opt) => (
+        <button
+          key={opt.id}
+          type="button"
+          onClick={() => setLang(opt.id)}
+          className={cn(
+            "flex h-6 w-8 items-center justify-center rounded-full text-xs transition-all cursor-pointer font-bold",
+            lang === opt.id ? "bg-white text-[#059669] shadow-sm" : "text-gray-400 hover:text-gray-600"
+          )}
+          title={opt.label}
+        >
+          {opt.flag}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function PhoneScreen({
   isMobileLayout,
   activeTab,
@@ -51,12 +73,27 @@ export default function PhoneScreen({
   prefetchContent,
   timelineSteps,
   ledgerLogs,
-  paymentGate,
   voiceMode,
   demoReady,
   markPaymentWalletOpened,
-  agreementConfirmation
+  agreementConfirmation,
+  paymentGate,
+  lang = "vi",
+  setLang
 }) {
+  const [timeText, setTimeText] = useState(() => {
+    const d = new Date();
+    return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+  });
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const d = new Date();
+      setTimeText(`${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const renderCallView = () => (
     <PhoneCallView
       isWaveAnimating={isWaveAnimating}
@@ -75,6 +112,7 @@ export default function PhoneScreen({
       webConfirmationPending={agreementConfirmation.pending}
       confirmAgreementFromWeb={agreementConfirmation.confirm}
       requestAgreementEdit={agreementConfirmation.requestEdit}
+      lang={lang}
     />
   );
 
@@ -83,6 +121,7 @@ export default function PhoneScreen({
       showBoardingPass={showBoardingPass}
       isTampered={isTampered}
       bookingData={bookingData}
+      lang={lang}
     />
   );
 
@@ -100,6 +139,7 @@ export default function PhoneScreen({
       isTampered={isTampered}
       showPaymentDrawer={showPaymentDrawer}
       paymentGate={paymentGate}
+      lang={lang}
     />
   );
 
@@ -110,6 +150,8 @@ export default function PhoneScreen({
       receipt: "translateX(-66.666%)"
     }[activeTab] ?? "translateX(0%)";
 
+  const tabBtnClass = "min-h-11 min-w-0 flex-1 rounded-lg px-3 text-sm leading-5 font-medium transition-transform duration-150 ease-out active:scale-[0.96] motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#059669]";
+
   if (isMobileLayout) {
     return (
       <div className="relative flex min-h-[100dvh] w-full min-w-0 flex-col overflow-hidden bg-white">
@@ -118,32 +160,22 @@ export default function PhoneScreen({
             <span className="rounded-full bg-[#f3f4f6] px-2.5 py-1 text-xs leading-4 font-medium text-[#6b7280]">
               {getVoiceModeLabel(voiceMode)}
             </span>
-
-            <span className="text-xs leading-4 font-normal text-[#6b7280]">Customer app</span>
+            <LanguageToggle lang={lang} setLang={setLang} />
+            <span className="text-xs leading-4 font-normal text-[#6b7280]">{lang === "vi" ? "Ứng dụng khách" : "Customer app"}</span>
           </div>
 
-          <nav
-            className="flex w-full min-w-0 gap-2 rounded-xl border border-[#e5e7eb] bg-[#f9fafb] p-1"
-            aria-label="Customer app views"
-          >
+          <nav className="flex w-full min-w-0 gap-2 rounded-xl border border-[#e5e7eb] bg-[#f9fafb] p-1" aria-label="Customer app views">
             {[
-              { id: "call", label: "Call" },
-              { id: "dashboard", label: "Booking" },
-              { id: "receipt", label: "Receipt" }
+              { id: "call", label: lang === "vi" ? "Cuộc gọi" : "Call" },
+              { id: "dashboard", label: lang === "vi" ? "Đặt vé" : "Booking" },
+              { id: "receipt", label: lang === "vi" ? "Vé xe" : "Receipt" }
             ].map((tab) => (
               <button
                 key={tab.id}
                 type="button"
                 aria-current={activeTab === tab.id ? "page" : undefined}
                 onClick={() => setActiveTab(tab.id)}
-                className={cn(
-                  "min-h-11 min-w-0 flex-1 rounded-lg px-3 text-sm leading-5 font-medium",
-                  "transition-transform duration-150 ease-out active:scale-[0.96] motion-reduce:transition-none",
-                  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#059669]",
-                  activeTab === tab.id
-                    ? "bg-white text-[#059669] shadow-sm"
-                    : "text-[#6b7280] hover:text-[#374151]"
-                )}
+                className={cn(tabBtnClass, activeTab === tab.id ? "bg-white text-[#059669] shadow-sm" : "text-[#6b7280] hover:text-[#374151]")}
               >
                 {tab.label}
               </button>
@@ -154,20 +186,11 @@ export default function PhoneScreen({
         <div className="relative min-h-0 flex-1 overflow-hidden">
           <div
             className="flex h-full min-h-0 min-w-0 transition-transform duration-300 ease-out motion-reduce:transition-none"
-            style={{
-              width: "300%",
-              transform: mobileSliderOffset
-            }}
+            style={{ width: "300%", transform: mobileSliderOffset }}
           >
             <div className="h-full min-w-0 w-1/3 shrink-0 overflow-y-auto">{renderCallView()}</div>
-
-            <div className="h-full min-w-0 w-1/3 shrink-0 overflow-y-auto">
-              {renderDashboardView()}
-            </div>
-
-            <div className="h-full min-w-0 w-1/3 shrink-0 overflow-y-auto">
-              {renderReceiptView()}
-            </div>
+            <div className="h-full min-w-0 w-1/3 shrink-0 overflow-y-auto">{renderDashboardView()}</div>
+            <div className="h-full min-w-0 w-1/3 shrink-0 overflow-y-auto">{renderReceiptView()}</div>
           </div>
         </div>
 
@@ -182,21 +205,14 @@ export default function PhoneScreen({
           btnPhonePayBg={btnPhonePayBg}
           btnPhonePayText={btnPhonePayText}
           markPaymentWalletOpened={markPaymentWalletOpened}
+          lang={lang}
         />
 
         <footer className="flex w-full min-w-0 shrink-0 gap-2 border-t border-[#e5e7eb] bg-white p-4">
-          <Button variant="secondary" size="md" className="flex-1" onClick={resetSimulation}>
-            Đặt lại
-          </Button>
-
+          <Button variant="secondary" size="md" className="flex-1" onClick={resetSimulation}>{lang === "vi" ? "Đặt lại" : "Reset"}</Button>
           {showBoardingPass && (
-            <Button
-              variant="danger"
-              size="md"
-              className="flex-[1.4] border-[#f43f5e] bg-[#f43f5e] text-white hover:bg-[#e11d48]"
-              onClick={tamperAgreement}
-            >
-              Mô phỏng Tamper
+            <Button variant="danger" size="md" className="flex-[1.4] border-[#f43f5e] bg-[#f43f5e] text-white hover:bg-[#e11d48]" onClick={tamperAgreement}>
+              {lang === "vi" ? "Mô phỏng Tamper" : "Simulate Tamper"}
             </Button>
           )}
         </footer>
@@ -207,39 +223,22 @@ export default function PhoneScreen({
   return (
     <div className="flex w-full min-w-0 flex-col items-center gap-4">
       {/* iPhone device shell */}
-      <div
-        className={cn(
-          "relative mx-auto h-[748px] w-full max-w-[380px]",
-          "rounded-[3.25rem] bg-[#1f2937] p-[10px]",
-          "shadow-[0_28px_70px_rgba(15,23,42,0.22)]",
-          "ring-1 ring-black/10"
-        )}
-      >
-        {/* Optional side-button visual details */}
-        <span
-          aria-hidden="true"
-          className="absolute -left-[2px] top-28 h-10 w-[3px] rounded-l-full bg-[#111827]"
-        />
-        <span
-          aria-hidden="true"
-          className="absolute -left-[2px] top-40 h-16 w-[3px] rounded-l-full bg-[#111827]"
-        />
-        <span
-          aria-hidden="true"
-          className="absolute -right-[2px] top-36 h-20 w-[3px] rounded-r-full bg-[#111827]"
-        />
+      <div className="relative mx-auto h-[748px] w-full max-w-[380px] rounded-[3.25rem] bg-[#1f2937] p-[10px] shadow-[0_28px_70px_rgba(15,23,42,0.22)] ring-1 ring-black/10">
+        {/* Side-button visual details */}
+        {["-left-[2px] top-28 h-10 rounded-l-full", "-left-[2px] top-40 h-16 rounded-l-full", "-right-[2px] top-36 h-20 rounded-r-full"].map((s, idx) => (
+          <span key={idx} aria-hidden="true" className={cn("absolute w-[3px] bg-[#111827]", s)} />
+        ))}
 
         {/* Actual screen */}
         <div className="relative flex h-full overflow-hidden rounded-[2.7rem] bg-white">
+          <LanguageToggle lang={lang} setLang={setLang} className="absolute right-4 top-12 z-30 border-gray-200 bg-white/90 backdrop-blur-sm" />
+
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[#f9fafb]">
             {/* iPhone status bar */}
             <div className="relative flex shrink-0 items-center justify-between bg-white px-7 pb-2 pt-3.5 text-xs leading-4 font-semibold text-[#111827] select-none">
-              <span className="tabular-nums">9:41</span>
-
+              <span className="tabular-nums">{timeText}</span>
               <div className="flex items-center gap-1.5">
-                <Signal size={11} strokeWidth={2.5} />
-                <Wifi size={11} strokeWidth={2.5} />
-                <Battery size={13} strokeWidth={2.5} />
+                <Signal size={11} strokeWidth={2.5} /><Wifi size={11} strokeWidth={2.5} /><Battery size={13} strokeWidth={2.5} />
               </div>
             </div>
 
@@ -259,38 +258,26 @@ export default function PhoneScreen({
               btnPhonePayBg={btnPhonePayBg}
               btnPhonePayText={btnPhonePayText}
               markPaymentWalletOpened={markPaymentWalletOpened}
+              lang={lang}
             />
 
             {/* Bottom safe-area so screen content does not collide with home indicator */}
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-x-0 bottom-0 flex h-7 items-center justify-center bg-gradient-to-t from-white via-white/95 to-transparent"
-            >
+            <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 flex h-7 items-center justify-center bg-gradient-to-t from-white via-white/95 to-transparent">
               <span className="mt-2 h-1.5 w-28 rounded-full bg-[#111827]/85" />
             </div>
           </div>
         </div>
 
         {/* iPhone top notch */}
-        <div
-          aria-hidden="true"
-          className={cn(
-            "pointer-events-none absolute left-1/2 top-[10px] z-20",
-            "h-[29px] w-[126px] -translate-x-1/2",
-            "rounded-b-[1.25rem] bg-[#1f2937]"
-          )}
-        >
+        <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-[10px] z-20 h-[29px] w-[126px] -translate-x-1/2 rounded-b-[1.25rem] bg-[#1f2937]">
           <span className="absolute left-1/2 top-[10px] h-[4px] w-10 -translate-x-1/2 rounded-full bg-black/45" />
         </div>
       </div>
 
       <div className="flex items-center gap-2 text-xs leading-4 font-normal text-[#6b7280] select-none">
-        <span
-          className="inline-block h-1.5 w-1.5 rounded-full bg-[#059669] [animation:pulse-primary_2s_ease-in-out_infinite]"
-          aria-hidden="true"
-        />
+        <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#059669] [animation:pulse-primary_2s_ease-in-out_infinite]" aria-hidden="true" />
         <Smartphone size={14} aria-hidden="true" />
-        Customer app — transcript replay
+        {lang === "vi" ? "Ứng dụng khách — phát lại cuộc thoại" : "Customer app — transcript replay"}
       </div>
     </div>
   );

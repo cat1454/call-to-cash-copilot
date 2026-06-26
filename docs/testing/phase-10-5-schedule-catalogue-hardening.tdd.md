@@ -26,6 +26,45 @@ Date: 2026-06-25
 
 ## Tests Run
 
+### 2026-06-25 follow-up hardening
+
+```text
+.\node_modules\.bin\tsx.CMD --test apps\api\src\modules\booking\commands\upsert-booking-from-facts.test.ts
+```
+
+Result: pass, 2 tests. Added regression coverage that booking draft resolution assigns a
+catalogue departure only when the schedule match is unique; a same-route, same-time input across
+multiple service dates remains unresolved until the customer supplies a clarifying date.
+
+```text
+corepack pnpm format:check
+corepack pnpm lint
+corepack pnpm typecheck
+corepack pnpm test
+corepack pnpm build
+git diff --check
+```
+
+Result: pass. Root `pnpm test` ran without `TEST_DATABASE_URL`, so DB-backed API and DB package
+cases were skipped in that aggregate run. The current local Docker/PostgreSQL service was not
+running (`ECONNREFUSED`), so the 0-skipped DB-backed catalogue proof below must be rerun after
+starting Postgres before treating the phase as complete in this workspace.
+
+Latest DB rerun on the local test database:
+
+```text
+$env:DATABASE_URL='postgresql://call_to_cash:call_to_cash@localhost:55400/call_to_cash_test?schema=public'; corepack pnpm db:migrate:deploy
+$env:DATABASE_URL='postgresql://call_to_cash:call_to_cash@localhost:55400/call_to_cash_test?schema=public'; corepack pnpm db:validate
+$env:TEST_DATABASE_URL='postgresql://call_to_cash:call_to_cash@localhost:55400/call_to_cash_test?schema=public'; $env:DATABASE_URL=$env:TEST_DATABASE_URL; .\node_modules\.bin\tsx.CMD --test prisma\catalogue-revenue-twin.test.ts
+$env:TEST_DATABASE_URL='postgresql://call_to_cash:call_to_cash@localhost:55400/call_to_cash_test?schema=public'; $env:DATABASE_URL=$env:TEST_DATABASE_URL; corepack pnpm --filter @call-to-cash/db test
+$env:TEST_DATABASE_URL='postgresql://call_to_cash:call_to_cash@localhost:55400/call_to_cash_test?schema=public'; $env:DATABASE_URL=$env:TEST_DATABASE_URL; corepack pnpm --filter @call-to-cash/api test
+```
+
+Result: pass. Migrations applied, schema validated, catalogue regression passed 4 tests with
+0 skipped, DB package passed 6 tests with 0 skipped, and API passed 65 tests with 0 skipped.
+The suites were run sequentially because they share the same PostgreSQL test database and can
+deadlock or create fixture races if run in parallel.
+
 ```text
 .\node_modules\.bin\tsx.CMD --test prisma\schedule-fixture.test.ts
 ```

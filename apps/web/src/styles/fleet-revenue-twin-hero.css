@@ -1,0 +1,232 @@
+/* ─── HERO SECTION ─────────────────────────────────────── */
+.fleet-hero {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  max-width: 1480px;
+  margin: 0 auto 28px;
+  border-radius: 28px;
+  background:
+    radial-gradient(ellipse 80% 60% at 10% 50%, rgba(5, 150, 105, 0.20) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 80% at 90% 20%, rgba(5, 150, 105, 0.10) 0%, transparent 55%),
+    linear-gradient(135deg, #071c14 0%, #0a2218 40%, #0d2b1e 100%);
+  padding: 44px 48px 40px;
+  box-shadow:
+    0 32px 80px rgba(5, 150, 105, 0.18),
+    0 8px 24px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Animated glow orbs */
+.hero-orb {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: hero-orb-pulse 6s ease-in-out infinite;
+}
+.hero-orb-1 {
+  width: 380px; height: 380px;
+  top: -120px; left: -80px;
+  background: radial-gradient(circle, rgba(5, 150, 105, 0.25) 0%, transparent 70%);
+  animation-delay: 0s;
+}
+.hero-orb-2 {
+  width: 260px; height: 260px;
+  bottom: -80px; right: 200px;
+  background: radial-gradient(circle, rgba(5, 150, 105, 0.14) 0%, transparent 70%);
+  animation-delay: 2s;
+}
+.hero-orb-3 {
+  width: 180px; height: 180px;
+  top: 20px; right: -40px;
+  background: radial-gradient(circle, rgba(5, 150, 105, 0.08) 0%, transparent 70%);
+  animation-delay: 4s;
+}
+@keyframes hero-orb-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.12); opacity: 1; }
+}
+
+.hero-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 40px;
+}
+
+/* ── Brand side ── */
+.hero-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.hero-logo-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.hero-logo-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 6px 14px 6px 10px;
+  backdrop-filter: blur(8px);
+}
+
+.hero-logo-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #059669;
+  box-shadow: 0 0 8px rgba(5, 150, 105, 0.9);
+  animation: hero-orb-pulse 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.hero-logo-text {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+
+.hero-logo-sub {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #059669;
+}
+
+.hero-badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Partner logos strip */
+.hero-partners {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.hero-partners-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.hero-partner-chip {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 8px;
+  padding: 4px 10px;
+  transition: background 0.2s, border-color 0.2s;
+}
+.hero-partner-chip:hover {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.hero-partners-sep {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.hero-headline {
+  font-size: clamp(28px, 3.2vw, 48px);
+  font-weight: 900;
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+  color: #ffffff;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.hero-highlight {
+  background: linear-gradient(90deg, #059669 0%, #10b981 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  position: relative;
+}
+
+.hero-tagline {
+  font-size: 13px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ── Metric cards side ── */
+.hero-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
+  width: 240px;
+}
+
+.hero-metric-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  padding: 12px 16px;
+  backdrop-filter: blur(8px);
+  transition: background 0.2s, border-color 0.2s;
+}
+.hero-metric-card:hover {
+  background: rgba(5, 150, 105, 0.08);
+  border-color: rgba(5, 150, 105, 0.28);
+}
+
+/* Colored status dots */
+.hero-metric-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 6px currentColor;
+}
+.hero-metric-dot-green  { background: #059669; color: #059669; box-shadow: 0 0 8px rgba(5,150,105,0.7); }
+.hero-metric-dot-amber  { background: #d97706; color: #d97706; box-shadow: 0 0 8px rgba(217,119,6,0.6); }
+.hero-metric-dot-purple { background: #7c3aed; color: #7c3aed; box-shadow: 0 0 8px rgba(124,58,237,0.6); }
+
+.hero-metric-card div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hero-metric-card strong {
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.hero-metric-card span {
+  font-size: 11px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.3;
+}

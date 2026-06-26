@@ -165,7 +165,7 @@ RTM_RELAY_BROWSER_EXECUTABLE_PATH=C:\path\to\chromium.exe
 pnpm dev:rtm-relay
 ```
 
-The API sets the CAI `agent_rtm_uid` and enables `parameters.data_channel=rtm`. The relay parses Agora's documented `user.transcription` and `assistant.transcription` messages, rejects partial customer turns, other publisher UIDs, or mismatched bindings, and deduplicates valid text-mode assistant updates through a 500 ms quiet window. `GET http://127.0.0.1:3011/health` exposes privacy-safe aggregate transcript counters for local diagnosis. It keeps the legacy `ctc.transcript.final/v1` shape only for custom-pipeline compatibility. Agora Notifications uses the fixed Conversational AI product id `17`; there is no configurable `AGORA_NCS_PRODUCT_ID`. The relay is not a browser feature, and browser code never receives its token or control secret.
+The API sets the CAI `agent_rtm_uid` and enables `parameters.data_channel=rtm`. The relay parses Agora's documented `user.transcription` and `assistant.transcription` messages, rejects partial customer turns, other publisher UIDs, or mismatched bindings, and deduplicates valid text-mode assistant updates, including in-progress assistant text, through a 500 ms quiet window. `GET http://127.0.0.1:3011/health` exposes privacy-safe aggregate transcript counters, source-split rejection counts, and forward-failure counts for local diagnosis. It keeps the legacy `ctc.transcript.final/v1` shape only for custom-pipeline compatibility. Agora Notifications uses the fixed Conversational AI product id `17`; there is no configurable `AGORA_NCS_PRODUCT_ID`. The relay is not a browser feature, and browser code never receives its token or control secret.
 
 ## 5. Start PostgreSQL and apply durable state
 
