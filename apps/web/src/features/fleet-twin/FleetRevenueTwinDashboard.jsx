@@ -1,4 +1,4 @@
-import { ShieldCheck, Activity, Check, Mic } from "lucide-react";
+import { ShieldCheck, Activity, Mic } from "lucide-react";
 
 import { RevenueTwinDecision } from "./RevenueTwinDecision";
 import { RevenueTwinKpis } from "./RevenueTwinKpis";
