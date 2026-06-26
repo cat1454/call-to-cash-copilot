@@ -1,12 +1,14 @@
-const CACHE_NAME = "risk-copilot-cache-v1";
+const CACHE_NAME = "risk-copilot-cache-v2";
 const ASSETS = [
-  "/",
-  "/index.html",
   "/manifest.json",
   "/favicon.svg",
   "/icon-192.png",
   "/icon-512.png"
 ];
+
+function isNavigationRequest(request) {
+  return request.mode === "navigate" || request.headers.get("accept")?.includes("text/html");
+}
 
 self.addEventListener("install", (e) => {
   e.waitUntil(
@@ -48,6 +50,13 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
+  // Never serve cached HTML across deploys. Vite emits content-hashed assets, so stale
+  // index.html can point at asset filenames that no longer exist on the static host.
+  if (isNavigationRequest(e.request)) {
+    e.respondWith(fetch(e.request, { cache: "no-store" }));
+    return;
+  }
+
   e.respondWith(
     caches.match(e.request).then((cachedResponse) => {
       if (cachedResponse) {
@@ -55,7 +64,7 @@ self.addEventListener("fetch", (e) => {
         fetch(e.request)
           .then((networkResponse) => {
             if (networkResponse && networkResponse.status === 200) {
-              caches.open(CACHE_NAME).then((cache) => cache.put(e.request, networkResponse));
+              caches.open(CACHE_NAME).then((cache) => cache.put(e.request, networkResponse.clone()));
             }
           })
           .catch(() => {
