@@ -9,7 +9,7 @@
     "build": "tsc -p tsconfig.json",
     "lint": "eslint src --max-warnings=0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx --test src/app.test.ts src/modules/call-session/commands/append-transcript-turn.test.ts src/modules/call-session/replay/replay-extractor.test.ts src/modules/revenue-twin/revenue-twin.handlers.test.ts src/modules/revenue-twin/voice-selection.test.ts src/modules/voice-session/live-transcript-relay-client.test.ts src/modules/voice-session/voice-session.handlers.test.ts",
+    "test": "tsx --test src/app.test.ts src/modules/booking/commands/upsert-booking-from-facts.test.ts src/modules/call-session/commands/append-transcript-turn.test.ts src/modules/call-session/replay/agora-spoken-happy-path.test.ts src/modules/call-session/replay/replay-extractor.test.ts src/modules/revenue-twin/voice-selection.test.ts src/modules/voice-session/live-transcript-relay-client.test.ts src/modules/voice-session/voice-session.handlers.test.ts",
     "start": "node dist/server.js"
   },
   "dependencies": {
