@@ -1,31 +1,27 @@
-import { EventName } from "@call-to-cash/shared";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { createSseClient } from "../../../lib/sseClient";
-import {
-  isDefinitivePaymentMismatch,
-  isRetryablePaymentPending,
-  recoverServerState as recoverAuthoritativeState,
-  recoveryEvents
-} from "./serverRecovery.js";
+import { isDefinitivePaymentMismatch, isRetryablePaymentPending, recoveryHintsForEvent, recoverServerState as recoverAuthoritativeState } from "./serverRecovery.js";
+import { getReplayDelayMs } from "./replayPacing.js";
+import { createSingleFlightRecovery } from "./serverRecoveryCoordinator.js";
 import { ACTION, makeInitialState, reducer } from "./serverSimulationState";
 import { buildVerificationPayload } from "./serverPayment.js";
 import { useServerSessionRecovery } from "./useServerSessionRecovery.js";
 import { useSolanaPaymentPolling } from "./useSolanaPaymentPolling.js";
 import { idempotencyKey, toError } from "./serverSimulationUtils.js";
+import { usePostCallTranscriptSync } from "./usePostCallTranscriptSync.js";
+import { useAgreementConfirmation } from "./useAgreementConfirmation.js";
+import { useServerSimulationReset } from "./useServerSimulationReset.js";
+import { usePaymentIntentCreation } from "./usePaymentIntentCreation.js";
+import { useServerEventBatch } from "./useServerEventBatch.js";
+import { useAcceptRevenueTwinOffer, useRevenueTwinDashboardSync } from "./useRevenueTwinServerIntegration.js";
 export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, scenarios) {
   const [state, dispatch] = useReducer(reducer, undefined, makeInitialState);
   const [currentTurnIdx, setCurrentTurnIdx] = useState(0);
-  const stateRef = useRef(state);
-  const sseRef = useRef(null);
-  const callIdRef = useRef(null);
-  const sequenceRef = useRef(1);
-  const recoveryTimerRef = useRef(null);
-  const paymentCreatingRef = useRef(false);
-
-  useEffect(() => {
-    stateRef.current = state;
-  }, [state]);
-
+  const stateRef = useRef(state), sseRef = useRef(null), callIdRef = useRef(null);
+  const sequenceRef = useRef(1), recoveryCoordinatorRef = useRef(null);
+  useEffect(() => { stateRef.current = state; }, [state]);
+  useRevenueTwinDashboardSync(apiClient, dispatch);
+  const { clearQueuedServerEvents, flushQueuedServerEvents, queueServerEvent } = useServerEventBatch(dispatch);
   const recoverServerState = useCallback(
     (callId, hints = {}) => {
       if (!apiClient || !callId) return Promise.resolve({});
@@ -33,37 +29,40 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
     },
     [apiClient]
   );
-
-  const scheduleRecovery = useCallback(
+  const requestRecovery = useCallback(
     (callId, hints = {}) => {
-      if (recoveryTimerRef.current !== null) clearTimeout(recoveryTimerRef.current);
-      recoveryTimerRef.current = setTimeout(() => {
-        recoveryTimerRef.current = null;
-        void recoverServerState(callId, hints).catch((caught) => {
-          dispatch({ type: ACTION.ERROR, error: toError(caught) });
-        });
-      }, 50);
+      if (recoveryCoordinatorRef.current?.recover !== recoverServerState) {
+        recoveryCoordinatorRef.current = {
+          recover: recoverServerState,
+          coordinator: createSingleFlightRecovery(recoverServerState)
+        };
+      }
+      return recoveryCoordinatorRef.current.coordinator.request(callId, hints);
     },
     [recoverServerState]
   );
-
   const connectSse = useCallback(
     (callId) => {
       if (!apiBaseUrl) return;
+      clearQueuedServerEvents();
       sseRef.current?.disconnect();
       sseRef.current = createSseClient({
         baseUrl: apiBaseUrl,
         callId,
         onEvent(eventName, envelope) {
-          dispatch({ type: ACTION.SERVER_EVENT, envelope });
-          if (eventName === EventName.ReceiptCreated) {
-            scheduleRecovery(callId, { receiptId: envelope?.data?.receiptId });
-          } else if (recoveryEvents.has(eventName)) {
-            scheduleRecovery(callId, { bookingId: envelope?.bookingId });
+          queueServerEvent(envelope);
+          const hints = recoveryHintsForEvent(eventName, envelope);
+          if (hints !== null) {
+            flushQueuedServerEvents();
+            void requestRecovery(callId, hints).catch((caught) => {
+              dispatch({ type: ACTION.ERROR, error: toError(caught) });
+            });
           }
         },
-        onOpen() {
-          scheduleRecovery(callId);
+        onOpen({ reconnected } = {}) {
+          if (reconnected) void requestRecovery(callId).catch((caught) => {
+            dispatch({ type: ACTION.ERROR, error: toError(caught) });
+          });
         },
         onError(error) {
           dispatch({ type: ACTION.STREAM_STATUS, status: "error", error });
@@ -73,26 +72,30 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
         }
       });
     },
-    [apiBaseUrl, scheduleRecovery]
+    [apiBaseUrl, clearQueuedServerEvents, flushQueuedServerEvents, queueServerEvent, requestRecovery]
   );
-
   const clearSession = useServerSessionRecovery({
     apiClient,
     apiBaseUrl,
     state,
     dispatch,
     connectSse,
-    recoverServerState,
+    recoverServerState: requestRecovery,
     callIdRef,
     sseRef
   });
-
+  const postCallTranscriptSync = usePostCallTranscriptSync({
+    apiClient,
+    callIdRef,
+    dispatch,
+    recoverServerState: requestRecovery,
+    status: state.postCallTranscriptSync
+  });
   const finishReplay = useCallback(
     async (callId, confirmedTurnId) => {
       if (!apiClient) return;
-      const recovered = await recoverServerState(callId);
+      const recovered = await requestRecovery(callId);
       const booking = recovered.booking;
-      console.log("[finishReplay] recovered booking:", JSON.stringify(booking));
       if (booking?.status === "AGREEMENT_READY" && booking.agreementVersion) {
         const confirmation = await apiClient.confirmBooking(
           booking.bookingId,
@@ -106,13 +109,11 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
         const lockedBooking = await apiClient.getBooking(booking.bookingId);
         dispatch({ type: ACTION.BOOKING_SYNCED, booking: lockedBooking });
       }
-
       const endedCall = await apiClient.endCall(callId, "CUSTOMER_ENDED");
       dispatch({ type: ACTION.CALL_SYNCED, call: endedCall });
     },
-    [apiClient, recoverServerState]
+    [apiClient, requestRecovery]
   );
-
   const submitNextTurn = useCallback(
     async (callId) => {
       if (!apiClient) return false;
@@ -138,7 +139,6 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
     },
     [apiClient, currentTurnIdx, finishReplay, scenarioIdx, scenarios]
   );
-
   const startSimulation = useCallback(async () => {
     if (!apiClient || stateRef.current.isSimulating) return;
     dispatch({ type: ACTION.START });
@@ -153,7 +153,6 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
       dispatch({ type: ACTION.ERROR, error: toError(caught) });
     }
   }, [apiClient, connectSse]);
-
   const connectLiveCall = useCallback(
     (call) => {
       callIdRef.current = call.callId;
@@ -163,24 +162,21 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
     },
     [connectSse]
   );
-
-  const triggerPayment = useCallback(async () => {
-    const bookingId = stateRef.current.bookingId;
-    if (!apiClient || !bookingId || paymentCreatingRef.current) return;
-    paymentCreatingRef.current = true;
-    try {
-      const intent = await apiClient.createPayment(
-        { bookingId },
-        idempotencyKey(`payment-${bookingId}`)
-      );
-      dispatch({ type: ACTION.PAYMENT_INTENT_CREATED, intent });
-    } catch (caught) {
-      dispatch({ type: ACTION.ERROR, error: toError(caught) });
-    } finally {
-      paymentCreatingRef.current = false;
-    }
-  }, [apiClient]);
-
+  const applyLiveTranscriptFrame = useCallback((frame) => {
+    dispatch({ type: ACTION.LIVE_TRANSCRIPT_FRAME, frame });
+  }, []);
+  const triggerPayment = usePaymentIntentCreation({ apiClient, dispatch, idempotencyKey, stateRef, toError });
+  const agreementConfirmation = useAgreementConfirmation({
+    apiClient,
+    callIdRef,
+    dispatch,
+    idempotencyKey,
+    requestRecovery,
+    stateRef,
+    toError,
+    booking: state.booking,
+    paymentGate: state.paymentGate
+  });
   const simulateWalletPayment = useCallback(async () => {
     const intent = stateRef.current.paymentIntent;
     if (!apiClient || !intent || stateRef.current.paymentActionPending) return;
@@ -192,7 +188,7 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
         idempotencyKey(`${intent.provider}-verify-${intent.paymentIntentId}`)
       );
       dispatch({ type: ACTION.PAYMENT_VERIFIED, result });
-      await recoverServerState(callIdRef.current, {
+      await requestRecovery(callIdRef.current, {
         bookingId: result.bookingId,
         receiptId: result.receiptId,
         paymentIntentId: result.paymentIntentId
@@ -201,7 +197,7 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
       const error = toError(caught);
       if (isDefinitivePaymentMismatch(error)) {
         dispatch({ type: ACTION.PAYMENT_REJECTED, error });
-        await recoverServerState(callIdRef.current, {
+        await requestRecovery(callIdRef.current, {
           bookingId: intent.bookingId,
           paymentIntentId: intent.paymentIntentId
         }).catch(() => {});
@@ -209,8 +205,7 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
         dispatch({ type: ACTION.PAYMENT_PENDING, error });
       } else dispatch({ type: ACTION.ERROR, error });
     }
-  }, [apiClient, recoverServerState]);
-
+  }, [apiClient, requestRecovery]);
   const tamperAgreement = useCallback(async () => {
     const receiptId = stateRef.current.receiptId;
     if (!apiClient || !receiptId) return;
@@ -225,31 +220,36 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
       dispatch({ type: ACTION.ERROR, error: toError(caught) });
     }
   }, [apiClient]);
+  const markPaymentWalletOpened = useCallback(() => {
+    if (stateRef.current.paymentIntent?.provider === "solana_devnet") dispatch({ type: ACTION.PAYMENT_WALLET_OPENED });
+  }, []);
 
+  const acceptRevenueTwinOffer = useAcceptRevenueTwinOffer({
+    apiClient,
+    callIdRef,
+    requestRecovery,
+    stateRef
+  });
+  const resetServerSimulation = useServerSimulationReset({
+    apiClient,
+    callIdRef,
+    clearSession,
+    dispatch,
+    postCallTranscriptSync,
+    sequenceRef,
+    setCurrentTurnIdx,
+    sseRef,
+    stateRef
+  });
   const resetSimulation = useCallback(() => {
-    const current = stateRef.current;
-    sseRef.current?.disconnect();
-    sseRef.current = null;
-    if (recoveryTimerRef.current !== null) clearTimeout(recoveryTimerRef.current);
-    if (
-      apiClient &&
-      current.callId &&
-      !["ENDED", "CANCELLED", "FAILED"].includes(current.callStatus)
-    ) {
-      void apiClient.endCall(current.callId, "OPERATOR_ENDED").catch(() => {});
-    }
-    callIdRef.current = null;
-    clearSession();
-    sequenceRef.current = 1;
-    setCurrentTurnIdx(0);
-    dispatch({ type: ACTION.RESET });
-  }, [apiClient, clearSession]);
-
+    clearQueuedServerEvents();
+    resetServerSimulation();
+  }, [clearQueuedServerEvents, resetServerSimulation]);
   useEffect(() => {
     if (!state.isSimulating || !state.replayInputEnabled || !state.callId || !apiClient) return;
     const turns = scenarios[scenarioIdx] ?? [];
     if (currentTurnIdx >= turns.length) return;
-    const delay = currentTurnIdx === 0 ? 1000 : 3800;
+    const delay = getReplayDelayMs({ turnIndex: currentTurnIdx, speaker: turns[currentTurnIdx]?.sender });
     const timer = setTimeout(() => void submitNextTurn(state.callId), delay);
     return () => clearTimeout(timer);
   }, [
@@ -262,7 +262,6 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
     state.replayInputEnabled,
     submitNextTurn
   ]);
-
   useEffect(() => {
     if (
       state.booking?.status === "AGREEMENT_LOCKED" &&
@@ -272,28 +271,28 @@ export default function useServerSimulation(apiClient, apiBaseUrl, scenarioIdx, 
       void triggerPayment();
     }
   }, [state.booking?.status, state.paymentGate, state.paymentIntentId, triggerPayment]);
-
   useEffect(() => {
-    if (state.needsRecovery && state.callId) scheduleRecovery(state.callId);
-  }, [scheduleRecovery, state.callId, state.needsRecovery]);
-
+    if (state.needsRecovery && state.callId) void requestRecovery(state.callId).catch((caught) => {
+      dispatch({ type: ACTION.ERROR, error: toError(caught) });
+    });
+  }, [requestRecovery, state.callId, state.needsRecovery]);
   useSolanaPaymentPolling(state, simulateWalletPayment);
-
   useEffect(
     () => () => {
+      clearQueuedServerEvents();
       sseRef.current?.disconnect();
-      if (recoveryTimerRef.current !== null) clearTimeout(recoveryTimerRef.current);
     },
-    []
+    [clearQueuedServerEvents]
   );
 
   return {
     ...state,
-    currentTurnIdx,
-    startSimulation,
-    connectLiveCall,
+    currentTurnIdx, startSimulation, connectLiveCall, applyLiveTranscriptFrame,
+    startPostCallTranscriptSync: postCallTranscriptSync.start,
+    agreementConfirmation,
+    acceptRevenueTwinOffer,
     simulateWalletPayment,
-    tamperAgreement,
-    resetSimulation
+    markPaymentWalletOpened,
+    tamperAgreement, resetSimulation
   };
 }

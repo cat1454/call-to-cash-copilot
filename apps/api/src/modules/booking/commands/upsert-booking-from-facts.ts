@@ -33,31 +33,118 @@ function asJson(value: unknown): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue;
 }
 
-function iso(value: Date): string {
-  return value.toISOString();
+function departureParts(value: Date) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23"
+  }).formatToParts(value);
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value);
+  return { month: get("month"), day: get("day"), hour: get("hour"), minute: get("minute") };
+}
+
+function matchesDeparture(
+  departureAtUtc: Date,
+  facts: UpsertBookingFromFactsInput["facts"]
+): boolean {
+  const local = departureParts(departureAtUtc);
+  const [hour, minute] = facts.departureLocalTime?.split(":").map(Number) ?? [];
+  return (
+    (facts.departureDay === undefined || local.day === facts.departureDay) &&
+    (facts.departureMonth === undefined || local.month === facts.departureMonth) &&
+    (hour === undefined || (local.hour === hour && local.minute === minute))
+  );
+}
+
+export function selectUniqueCatalogueDeparture<T extends { departureAtUtc: Date }>(
+  candidates: readonly T[],
+  facts: UpsertBookingFromFactsInput["facts"]
+): T | null {
+  const exactDepartures = candidates.filter((candidate) =>
+    matchesDeparture(candidate.departureAtUtc, facts)
+  );
+  return exactDepartures.length === 1 ? exactDepartures[0]! : null;
+}
+
+export function resolveDepartureRoute(
+  facts: UpsertBookingFromFactsInput["facts"],
+  existing: { routeFrom: string | null; routeTo: string | null } | null
+): { routeFrom?: string; routeTo?: string } {
+  const routeFrom = facts.routeFrom ?? existing?.routeFrom ?? undefined;
+  const routeTo = facts.routeTo ?? existing?.routeTo ?? undefined;
+  return {
+    ...(routeFrom === undefined ? {} : { routeFrom }),
+    ...(routeTo === undefined ? {} : { routeTo })
+  };
 }
 
 export async function upsertBookingFromFacts(
   transaction: Transaction,
   input: UpsertBookingFromFactsInput
-): Promise<{ id: string; publicId: string; status: string }> {
+): Promise<{
+  id: string;
+  publicId: string;
+  status: string;
+  created: boolean;
+  changedFields: string[];
+}> {
   const { callSessionId, facts, now } = input;
   const existing = await transaction.booking.findUnique({ where: { callSessionId } });
-  const departure =
-    facts.routeFrom !== undefined &&
-    facts.routeTo !== undefined &&
-    facts.departureHint !== undefined
-      ? await transaction.tripDeparture.findFirst({
+  const departureRoute = resolveDepartureRoute(facts, existing);
+  const hasDepartureHint =
+    facts.departureLocalTime !== undefined || facts.departureDay !== undefined;
+  const departureCandidates =
+    departureRoute.routeFrom !== undefined &&
+    departureRoute.routeTo !== undefined &&
+    hasDepartureHint
+      ? await transaction.tripDeparture.findMany({
           where: {
-            routeFrom: facts.routeFrom,
-            routeTo: facts.routeTo,
+            routeFrom: departureRoute.routeFrom,
+            routeTo: departureRoute.routeTo,
             operationalStatus: "SCHEDULED",
             departureAtUtc: { gt: now }
           },
           orderBy: { departureAtUtc: "asc" }
         })
-      : null;
+      : [];
+  const departure = selectUniqueCatalogueDeparture(departureCandidates, facts);
   const passengerCount = facts.passengerCount ?? existing?.passengerCount ?? null;
+  const existingDeparture =
+    departure === null &&
+    existing !== null &&
+    existing.tripDepartureId !== null &&
+    facts.passengerCount !== undefined
+      ? await transaction.tripDeparture.findUnique({ where: { id: existing.tripDepartureId } })
+      : null;
+  const pricingDeparture = departure ?? existingDeparture;
+  const changedFields = new Set<string>();
+  const noteChange = (field: string, next: unknown, current: unknown) => {
+    if (next !== undefined && next !== current) changedFields.add(field);
+  };
+  noteChange("routeFrom", facts.routeFrom, existing?.routeFrom);
+  noteChange("routeTo", facts.routeTo, existing?.routeTo);
+  noteChange("pickupPoint", facts.pickupPoint, existing?.pickupPointDisplay);
+  noteChange("contactPhoneMasked", facts.contactPhoneMasked, existing?.contactPhoneMasked);
+  noteChange("passengerCount", facts.passengerCount, existing?.passengerCount);
+  if (departure !== null && departure.id !== existing?.tripDepartureId) {
+    for (const field of [
+      "departureAt",
+      "fareTotalVnd",
+      "depositAmountVnd",
+      "refundPolicyVersion"
+    ]) {
+      changedFields.add(field);
+    }
+  }
+  const totalAmountMinor =
+    pricingDeparture === null || passengerCount === null
+      ? null
+      : passengerCount * pricingDeparture.farePerSeatMinor;
+  noteChange("fareTotalVnd", totalAmountMinor, existing?.totalAmountMinor);
   const updateData = {
     ...(facts.routeFrom === undefined ? {} : { routeFrom: facts.routeFrom }),
     ...(facts.routeTo === undefined ? {} : { routeTo: facts.routeTo }),
@@ -83,11 +170,10 @@ export async function upsertBookingFromFacts(
           departureAtUtc: departure.departureAtUtc,
           departureTimezone: departure.departureTimezone,
           currency: departure.currency,
-          totalAmountMinor:
-            passengerCount === null ? null : passengerCount * departure.farePerSeatMinor,
           depositAmountMinor: departure.depositAmountMinor,
           refundPolicyVersion: departure.refundPolicyVersion
         }),
+    ...(totalAmountMinor === null ? {} : { totalAmountMinor }),
     updatedAt: now
   };
   const booking =
@@ -122,7 +208,7 @@ export async function upsertBookingFromFacts(
       requestId: input.requestId,
       now
     });
-    return { ...booking, status };
+    return { ...booking, status, created: true, changedFields: [...changedFields] };
   }
   await reserveInventoryHold(transaction, {
     bookingId: booking.id,
@@ -133,7 +219,7 @@ export async function upsertBookingFromFacts(
     requestId: input.requestId,
     now
   });
-  return booking;
+  return { ...booking, created: false, changedFields: [...changedFields] };
 }
 
 export const bookingDraftWriter: BookingDraftWriter = { upsertFromFacts: upsertBookingFromFacts };
@@ -145,16 +231,14 @@ export async function recomputeBookingRiskAndEvents(
   input: {
     requestId: string;
     occurredAt: Date;
-    transcriptTurn?: {
-      publicId: string;
-      sequenceNo: number;
-      speaker: string;
-      contentRedacted: string;
-      createdAt: Date;
-    };
-    emitTranscript?: boolean;
+    bookingCreated?: boolean;
+    changedFields?: string[];
   }
-): Promise<void> {
+): Promise<{
+  risk: ReturnType<typeof deriveRisk>;
+  assessmentId: string;
+  status: BookingStatusValue;
+}> {
   const booking = await loadBookingForRisk(transaction, bookingId);
   const agreementLocked = latestLockedAgreement(booking) !== undefined;
   const risk = deriveRisk(booking, input.occurredAt, {
@@ -201,36 +285,34 @@ export async function recomputeBookingRiskAndEvents(
       createdAt: input.occurredAt
     }
   });
-  if (input.emitTranscript && input.transcriptTurn !== undefined) {
+  if (input.bookingCreated) {
     await appendEvent(transaction, {
       callId,
       bookingId,
-      event: EventName.TranscriptTurnCreated,
+      event: EventName.BookingCreated,
       data: {
-        turnId: input.transcriptTurn.publicId,
-        sequenceNo: input.transcriptTurn.sequenceNo,
-        speaker: input.transcriptTurn.speaker,
-        content: input.transcriptTurn.contentRedacted,
-        isFinal: true,
-        timestamp: iso(input.transcriptTurn.createdAt)
+        status: BookingStatus.Draft,
+        bookingId
       },
       requestId: input.requestId,
       occurredAt: input.occurredAt
     });
   }
-  await appendEvent(transaction, {
-    callId,
-    bookingId,
-    event: EventName.BookingUpdated,
-    data: {
-      status,
-      changedFields: ["transcript"],
-      agreementInvalidated: false,
-      nextAction: RiskNextAction.RenderUpdatedAgreement
-    },
-    requestId: input.requestId,
-    occurredAt: input.occurredAt
-  });
+  if ((input.changedFields?.length ?? 0) > 0) {
+    await appendEvent(transaction, {
+      callId,
+      bookingId,
+      event: EventName.BookingUpdated,
+      data: {
+        status,
+        changedFields: input.changedFields,
+        agreementInvalidated: false,
+        nextAction: RiskNextAction.RenderUpdatedAgreement
+      },
+      requestId: input.requestId,
+      occurredAt: input.occurredAt
+    });
+  }
   await appendEvent(transaction, {
     callId,
     bookingId,
@@ -263,4 +345,5 @@ export async function recomputeBookingRiskAndEvents(
     requestId: input.requestId,
     occurredAt: input.occurredAt
   });
+  return { risk, assessmentId: assessment.publicId, status };
 }

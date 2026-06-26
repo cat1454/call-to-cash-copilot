@@ -158,8 +158,8 @@
 /* Prefetch panel */
 .prefetch-card {
   display: none;
-  background: rgba(6, 182, 212, 0.05);
-  border: 1px dashed rgba(6, 182, 212, 0.2);
+  background: rgba(13, 148, 136, 0.05);
+  border: 1px dashed rgba(13, 148, 136, 0.2);
   border-radius: 8px;
   padding: 10px;
 }

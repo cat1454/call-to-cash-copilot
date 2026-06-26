@@ -84,7 +84,7 @@ packages/
 
 ## 2. Final phase map
 
-The pipeline intentionally has **14 implementation phases: Phase 0 through Phase 13**. Do not skip phase exit criteria. A later phase may begin only when its dependency phase has a passing test baseline and a reviewable change set.
+The pipeline intentionally has **15 implementation phases: Phase 0 through Phase 14**. Do not skip phase exit criteria. A later phase may begin only when its dependency phase has a passing test baseline and a reviewable change set.
 
 ```text
 P0  Normalize contracts and freeze the demo baseline
@@ -97,10 +97,11 @@ P6  Connect the existing UI to REST/SSE server authority
 P7  Complete mock payment, proof, receipt, and tamper vertical slice
 P8  Replace mock payment with Solana devnet verification
 P9  Replace replay input with Agora voice/transcript integration
-P10 Add optional LLM extraction behind deterministic guardrails
-P11 Add Redis, MinIO/S3, consent, and media/recording workflow
-P12 Harden quality, security, observability, CI, and deployment
-P13 Collect evaluation data and prepare opt-in training workflow
+P10 Strict-schema LLM extraction behind deterministic guardrails
+P11 Fleet Revenue Twin
+P12 E2E, observability, accessibility, deployment
+P13 Outcome labeling, evaluation, opt-in data
+P14 Redis, queue, object storage (deferred)
 ```
 
 ---
@@ -713,6 +714,8 @@ Add live voice as an input adapter after the transaction core is proven.
 Browser ↔ Agora: real-time media/audio
 Browser ↔ API: REST commands + SSE state
 API ↔ Agora: token issuance, webhook/recording configuration, metadata
+API ↔ RTM relay: signed per-call start/stop control
+RTM relay ↔ Agora: Signaling subscription for final transcript frames
 ```
 
 Agora does not decide payment, create receipts, or persist business truth.
@@ -722,8 +725,8 @@ Agora does not decide payment, create receipts, or persist business truth.
 1. API creates call session before user joins.
 2. API issues scoped, short-lived Agora token and channel metadata.
 3. Browser joins Agora channel directly and handles microphone permissions, mute, end call, and reconnect UX.
-4. Transcript provider sends normalized transcript turns to API.
-5. API persists transcript turns and routes them through the same extraction/domain evaluation path as replay.
+4. Agora Signaling/RTM reaches the isolated `apps/rtm-relay` headless-browser relay for live final customer and agent turns. The API issues the relay's short-lived RTM token, binds the CAI `agent_rtm_uid`, and sends an HMAC-protected per-call start/stop command. The relay accepts only Agora's documented final `user.transcription` / terminal `assistant.transcription` messages from that UID and exact call/channel/agent-session binding, then maps them into the signed internal provider ingress. The documented post-session Agora Notifications product `17`, event `103`, and `payload.contents` reconcile missing history through the fixed signed webhook. Browser RTC remains media-only.
+5. API persists transcript turns and routes them through the same deterministic catalogue-backed extraction/domain evaluation path as replay. Only final customer turns may propose booking fields; agent turns remain transcript-only.
 6. API broadcasts canonical SSE events to web.
 7. Display accurate connection state; only show “connected” after actual provider connection.
 8. Add consent flow before optional recording/transcription where required by product policy.
@@ -735,6 +738,7 @@ Agora does not decide payment, create receipts, or persist business truth.
 - Never auto-fill critical booking fields from ambiguous voice input.
 - Provide human handoff/end-call path.
 - Keep raw transcript concise in customer UI; detailed logs belong in controlled mentor/operator view.
+- Customer-visible final transcript may receive non-semantic presentation cleanup (Unicode, spacing, capitalization, punctuation). Semantic paraphrase and LLM extraction remain outside Phase 9.
 
 ## Exit criteria
 
@@ -742,16 +746,16 @@ Live transcript input creates exactly the same server-owned booking/risk/payment
 
 ---
 
-# Phase 10 — Add optional LLM extraction behind deterministic guardrails
+# Phase 10 — Strict-schema LLM Extraction
 
 ## Role
 
-Use AI to extract structured facts and recommend the next question while keeping all business authority in the domain layer.
+Use AI only to propose structured booking facts while keeping all business authority in the domain layer.
 
 ## Boundary
 
 ```text
-AI returns: extracted fields, confidence, missing fields, suggested next question, evidence references.
+AI returns: approved booking-field candidates, confidence/status, warnings, and evidence references.
 Domain returns: score, blockers, gate state, allowed next action.
 API returns: persisted, validated, auditable state.
 ```
@@ -764,7 +768,7 @@ API returns: persisted, validated, auditable state.
 4. Store provider/model/prompt version, confidence, and evidence segment references.
 5. Treat invalid/partial/ambiguous output as missing data, never as confirmation.
 6. Maintain a fallback path when LLM times out or fails.
-7. Redact/mask PII before unnecessary model calls where feasible.
+7. Send only the final customer transcript and approved safe context; mask contact data in persistence and public projections.
 
 ## Prohibited AI behavior
 
@@ -775,68 +779,66 @@ API returns: persisted, validated, auditable state.
 
 ## Exit criteria
 
-LLM can be disabled with `AI_PROVIDER=deterministic`, and all acceptance tests still pass with deterministic domain decisions.
+LLM can be disabled with `AI_PROVIDER=deterministic`, and all acceptance tests still pass with deterministic domain decisions. When `AI_PROVIDER=openai`, `OPENAI_MODEL=gpt-5-mini` is server-only and strict schema/fallback behavior preserves the same domain authority.
 
 ---
 
-# Phase 11 — Add Redis, MinIO/S3, consent, and media/recording workflow
+# Phase 11 — Fleet Revenue Twin
 
 ## Role
 
-Add infrastructure only after there is an actual worker/media requirement.
+Build the fleet-level demand, departure, offer, and revenue-recovery capability on top of the existing server-authoritative booking, inventory, agreement, and payment boundaries.
 
-## Redis triggers
-
-Add Redis when at least one of these exists:
-
-- outbox/event dispatcher;
-- retryable payment-verification worker;
-- expiry worker for inventory holds/payment intents;
-- real-time transcript buffering;
-- rate limiting or distributed locks.
-
-Redis is not the source of truth. PostgreSQL remains authoritative.
-
-## MinIO/S3 triggers
-
-Add MinIO locally and private S3 in staging/production only when audio/recording/evidence files exist.
-
-## Consent requirements
-
-Track separately:
+Phase 10.5 schedule catalogue hardening feeds this phase through the existing database authority:
 
 ```text
-recording_consent
-analysis_consent
-training_consent
-policy_version
-consented_at
-revoked_at
+trip-schedule-demo.csv
+  → strict fixture importer
+  → PostgreSQL trip_departures
+trip-inventory-demo.csv
+  → demo bookings + CONSUMED / ACTIVE inventory_holds
+  → derived available seats
+Revenue Twin
+  → routeCode candidate query
+  → deterministic filtering/ranking
+  → persisted offer
+  → inventory revalidation and transactional hold on acceptance
 ```
 
-## Storage policy
+`routeCode` is the physical route, `serviceCode` is the departure/service variant, and cancelled
+catalogue rows are kept as negative controls but are not eligible alternatives. Browser and LLM
+input cannot provide capacity, fare, discount, operator relation, policy version, inventory
+version, or recovered revenue.
 
-- Raw audio: optional, consent-bound, private, short retention.
-- Transcript: off-chain, masked for non-essential views.
-- Derived training candidate: only after explicit training consent and outcome labeling.
-- On-chain: only payment/proof metadata permitted by privacy policy.
+## Delivery lanes
 
-## Required background jobs
+```text
+11.0 — Contract Normalization
+11.1 — Fleet Demand & Departure Snapshot
+11.2 — Overflow Recommendation Engine
+11.3 — Incentive Policy Engine
+11.4 — Offer Acceptance & Inventory Revalidation
+11.5 — Voice Negotiation Runtime Directive
+11.6 — Revenue Recovery Dashboard
+11.7 — Multi-demand Simulation
+```
 
-- expire inventory holds;
-- expire payment intents;
-- retry pending verification;
-- dispatch outbox events;
-- enforce storage retention/deletion;
-- detect unprocessed recording uploads if recording is enabled.
+The lane names establish roadmap order only. Before a lane changes an endpoint, event, state, entity, retention rule, PII surface, or payment/inventory behavior, update the governing product, contract, state-machine, data-model, and privacy documents in their required precedence order.
+
+## Non-negotiable boundaries
+
+- PostgreSQL remains the source of truth for booking, inventory, offer acceptance, payment, proof, and receipt state.
+- Fleet recommendations and incentives are advisory until accepted through an authorized, server-validated flow.
+- A voice directive may control approved phrasing only; it cannot bypass inventory, agreement, payment-gate, payment-verification, or receipt authority.
+- Multi-demand simulation must be visibly simulated and must not mutate production-like authoritative inventory without an explicit documented mode.
 
 ## Exit criteria
 
-The project can run local audio-object workflows with MinIO and staging recording workflows with private S3 without exposing credentials to the browser.
+Every delivered Phase 11 lane has its own documented contract, deterministic/domain coverage where applicable, and an honest demo-versus-live integration boundary.
 
 ---
 
-# Phase 12 — Harden quality, security, observability, CI, and deployment
+# Phase 12 — E2E, Observability, Accessibility, Deployment
 
 ## Role
 
@@ -887,7 +889,7 @@ A clean environment can deploy the replay-first vertical slice, migrate safely, 
 
 ---
 
-# Phase 13 — Collect evaluation data and prepare opt-in training workflow
+# Phase 13 — Outcome Labeling, Evaluation, Opt-in Data
 
 ## Role
 
@@ -976,6 +978,41 @@ Which extraction failures create manual review?
 Which confirmed bookings later become disputes?
 Which records are eligible to improve the model?
 ```
+
+---
+
+# Phase 14 — Redis, Queue, Object Storage
+
+**Status:** DEFERRED. Add infrastructure only after a concrete consumer is approved.
+
+## Redis triggers
+
+Add Redis when at least one of these exists:
+
+- outbox/event dispatcher;
+- retryable payment-verification worker;
+- expiry worker for inventory holds/payment intents;
+- real-time transcript buffering;
+- rate limiting or distributed locks.
+
+Redis is not the source of truth. PostgreSQL remains authoritative.
+
+## Object-storage triggers
+
+Add MinIO locally and private S3 in staging/production only when approved audio, recording, or evidence-file workflows exist. Consent, retention, deletion, and privacy requirements must be documented before storage is enabled.
+
+## Required background jobs
+
+- expire inventory holds;
+- expire payment intents;
+- retry pending verification;
+- dispatch outbox events;
+- enforce storage retention/deletion;
+- detect unprocessed recording uploads if recording is enabled.
+
+## Exit criteria
+
+The project can run its approved local object workflow and private staging storage workflow without exposing credentials to the browser or making Redis authoritative.
 
 ---
 

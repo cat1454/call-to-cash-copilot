@@ -1,86 +1,164 @@
 # Call-to-Cash Risk Copilot
 
-An interactive hackathon demonstration console for a voice-first transaction decision operator. Call-to-Cash Risk Copilot simulates Agora Conversational AI telemetry, a real-time risk gate, Solana Pay deposits, and tamper-evident trust receipts.
+Call-to-Cash Risk Copilot turns a bus-booking conversation into a server-authoritative booking, confirmation, deposit, and proof flow. It supports a deterministic replay demo and an optional Agora live-voice path; both use the same booking, risk, agreement, payment-gate, and receipt authority.
 
 ```text
-Customer voice -> Booking extraction -> Risk scoring -> Payment gate
-       -> Solana Pay deposit -> Ledger proof -> Verified trust receipt
+Customer voice or replay
+  → final transcript admission
+  → booking extraction and risk scoring
+  → booking summary and agreement confirmation
+  → Solana Pay Devnet deposit request
+  → server-side verification, proof, and Trust Receipt
 ```
 
-## Core product positioning
+## What is implemented
 
-- **Revenue operator**: decides when a conversation is complete, safe, and explicitly confirmed before opening payment.
-- **Customer UX**: shows booking summaries, a deposit drawer, a reservation timer, and a verified ticket.
-- **Mentor console**: exposes the simulated transcript, risk telemetry, booking extraction, ledger proof, and tamper demonstration.
+| Capability | Current behavior |
+| --- | --- |
+| Voice | Browser connects directly to Agora RTC for live mode; replay stays explicitly labelled as replay. |
+| Vietnamese transcription | Agora join properties default ASR to `vi-VN`; only final provider turns may become durable business input. |
+| Booking extraction | Deterministic Vietnamese parsing is the safe baseline. Optional OpenAI structured extraction may fill only high-confidence, same-turn, catalogue-validated draft fields. |
+| Booking summary | REST/SSE recovery reloads the authoritative booking read model. The customer view shows route, departure date/time, passengers, masked phone, fare, and deposit. |
+| Confirmation | `READY_FOR_CONFIRMATION` renders a web confirmation card. The customer may tap **Xác nhận điều khoản & mở thanh toán** or make an explicit voice confirmation. |
+| Payment | Server-created mock or Solana Pay Devnet payment intent; the browser never decides payment success. |
+| Proof and receipt | Server verifies payment evidence, writes a canonical agreement proof, and issues a privacy-safe Trust Receipt. Tamper simulation produces a mismatch/manual-review state. |
+| Recovery | SSE reconnect plus REST recovery restores booking, transcript, payment, and receipt state using privacy-safe projections. |
+| Revenue Twin | Fleet Revenue Twin evaluates constrained alternatives, bounded incentives, consented acceptance, and waitlist fallback without browser authority over inventory or price. |
 
-## Decision pipeline
+## Architecture and authority
 
-1. The voice layer produces live transcript turns and latency telemetry.
-2. The extraction layer builds route, departure time, passenger count, and phone fields.
-3. The risk engine measures completeness, dispute risk, and payment readiness.
-4. The payment gate stays locked until `Completeness >= 85`, `Readiness >= 80`, `Dispute Risk <= 35`, and the customer explicitly confirms.
-5. The payment drawer creates a simulated Solana Pay deposit request.
-6. The ledger auditor anchors and verifies a proof derived from the agreed booking.
-7. The trust receipt reports `MATCH`; the Tamper action produces `MISMATCH` and invalidates the ticket.
+```mermaid
+flowchart LR
+  C[Customer] -->|Audio| A[Agora RTC / CAI]
+  A -->|Final transcript| API[Fastify API]
+  API --> X[Extraction + Domain Rules]
+  X --> DB[(PostgreSQL)]
+  DB --> G{Payment gate}
+  G -->|Explicit confirmation| P[Solana Pay Devnet intent]
+  P --> V[Server verification]
+  V --> R[Proof + Trust Receipt]
+  API -->|SSE + REST recovery| W[React customer UI]
+```
 
-## Repository structure
+- The browser owns microphone permission, direct RTC connectivity, and rendering.
+- The API owns transcript admission, booking state, risk, agreement locking, payment intent creation, payment verification, proof, and receipt issuance.
+- PostgreSQL is durable truth for bookings, events, idempotency, and recovery.
+- Solana Devnet stores payment evidence only. It never receives raw PII, full transcript, or the full agreement payload.
+
+## Modes
+
+| Mode | Use case | Truth boundary |
+| --- | --- | --- |
+| Replay | Deterministic demo and regression testing | Replay turns follow the same API/domain path; it is never labelled as live Agora. |
+| Agora live | Customer microphone and agent conversation | Final trusted provider turns enter the same canonical transcript command. |
+| Mock payment | Fast deterministic payment/proof demo | The server validates server-owned mock evidence. |
+| Solana Devnet | Wallet/QR demonstration | The server creates and verifies a Devnet request; it is not commercial settlement. |
+
+## Repository layout
 
 ```text
-call-to-cash-risk-copilot/
-├── apps/
-│   ├── web/                  # React/Vite demo, PWA assets, and frontend tests
-│   │   ├── public/
-│   │   ├── src/
-│   │   ├── eslint.config.js
-│   │   ├── index.html
-│   │   ├── package.json
-│   │   └── vite.config.js
-│   └── api/                  # Fastify/TypeScript orchestration boundary
-├── packages/
-│   ├── shared/               # Future shared contracts and schemas
-│   ├── domain/               # Pure deterministic business rules and transitions
-│   ├── db/                   # Future persistence and migrations
-│   ├── agora/                # Future Agora provider integration
-│   ├── solana/               # Future Solana Pay and proof integration
-│   ├── ai/                   # Future extraction and risk engine
-│   └── config/               # Future shared environment/lint/type config
-├── docs/
-├── ECC/                      # Local agent tooling; excluded from the workspace
-├── package.json
-├── pnpm-workspace.yaml
-└── turbo.json
+apps/
+  api/          Fastify orchestration, API, SSE, persistence commands
+  rtm-relay/    Isolated Agora RTM relay for live transcript events
+  web/          React/Vite customer, operator, payment, and receipt UI
+packages/
+  ai/           Extraction, scoring, payment-gate recommendations
+  agora/        Agora tokens, CAI join properties, webhook parsing
+  config/       Server and browser-safe runtime configuration
+  db/           Prisma client, repositories, migration tooling
+  domain/       Pure booking, agreement, inventory, and gate transitions
+  shared/       Zod schemas, DTOs, events, enums, error vocabulary
+  solana/       Solana Pay request, transaction parsing, verification, proof helpers
+docs/           Product, architecture, contracts, security, operations, reports
 ```
 
-The API currently exposes only Phase 1 health/readiness scaffolding. Business contracts, domain rules, persistence, and provider adapters remain intentionally unimplemented; the working transaction simulation is still self-contained in `apps/web`.
+## Quick start
 
-## Local development
+Requirements: Node.js 20.19+ (the workspace is validated on Node 20.20.2), Corepack, Docker Desktop for PostgreSQL, and a copied root `.env`.
 
-Requirements: Node.js 22+ and Corepack.
-
-```bash
+```powershell
+Copy-Item .env.example .env
 corepack pnpm install
-corepack pnpm dev
+docker compose up -d postgres
+corepack pnpm db:migrate:deploy
+corepack pnpm db:seed
 ```
 
-The Vite app is available at `http://localhost:5173/` by default.
+Start the API and web app in separate terminals:
 
-Root commands:
-
-```bash
-corepack pnpm dev       # Start the web app through Turbo
-corepack pnpm test      # Run workspace structure and frontend tests
-corepack pnpm lint      # Run package lint tasks
-corepack pnpm build     # Build apps/web/dist
-corepack pnpm preview   # Preview the frontend production build
+```powershell
+corepack pnpm dev:api
+corepack pnpm dev:web
 ```
 
-When Corepack shims are enabled, the shorter `pnpm dev`, `pnpm test`, and related commands work identically.
+For Agora live mode, configure the server-only Agora values in root `.env`, set `VOICE_PROVIDER=agora`, then run the isolated relay as well:
 
-## Foundation documents
+```powershell
+corepack pnpm dev:rtm-relay
+```
 
-- [AGENTS.md](./AGENTS.md): simulated agent roles and system boundaries.
-- [RULES.md](./docs/RULES.md): coding, risk-gate, and ledger verification rules.
-- [DESIGN.md](./docs/DESIGN.md): UI tokens and responsive design guidance.
-- [MAINTAINABILITY.md](./docs/MAINTAINABILITY.md): source organization and refactoring guidance.
-- [Backend roadmap](./docs/BACKEND_ROADMAP_2026.md): framework-neutral backend phases and API contract.
-- [ECC agent workflow](./docs/operations/ECC-AGENT-WORKFLOW.md): project-specific skill discovery, precedence, and update rules for the local ECC clone.
+The web app is normally available at `http://127.0.0.1:5173`; the API readiness endpoint is `http://127.0.0.1:3001/ready`.
+
+## Configuration
+
+The root `.env` is the canonical local server configuration. Browser-safe values belong in `apps/web/.env.local` or `apps/web/.env` and must use the `VITE_` prefix.
+
+Key switches:
+
+```dotenv
+DEMO_MODE=true
+VOICE_PROVIDER=replay              # or agora
+VITE_VOICE_PROVIDER=replay         # keep browser label aligned with server
+PAYMENT_PROVIDER=mock              # or solana_devnet
+AI_PROVIDER=deterministic          # or openai
+AI_EXTRACTION_MODE=hybrid
+```
+
+When using Agora, keep certificates, customer secrets, relay control secrets, notification webhook secrets, and API keys server-only. Do not place them in a `VITE_` variable.
+
+For a Devnet wallet flow, set `PAYMENT_PROVIDER=solana_devnet` and configure `SOLANA_RPC_URL`, `SOLANA_RECIPIENT_PUBLIC_KEY`, and `SOLANA_DEMO_AMOUNT_LAMPORTS`. The Devnet amount is demonstration evidence, not VND settlement.
+
+## Verification commands
+
+```powershell
+corepack pnpm test
+corepack pnpm lint
+$env:CI='true'; corepack pnpm build
+
+# Secret-safe readiness check for env, database, API, web, relay, and Devnet configuration
+corepack pnpm demo:preflight
+
+# Runs Scenario 4 against an already-running stack
+corepack pnpm demo:smoke
+
+# Starts PostgreSQL/API/web/relay temporarily, verifies the full Scenario 4 path, then cleans up children
+corepack pnpm demo:smoke:cold
+```
+
+The cold smoke test fails closed unless the authoritative booking summary contains the expected route, Vietnamese-local departure date/time, passenger count, supported pickup point, masked phone, fare, and deposit before it can create the Devnet payment intent.
+
+## Safety rules
+
+- Interim transcripts are UX-only and never mutate booking/payment state.
+- Final customer turns are the only transcript source that can propose booking facts.
+- Payment requires complete terms, active inventory hold, explicit confirmation of the current agreement version, and an unlocked gate.
+- A material booking change invalidates confirmation and requires a new agreement version.
+- The server verifies recipient, amount, reference, signature/finality, expiry, and one-time consumption before issuing a receipt.
+- Logs, events, analytics, browser persistence, and on-chain data use masked/minimal data only.
+
+## Documentation
+
+- Current state
+- Pipeline
+- State machines
+- Booking contract
+- Risk scoring
+- API contract
+- Event contract
+- Data privacy and on-chain policy
+- Local setup
+- Deployment
+
+## License and demo boundary
+
+This repository is a demonstration and engineering prototype. It does not represent a production transport operator, custodial wallet service, or commercial payment processor. Review the security, privacy, provider, and operational contracts before any production deployment.

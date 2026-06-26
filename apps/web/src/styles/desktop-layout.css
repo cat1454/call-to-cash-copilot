@@ -78,7 +78,7 @@
 
 .badge.normal { background: rgba(16, 185, 129, 0.1); color: var(--success-green); }
 .badge.dispute { background: rgba(245, 158, 11, 0.1); color: var(--warning-amber); }
-.badge.change { background: rgba(6, 182, 212, 0.1); color: var(--accent-cyan); }
+.badge.change { background: rgba(13, 148, 136, 0.1); color: var(--accent-cyan); }
 
 /* SIDE-BY-SIDE GRID */
 .dashboard-grid {

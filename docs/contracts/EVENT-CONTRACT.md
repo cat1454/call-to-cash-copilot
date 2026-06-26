@@ -142,7 +142,7 @@ data: {"eventId":"evt_01J...","event":"risk.score.updated",...}
 
 #### `transcript.turn.created`
 
-**When:** a final/redacted transcript turn is persisted.
+**When:** a final/redacted transcript turn is persisted. `content` is a privacy-safe display projection: it preserves meaning while normalizing Unicode, spacing, capitalization, and terminal punctuation. The retained redacted source remains the audit/analysis value.
 
 ```json
 {
@@ -159,11 +159,17 @@ data: {"eventId":"evt_01J...","event":"risk.score.updated",...}
 }
 ```
 
-**Rule:** event carries redacted content only. Interim transcript text may be shown locally in the UI but must not mutate durable booking/payment state.
+**Rule:** event carries redacted content only. Interim transcript text may be shown locally in the UI but must not mutate durable booking/payment state. A signed post-session provider history may emit this event after `call.ended` for the same normally ended call. The client keeps that call's SSE/recovery surface available for a bounded sync window; it must not reopen the call or infer a new lifecycle state.
 
 #### `transcript.analysis.updated`
 
-**When:** extraction/reconciliation completes for a transcript window.
+**When:** extraction/reconciliation completes for a transcript window. For the canonical final
+customer-turn command, this event is emitted only after the transcript turn, booking extraction,
+booking draft update, and risk recomputation have committed to the transactional event log.
+`understood` is derived from the current validated booking projection; `missingFields` is derived
+from backend risk/validation state; `contradictions` may include schema-safe ambiguity diagnostics
+from the extraction candidate. The payload must not include raw phone numbers, raw transcript text,
+model reasoning, prompts, payment authority, proof data, or receipt authority.
 
 ```json
 {
@@ -453,3 +459,20 @@ Phase 5 uses append-only `audit_logs` rows with `aggregate_type = CALL_STREAM`, 
 - [ ] `payment.confirmed` only follows server-side verification;
 - [ ] failed/expired payment events lead to safe UI, not success receipt;
 - [ ] event schema is generated/validated from `@call-to-cash/shared` Zod schemas.
+
+---
+
+## 8. Phase 11.0 Revenue Twin events
+
+Phase 11 emits these version-1 safe event schemas from committed Revenue Twin transactions.
+
+| Event                                | Safe payload purpose                                                                                           |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| `revenue_twin.evaluated`             | evaluation ID, status, requested departure ID, offer count, potential net amount, safe reason codes, timestamp |
+| `revenue_twin.offer.accepted`        | evaluation/offer IDs, selected departure ID, existing hold ID, final fare, discount, timestamp                 |
+| `revenue_twin.offer.declined`        | evaluation/offer IDs, safe reason codes, timestamp                                                             |
+| `revenue_twin.offer.expired`         | evaluation/offer IDs, safe reason codes, timestamp                                                             |
+| `revenue_twin.reevaluation.required` | evaluation/offer IDs, safe reason codes, timestamp                                                             |
+| `revenue_twin.waitlist.joined`       | evaluation/waitlist/requested-departure IDs, party size, timestamp; never creates a hold                       |
+
+No Revenue Twin event may contain a raw transcript, phone number, wallet address, payment signature, risk-score internals, model prompt/response, or chain-of-thought.

@@ -8,11 +8,16 @@
     "build": "vite build",
     "typecheck": "vite build --mode development",
     "lint": "eslint .",
-    "test": "node --experimental-test-module-mocks --test src/config/runtime.test.js src/contractsBoundary.test.js src/features/simulation/dashboardModel.test.js src/features/simulation/simulationHelpers.test.js src/sourceLineCount.test.js src/lib/apiClient.test.js src/lib/sseClient.test.js src/features/simulation/hooks/serverRecovery.test.js src/features/simulation/hooks/serverSession.test.js src/features/simulation/hooks/serverSimulationState.test.js src/features/simulation/hooks/useServerState.test.js src/features/voice/connectionState.test.js",
+    "test": "node --experimental-test-module-mocks --test src/config/runtime.test.js src/contractsBoundary.test.js src/features/simulation/dashboardModel.test.js src/features/simulation/simulationHelpers.test.js src/sourceLineCount.test.js src/lib/apiClient.test.js src/lib/revenueTwinApi.test.js src/lib/sseClient.test.js src/features/simulation/hooks/agreementConfirmation.test.js src/features/simulation/hooks/serverRecovery.test.js src/features/simulation/hooks/serverRecoveryCoordinator.test.js src/features/simulation/hooks/replayPacing.test.js src/features/simulation/hooks/serverSession.test.js src/features/simulation/hooks/serverSimulationBatch.test.js src/features/simulation/hooks/serverSimulationState.test.js src/features/simulation/hooks/serverSimulationTranscriptDisplay.test.js src/features/simulation/hooks/serverPostCallTranscriptState.test.js src/features/simulation/hooks/useApiMode.test.js src/features/simulation/hooks/useServerState.test.js src/features/voice/agentStartGuard.test.js src/features/voice/connectionState.test.js src/features/voice/transcriptTypography.test.js",
     "preview": "vite preview"
   },
   "dependencies": {
     "@call-to-cash/shared": "workspace:*",
+    "@solana/wallet-adapter-base": "^0.9.27",
+    "@solana/wallet-adapter-react": "^0.15.39",
+    "@solana/wallet-adapter-react-ui": "^0.9.39",
+    "@solana/wallet-adapter-wallets": "^0.19.38",
+    "@solana/web3.js": "^1.98.4",
     "agora-rtc-sdk-ng": "4.24.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

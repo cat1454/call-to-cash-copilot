@@ -3,6 +3,9 @@ import AgoraRTC from "agora-rtc-sdk-ng";
 export function createAgoraRtcClient(onStateChange = () => {}) {
   const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
   let microphoneTrack = null;
+  let joined = false;
+  let rtcConnected = false;
+  let microphonePublished = false;
   client.on("connection-state-change", (current) => onStateChange(current));
   client.on("user-published", async (user, mediaType) => {
     if (mediaType !== "audio") return;
@@ -16,8 +19,12 @@ export function createAgoraRtcClient(onStateChange = () => {}) {
     },
     async connect({ appId, channelName, token, uid }) {
       await client.join(appId, channelName, token, uid);
+      joined = true;
+      rtcConnected = true;
       microphoneTrack = await AgoraRTC.createMicrophoneAudioTrack();
       await client.publish([microphoneTrack]);
+      microphonePublished = true;
+      return { rtcConnected, microphonePublished, browserRtcUid: uid };
     },
     async disconnect() {
       if (microphoneTrack) {
@@ -25,7 +32,12 @@ export function createAgoraRtcClient(onStateChange = () => {}) {
         microphoneTrack.close();
         microphoneTrack = null;
       }
-      await client.leave();
+      microphonePublished = false;
+      if (joined) {
+        await client.leave();
+        joined = false;
+      }
+      rtcConnected = false;
     }
   };
 }

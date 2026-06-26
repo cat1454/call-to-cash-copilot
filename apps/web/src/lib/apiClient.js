@@ -1,6 +1,7 @@
 // REST boundary: never send provider secrets, wallet keys, or full transcript here.
 
 import { VerifyMockPaymentRequestSchema, VerifyPaymentRequestSchema } from "@call-to-cash/shared";
+import { createRevenueTwinApi } from "./revenueTwinApi.js";
 
 /** @typedef {{ code: string; message: string; details?: unknown; retryable: boolean }} ApiError */
 
@@ -78,13 +79,9 @@ export function createApiClient(baseUrl, fetchFn = globalThis.fetch) {
     );
   }
 
-  // ─── Health ───────────────────────────────────────────────────────────────
-
   async function health() {
     return get("/health");
   }
-
-  // ─── Calls ────────────────────────────────────────────────────────────────
 
   async function createCall({ sourceMode = "TRANSCRIPT_REPLAY" } = {}) {
     return post("/v1/calls", {
@@ -105,15 +102,13 @@ export function createApiClient(baseUrl, fetchFn = globalThis.fetch) {
     return post("/v1/voice-sessions", { consent: { policyVersion } });
   }
 
-  async function startVoiceSession(callId) {
-    return post(`/v1/voice-sessions/${callId}/start`, {});
+  async function startVoiceSession(callId, readiness) {
+    return post(`/v1/voice-sessions/${callId}/start`, readiness);
   }
 
   async function stopVoiceSession(callId) {
     return post(`/v1/voice-sessions/${callId}/stop`, {});
   }
-
-  // ─── Transcript ───────────────────────────────────────────────────────────
 
   /**
    * POST /v1/calls/:callId/transcript-turns
@@ -133,7 +128,7 @@ export function createApiClient(baseUrl, fetchFn = globalThis.fetch) {
     });
   }
 
-  // ─── Risk ─────────────────────────────────────────────────────────────────
+  async function getTranscript(callId) { return get(`/v1/calls/${callId}/transcript`); }
 
   /**
    * GET /v1/calls/:callId/risk
@@ -142,8 +137,6 @@ export function createApiClient(baseUrl, fetchFn = globalThis.fetch) {
   async function getRisk(callId) {
     return get(`/v1/calls/${callId}/risk`);
   }
-
-  // ─── Booking ─────────────────────────────────────────────────────────────
 
   /**
    * GET /v1/bookings/:bookingId
@@ -168,8 +161,6 @@ export function createApiClient(baseUrl, fetchFn = globalThis.fetch) {
       "Idempotency-Key": idempotencyKey
     });
   }
-
-  // ─── Mock Payment ─────────────────────────────────────────────────────────
 
   /**
    * POST /v1/payments/mock/create
@@ -245,8 +236,6 @@ export function createApiClient(baseUrl, fetchFn = globalThis.fetch) {
     return post("/v1/payments/mock/simulate-failure", payload);
   }
 
-  // ─── Receipts ─────────────────────────────────────────────────────────────
-
   /**
    * GET /v1/receipts/:receiptId
    * @param {string} receiptId
@@ -280,7 +269,9 @@ export function createApiClient(baseUrl, fetchFn = globalThis.fetch) {
     startVoiceSession,
     stopVoiceSession,
     submitTranscriptTurn,
+    getTranscript,
     getRisk,
+    ...createRevenueTwinApi(post, get),
     getBooking,
     confirmBooking,
     createPayment,

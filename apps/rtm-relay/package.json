@@ -1,0 +1,22 @@
+{
+  "name": "@call-to-cash/rtm-relay",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Trusted headless-browser Agora RTM relay for final transcript turns.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint src --max-warnings=0",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --test src/rtm-delivery.test.ts src/rtm-transcript-frame.test.ts src/signature.test.ts",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@call-to-cash/shared": "workspace:*",
+    "agora-rtm": "2.2.4",
+    "dotenv": "^17.2.3",
+    "fastify": "5.8.5",
+    "playwright-core": "^1.56.0",
+    "zod": "^4.0.0"
+  }
+}

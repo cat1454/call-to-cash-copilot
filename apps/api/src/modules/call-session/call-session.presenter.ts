@@ -1,4 +1,8 @@
-import { PaymentGateStatus, type RiskReasonCode } from "@call-to-cash/shared";
+import {
+  PaymentGateStatus,
+  normalizeTranscriptDisplayText,
+  type RiskReasonCode
+} from "@call-to-cash/shared";
 
 export function iso(date: Date): string {
   return date.toISOString();
@@ -15,6 +19,10 @@ export function maskPhone(phone: string): string {
 
 export function redactContent(content: string): string {
   return content.replace(/\b0\d{8,10}\b/gu, (phone) => maskPhone(phone));
+}
+
+export function formatTranscriptForDisplay(content: string): string {
+  return normalizeTranscriptDisplayText(content);
 }
 
 export function presentCreatedCall(call: {

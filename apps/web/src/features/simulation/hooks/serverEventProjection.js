@@ -1,8 +1,20 @@
 import { EventEnvelopeSchema, EventName } from "@call-to-cash/shared";
+import { hasCustomerAndAgentTurns } from "./transcriptCompleteness.js";
+import { mergeAuthoritativeTranscriptTurn } from "./liveTranscriptProjection.js";
+import { sanitizePublicText } from "./transcriptDisplayProjection.js";
+import {
+  formatDepartureDate,
+  formatDepartureTime,
+  formatVnd
+} from "./bookingDisplayFormatters.js";
+import { projectTranscriptAnalysisForDecision } from "./transcriptAnalysisProjection.js";
+
+export { projectTranscriptTurnForDisplay } from "./transcriptDisplayProjection.js";
 
 export const emptyBooking = {
   bookingId: "",
   route: "",
+  date: "",
   time: "",
   seats: "",
   phone: "",
@@ -10,54 +22,29 @@ export const emptyBooking = {
   deposit: ""
 };
 
-function sanitizePublicText(value) {
-  if (typeof value !== "string") return "";
-  return value
-    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/giu, "[EMAIL]")
-    .replace(/(?<!\d)(?:\+?84|0)\d{8,10}(?!\d)/gu, "[PHONE]");
-}
-
-function formatMoney(value) {
-  if (!Number.isInteger(value)) return "";
-  return new Intl.NumberFormat("vi-VN", {
-    style: "currency",
-    currency: "VND",
-    maximumFractionDigits: 0
-  }).format(value);
-}
-
-function formatDeparture(value) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("vi-VN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "Asia/Ho_Chi_Minh"
-  }).format(date);
-}
-
 export function projectBookingForDisplay(booking, receipt) {
   if (receipt?.booking) {
     return {
       bookingId: receipt.booking.bookingId,
       route: sanitizePublicText(receipt.booking.route),
-      time: formatDeparture(receipt.booking.departureAt),
+      date: formatDepartureDate(receipt.booking.departureAt),
+      time: formatDepartureTime(receipt.booking.departureAt),
       seats: receipt.booking.passengerCount ? `${receipt.booking.passengerCount} khách` : "",
       phone: sanitizePublicText(receipt.booking.contactPhoneMasked),
-      price: formatMoney(booking?.fareTotalVnd),
-      deposit: formatMoney(receipt.deposit?.amount?.minor)
+      price: formatVnd(booking?.fareTotalVnd),
+      deposit: formatVnd(receipt.deposit?.amount?.minor)
     };
   }
   if (!booking) return { ...emptyBooking };
   return {
     bookingId: booking.bookingId ?? "",
     route: [booking.routeFrom, booking.routeTo].filter(Boolean).join(" → "),
-    time: formatDeparture(booking.departureAt),
+    date: formatDepartureDate(booking.departureAt),
+    time: formatDepartureTime(booking.departureAt),
     seats: booking.passengerCount ? `${booking.passengerCount} khách` : "",
     phone: sanitizePublicText(booking.contactPhoneMasked),
-    price: formatMoney(booking.fareTotalVnd),
-    deposit: formatMoney(booking.depositAmountVnd)
+    price: formatVnd(booking.fareTotalVnd),
+    deposit: formatVnd(booking.depositAmountVnd)
   };
 }
 
@@ -202,7 +189,15 @@ export function applyServerEvent(state, input) {
     case EventName.CallCreated:
       return { ...next, callStatus: data.status };
     case EventName.CallEnded:
-      return { ...next, callStatus: data.status, isSimulating: false, simStatus: "Đã hoàn thành" };
+      return {
+        ...next,
+        callStatus: data.status,
+        isSimulating: false,
+        simStatus:
+          next.postCallTranscriptSync === "PENDING"
+            ? "Đang đồng bộ hội thoại sau cuộc gọi..."
+            : "Đã hoàn thành"
+      };
     case EventName.CallFailed:
       return {
         ...next,
@@ -212,14 +207,28 @@ export function applyServerEvent(state, input) {
       };
     case EventName.TranscriptTurnCreated: {
       if (next.transcript.some((turn) => turn.turnId === data.turnId)) return next;
-      const sender = data.speaker === "CUSTOMER" ? "customer" : "ai";
-      const text = sanitizePublicText(data.content);
+      const { transcript, displayTurn } = mergeAuthoritativeTranscriptTurn(next.transcript, data);
+      const text = displayTurn.text;
+      const transcriptComplete = hasCustomerAndAgentTurns(transcript);
       return {
         ...next,
-        transcript: [...next.transcript, { sender, text, turnId: data.turnId }],
-        subtitles: { speaker: sender === "customer" ? "Khách hàng" : "Tổng đài AI", text }
+        transcript,
+        subtitles: {
+          speaker: displayTurn.sender === "customer" ? "Khách hàng" : "Tổng đài AI",
+          text
+        },
+        postCallTranscriptSync:
+          next.postCallTranscriptSync === "PENDING" && transcriptComplete
+            ? "COMPLETE"
+            : next.postCallTranscriptSync,
+        simStatus:
+          next.postCallTranscriptSync === "PENDING" && transcriptComplete
+            ? "Đã hoàn thành"
+            : next.simStatus
       };
     }
+    case EventName.TranscriptAnalysisUpdated:
+      return { ...next, transcriptAnalysis: projectTranscriptAnalysisForDecision(data) };
     case EventName.RiskScoreUpdated:
       return {
         ...next,

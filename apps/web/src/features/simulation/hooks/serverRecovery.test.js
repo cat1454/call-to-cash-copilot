@@ -11,6 +11,10 @@ test("refresh recovery reloads authoritative booking, payment, and receipt read 
       calls.push(["call", callId]);
       return { callId, status: "ENDED", booking: { bookingId: "bk_public01" } };
     },
+    getTranscript: async (callId) => {
+      calls.push(["transcript", callId]);
+      return { callId, turns: [] };
+    },
     getRisk: async (callId) => {
       calls.push(["risk", callId]);
       return {
@@ -53,6 +57,7 @@ test("refresh recovery reloads authoritative booking, payment, and receipt read 
 
   assert.deepEqual(calls, [
     ["call", "call_public1"],
+    ["transcript", "call_public1"],
     ["risk", "call_public1"],
     ["booking", "bk_public01"],
     ["payment", "bk_public01"],
@@ -63,6 +68,7 @@ test("refresh recovery reloads authoritative booking, payment, and receipt read 
     actions.map((action) => action.type),
     [
       ACTION.CALL_SYNCED,
+      ACTION.TRANSCRIPT_SYNCED,
       ACTION.RISK_SYNCED,
       ACTION.BOOKING_SYNCED,
       ACTION.PAYMENT_STATUS_SYNCED,
@@ -78,6 +84,7 @@ test("recovery does not request risk before a booking exists", async () => {
   const actions = [];
   const apiClient = {
     getCall: async (callId) => ({ callId, status: "ACTIVE", booking: null }),
+    getTranscript: async (callId) => ({ callId, turns: [] }),
     getRisk: async () => {
       riskRequests += 1;
       throw new Error("Risk is not ready");
@@ -94,6 +101,6 @@ test("recovery does not request risk before a booking exists", async () => {
   assert.equal(riskRequests, 0);
   assert.deepEqual(
     actions.map((action) => action.type),
-    [ACTION.CALL_SYNCED, ACTION.RECOVERY_COMPLETE]
+    [ACTION.CALL_SYNCED, ACTION.TRANSCRIPT_SYNCED, ACTION.RECOVERY_COMPLETE]
   );
 });

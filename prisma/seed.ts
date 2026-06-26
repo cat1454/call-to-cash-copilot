@@ -1,9 +1,37 @@
 import { createPrismaClient } from "../packages/db/src/client.js";
+import {
+  applyDemoCatalogueFixtures,
+  loadPickupPointRows,
+  loadRevenueTwinPolicyRows,
+  loadTripInventoryRows,
+  loadTripScheduleRows
+} from "./schedule-fixture.js";
+import { fileURLToPath } from "node:url";
 
 const databaseUrl =
   process.env.DATABASE_URL ??
   "postgresql://call_to_cash:call_to_cash@127.0.0.1:55432/call_to_cash?schema=public";
 const prisma = createPrismaClient({ databaseUrl });
+const fixtureUrl = (relativePath: string) => fileURLToPath(new URL(relativePath, import.meta.url));
+const scheduleRows = loadTripScheduleRows(fixtureUrl("./fixtures/trip-schedule-demo.csv"), {
+  pickupRows: loadPickupPointRows(fixtureUrl("./fixtures/pickup-point-demo.csv")),
+  policyRows: loadRevenueTwinPolicyRows(fixtureUrl("./fixtures/revenue-twin-policy-demo.csv"))
+});
+const inventoryRows = loadTripInventoryRows(
+  fixtureUrl("./fixtures/trip-inventory-demo.csv"),
+  scheduleRows
+);
+
+function nextVietnamOccurrence(month: number, day: number, hour: number, minute: number): Date {
+  const now = new Date();
+  const localYear = Number(
+    new Intl.DateTimeFormat("en", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric" }).format(now)
+  );
+  const candidate = (year: number) =>
+    new Date(Date.UTC(year, month - 1, day, hour - 7, minute, 0, 0));
+  const thisYear = candidate(localYear);
+  return thisYear > now ? thisYear : candidate(localYear + 1);
+}
 
 try {
   await prisma.user.upsert({
@@ -22,10 +50,10 @@ try {
   await prisma.tripDeparture.upsert({
     where: { publicId: "dep_hn_sapa_20260620_2230" },
     update: {
-      routeCode: "HN-SAPA-20260620-2230",
+      routeCode: "HN-SAPA-DEMO-2230",
       routeFrom: "Ha Noi",
       routeTo: "Sa Pa",
-      departureAtUtc: new Date("2026-06-20T15:30:00.000Z"),
+      departureAtUtc: nextVietnamOccurrence(7, 21, 22, 30),
       departureTimezone: "Asia/Ho_Chi_Minh",
       capacity: 36,
       operationalStatus: "SCHEDULED",
@@ -37,10 +65,10 @@ try {
     },
     create: {
       publicId: "dep_hn_sapa_20260620_2230",
-      routeCode: "HN-SAPA-20260620-2230",
+      routeCode: "HN-SAPA-DEMO-2230",
       routeFrom: "Ha Noi",
       routeTo: "Sa Pa",
-      departureAtUtc: new Date("2026-06-20T15:30:00.000Z"),
+      departureAtUtc: nextVietnamOccurrence(7, 21, 22, 30),
       departureTimezone: "Asia/Ho_Chi_Minh",
       capacity: 36,
       operationalStatus: "SCHEDULED",
@@ -51,6 +79,41 @@ try {
       refundPolicyVersion: "BUS-V1/1.0"
     }
   });
+
+  await prisma.tripDeparture.upsert({
+    where: { publicId: "dep_danang_hanoi_demo_1900" },
+    update: {
+      routeCode: "DAD-HN-DEMO-1900",
+      routeFrom: "Da Nang",
+      routeTo: "Ha Noi",
+      departureAtUtc: nextVietnamOccurrence(6, 28, 19, 0),
+      departureTimezone: "Asia/Ho_Chi_Minh",
+      capacity: 36,
+      operationalStatus: "SCHEDULED",
+      currency: "VND",
+      farePerSeatMinor: 450_000,
+      depositAmountMinor: 300_000,
+      pricePolicyVersion: "BUS-PRICE-V1",
+      refundPolicyVersion: "BUS-V1/1.0"
+    },
+    create: {
+      publicId: "dep_danang_hanoi_demo_1900",
+      routeCode: "DAD-HN-DEMO-1900",
+      routeFrom: "Da Nang",
+      routeTo: "Ha Noi",
+      departureAtUtc: nextVietnamOccurrence(6, 28, 19, 0),
+      departureTimezone: "Asia/Ho_Chi_Minh",
+      capacity: 36,
+      operationalStatus: "SCHEDULED",
+      currency: "VND",
+      farePerSeatMinor: 450_000,
+      depositAmountMinor: 300_000,
+      pricePolicyVersion: "BUS-PRICE-V1",
+      refundPolicyVersion: "BUS-V1/1.0"
+    }
+  });
+
+  await applyDemoCatalogueFixtures(prisma, { scheduleRows, inventoryRows });
 } finally {
   await prisma.$disconnect();
 }

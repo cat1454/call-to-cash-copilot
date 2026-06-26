@@ -73,10 +73,11 @@ The `code` is stable and machine-readable. The `message` is safe for the caller.
 
 ---
 
-### 1.6 Operational health endpoints
+### 1.6 API discovery and operational health endpoints
 
-`GET /health` and `GET /ready` are unversioned operational endpoints. They use the standard success envelope but never expose secrets, raw dependency errors, or customer data.
+`GET /`, `GET /health`, and `GET /ready` are unversioned operational endpoints. They use the standard success envelope but never expose secrets, raw dependency errors, or customer data.
 
+- `/` identifies the API and advertises only the `/health` and `/ready` paths. It does not expose route inventory, configuration, or provider credentials.
 - `/health` reports that the API process is alive.
 - `/ready` reports current runtime mode, configured adapter names, and PostgreSQL readiness. It returns `503 DATABASE_UNAVAILABLE` when the database is missing or unavailable.
 - These endpoints are not customer authentication or transaction-state APIs.
@@ -193,9 +194,13 @@ Ends an active call or cancels an unstarted call.
 
 ### 3.0 Phase 9 voice-session adapter
 
-`POST /v1/voice-sessions` records explicit `ANALYSIS` consent and creates a `LIVE_AGORA` call. `POST /v1/voice-sessions/:callId/start` is permitted only while that latest consent is `GRANTED`; it returns public RTC metadata (app ID, channel, UID, short-lived token, expiry) and starts the CAI agent server-side. `POST /stop` stops the provider agent and ends local session state. `GET /v1/voice-sessions/:callId` returns a privacy-safe status projection.
+`POST /v1/voice-sessions` records explicit `ANALYSIS` consent, creates a `LIVE_AGORA` call, and returns public RTC metadata (app ID, channel, numeric UID, short-lived token, expiry). The browser must join that exact channel and publish its microphone before calling `POST /v1/voice-sessions/:callId/start` with `rtcConnected: true`, `microphonePublished: true`, and the issued `browserRtcUid`. The API verifies the issued UID before it starts the CAI agent server-side. `POST /stop` stops the provider agent and ends local session state. `GET /v1/voice-sessions/:callId` returns a privacy-safe status projection.
 
-`POST /v1/voice-sessions/:callId/provider-events` is server-to-server only. It requires `X-Agora-Signature: sha256=<HMAC>` over the canonical JSON payload. The payload binds `callId`, `channelName`, active CAI `sessionId`, and `occurredAt`; events outside a five-minute freshness window are rejected. It forwards only normalized final provider turns to the canonical transcript command; interim turns are accepted but non-persisted and cannot alter booking, risk, payment, proof, or receipt state.
+`POST /v1/voice-sessions/:callId/provider-events` is the internal trusted live-relay boundary only. It requires `X-Agora-Signature` using `AGORA_PROVIDER_EVENT_SECRET`; it is never called by the browser. The isolated `apps/rtm-relay` sidecar uses this boundary after receiving an RTM frame that exactly matches its server-issued call/channel/agent-session binding and expected CAI agent UID. The payload binds `callId`, `channelName`, active CAI `sessionId`, and `occurredAt`; events outside a five-minute freshness window are rejected. It forwards only normalized final provider turns to the canonical transcript command; interim turns are accepted but non-persisted and cannot alter booking, risk, payment, proof, or receipt state. A final signed turn may reconcile after a normal `ENDED` call without reopening it; the same exception is unavailable to browser/replay input and never applies to `FAILED` or `CANCELLED` calls.
+
+`apps/rtm-relay` exposes a separate, private control surface (`POST/DELETE /v1/relay/sessions`) that is not a browser or public API. Only `apps/api` may call it, using `X-Ctc-Relay-Signature` computed with `AGORA_RTM_RELAY_CONTROL_SECRET`. The start command includes only call/channel/agent-session identifiers, agent UID, and a short-lived relay token; it contains no transcript or customer PII. The relay accepts Agora's documented `user.transcription` and `assistant.transcription` RTM messages from the bound `agent_rtm_uid`. Customer messages require `final: true`; terminal assistant messages forward immediately, while valid text-mode assistant updates without `turn_status` or with in-progress assistant status are deduplicated and emitted after a 500 ms quiet window. Relay health exposes aggregate received/accepted/rejected counters, source-split rejection counts, forward-failure counts, and a non-content assistant-text category (`direct`, `alternate`, `missing`, or `nonString`); it never exposes transcript content, payloads, tokens, or signatures. A custom pipeline may still emit the legacy internal `ctc.transcript.final/v1` frame. Browser code never sees the control secret or relay token.
+
+`POST /v1/webhooks/agora/conversation-ai` is the fixed public Agora Notifications reconciliation endpoint. It verifies `Agora-Signature-V2` against the exact raw request body using the separate `AGORA_NCS_WEBHOOK_SECRET`, requires Agora's fixed Conversational AI product id `17` and event type `103`, rejects stale delivery, resolves the call solely from `payload.labels.call_id`, and validates `payload.channel` plus `payload.agent_id` against the call/session binding. The documented `payload.contents` roles map `user → CUSTOMER` and `assistant → AGENT`; each non-empty item receives a deterministic notice/index/role provider turn id before entering the canonical transcript command. Because this is post-session history, a normal `ENDED` call may receive its final reconciled turns after `call.ended`; the API persists them idempotently without reactivating the call. Labels are limited to `call_id` and `schema_version` and never contain PII or transcript content.
 
 ### 3.1 `POST /v1/agora/token`
 
@@ -286,10 +291,16 @@ Persists a final transcript turn and triggers extraction/risk recomputation. It 
 - emits `transcript.turn.created`;
 - executes deterministic replay extraction/risk analysis synchronously for final turns in Phase 5;
 - emits `booking.updated`, `risk.score.updated`, and `risk.payment_gate.updated` after committed persistence.
+- A trusted final `AGORA` customer turn containing an explicit Vietnamese confirmation (for example
+  `tôi xác nhận`) may invoke the existing agreement-confirmation command only when the booking is
+  already `AGREEMENT_READY`. The normal agreement/payment events then drive the existing Solana
+  payment-intent flow; a replay or untrusted browser turn cannot invoke this automation.
 
 ---
 
 ### 4.2 `GET /v1/calls/:callId/transcript`
+
+Returns final redacted authoritative turns in ascending server `sequenceNo` order. The web client uses it on recovery; browser RTC/RTM callbacks never populate the durable transcript projection.
 
 Returns an authorized, redacted transcript projection.
 
@@ -524,6 +535,19 @@ Idempotency-Key: confirm-bk_01J-v1-<uuid>
     "method": "VOICE",
     "confirmedTurnId": "turn_01J...",
     "text": "Tôi xác nhận"
+  }
+}
+```
+
+For the customer confirmation card, the same endpoint accepts the current
+agreement version with `method: "WEB"` and visible acknowledgement text:
+
+```json
+{
+  "agreementVersion": 1,
+  "confirmation": {
+    "method": "WEB",
+    "text": "Xác nhận điều khoản và mở thanh toán"
   }
 }
 ```
@@ -886,3 +910,21 @@ The normal endpoint keeps the connection open, sends committed events after the 
 - [ ] old payment intent is rejected/cancelled after material agreement change;
 - [ ] only server-side verification can confirm payment;
 - [ ] receipt does not return raw PII, full transcript, or raw agreement JSON.
+
+---
+
+## 12. Phase 11 Revenue Twin runtime routes
+
+Phase 11 runtime routes resolve inventory, pricing, policy and provider state server-side. The browser may send only identifiers and the idempotency key documented below.
+
+| Endpoint                                                      | Request authority                                       | Required server behavior                                                                                |
+| ------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `POST /v1/calls/:callId/revenue-twin/evaluations`             | customer flexibility only when absent from server state | resolve departures, policy, capacity, pricing, and eligibility server-side                              |
+| `GET /v1/calls/:callId/revenue-twin/evaluations/latest`       | none                                                    | return safe latest evaluation or null; accepted offers may include safe `inventoryHoldId` proof         |
+| `POST /v1/calls/:callId/revenue-twin/offers/:offerId/accept`  | `evaluationId`, `offerId`, `idempotencyKey` only        | reload server offer and revalidate policy/inventory before existing hold flow                           |
+| `POST /v1/calls/:callId/revenue-twin/offers/:offerId/decline` | identifiers only                                        | record a safe decision without changing inventory                                                       |
+| `GET /v1/revenue-twin/dashboard`                              | none                                                    | return privacy-safe aggregate metrics; secured revenue is zero until authoritative payment confirmation |
+
+The browser must never provide departure, pricing, capacity, pickup compatibility, partner status, policy version, inventory version, or recovered-revenue authority. When a booking has a validated pickup, the server may project it into the internal Revenue Twin demand context as a `pickupPointId`; offer filtering still derives compatibility from the catalogue snapshot. On an accepted alternative, the server atomically replaces only a still-active requested-departure hold owned by the same booking; a failed replacement rolls the old hold release back, and another booking is never preempted. Success/error envelopes remain unchanged.
+
+A final `CUSTOMER` transcript turn may express a stored-offer selection. The server maps only unambiguous ordinal/time selections (or an affirmative with exactly one open offer) to the persisted offer, then reuses the identifier-only acceptance command. An explicit `waitlist`/`danh sach cho` request is admitted only for an evaluation with no suitable offer and creates one idempotent `PENDING` waitlist entry; it never creates or revokes an inventory hold. Ambiguous language is non-mutating; the browser/agent never supplies the selected offer, price, capacity, or hold.

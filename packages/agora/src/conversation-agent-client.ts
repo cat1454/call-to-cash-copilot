@@ -1,4 +1,5 @@
 import { AgoraAdapterError } from "./errors.js";
+import { withCtcAgoraV1Prompt } from "./prompt-source.js";
 import type { AgoraAgentSession, AgoraConversationAgentConfig } from "./types.js";
 
 function agentIdFrom(response: Record<string, unknown>): string | undefined {
@@ -8,8 +9,18 @@ function agentIdFrom(response: Record<string, unknown>): string | undefined {
   return undefined;
 }
 
+function safeProviderField(body: unknown, field: "detail" | "reason"): string | undefined {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) return undefined;
+  const value = (body as Record<string, unknown>)[field];
+  return typeof value === "string" && value.length > 0 ? value.slice(0, 500) : undefined;
+}
+
+function isRetryableStatus(status: number): boolean {
+  return status === 408 || status === 429 || status >= 500;
+}
+
 export class AgoraConversationAgentClient {
-  private readonly agentTokens = new Map<string, string>();
+  private readonly activeAgents = new Set<string>();
   constructor(
     private readonly config: AgoraConversationAgentConfig,
     private readonly fetchImpl: typeof fetch = fetch
@@ -21,6 +32,7 @@ export class AgoraConversationAgentClient {
     agentUid: number;
     customerUid: number;
     name: string;
+    callId: string;
   }): Promise<AgoraAgentSession> {
     const { pipeline_id: pipelineId, ...properties } = this.config.properties;
     if (typeof pipelineId !== "string" || pipelineId.length === 0) {
@@ -30,6 +42,7 @@ export class AgoraConversationAgentClient {
         false
       );
     }
+    const promptProperties = withCtcAgoraV1Prompt(properties);
     const response = await this.request(
       `/api/conversational-ai-agent/v2/projects/${this.config.appId}/join`,
       {
@@ -38,15 +51,18 @@ export class AgoraConversationAgentClient {
           name: input.name,
           pipeline_id: pipelineId,
           properties: {
-            ...properties,
+            ...promptProperties,
             channel: input.channelName,
             token: input.agentToken,
             agent_rtc_uid: String(input.agentUid),
-            remote_rtc_uids: [String(input.customerUid)]
-          }
+            agent_rtm_uid: String(input.agentUid),
+            remote_rtc_uids: [String(input.customerUid)],
+            advanced_features: { enable_rtm: true },
+            parameters: { data_channel: "rtm" }
+          },
+          labels: { call_id: input.callId, schema_version: "ctc-v1" }
         })
-      },
-      input.agentToken
+      }
     );
     const agentId = agentIdFrom(response);
     if (agentId === undefined) {
@@ -56,13 +72,12 @@ export class AgoraConversationAgentClient {
         true
       );
     }
-    this.agentTokens.set(agentId, input.agentToken);
+    this.activeAgents.add(agentId);
     return { agentId, name: input.name };
   }
 
   async stop(agentId: string): Promise<void> {
-    const token = this.agentTokens.get(agentId);
-    if (token === undefined) {
+    if (!this.activeAgents.has(agentId)) {
       throw new AgoraAdapterError(
         "AGORA_CHANNEL_UNAVAILABLE",
         "Agora agent session is no longer available.",
@@ -71,33 +86,31 @@ export class AgoraConversationAgentClient {
     }
     await this.request(
       `/api/conversational-ai-agent/v2/projects/${this.config.appId}/agents/${encodeURIComponent(agentId)}/leave`,
-      { method: "POST" },
-      token
+      { method: "POST" }
     );
-    this.agentTokens.delete(agentId);
+    this.activeAgents.delete(agentId);
   }
 
-  private async request(
-    path: string,
-    init: RequestInit,
-    token: string
-  ): Promise<Record<string, unknown>> {
+  private async request(path: string, init: RequestInit): Promise<Record<string, unknown>> {
     try {
       const response = await this.fetchImpl(new URL(path, this.config.baseUrl), {
         ...init,
         headers: {
-          Authorization: `agora token=${token}`,
+          Authorization: `Basic ${Buffer.from(`${this.config.customerId}:${this.config.customerSecret}`).toString("base64")}`,
           "Content-Type": "application/json"
         }
       });
+      const body: unknown = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new AgoraAdapterError(
           "AGORA_CHANNEL_UNAVAILABLE",
           "Agora Conversation AI Engine is unavailable.",
-          response.status >= 500
+          isRetryableStatus(response.status),
+          response.status,
+          safeProviderField(body, "detail"),
+          safeProviderField(body, "reason")
         );
       }
-      const body: unknown = await response.json().catch(() => ({}));
       return typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
     } catch (error) {
       if (error instanceof AgoraAdapterError) throw error;

@@ -214,8 +214,8 @@
 }
 
 .phone-dashboard-prefetch {
-  background: rgba(6, 182, 212, 0.06);
-  border: 1px dashed rgba(6, 182, 212, 0.24);
+  background: rgba(13, 148, 136, 0.06);
+  border: 1px dashed rgba(13, 148, 136, 0.24);
   color: var(--accent-cyan);
 }
 

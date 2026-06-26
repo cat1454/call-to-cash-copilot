@@ -3,26 +3,33 @@ import { Badge } from "../../../components/ui/Badge";
 
 const SCENARIOS = [
   {
-    idx:   0,
+    idx: 0,
     title: "Kịch bản 1: Đặt chỗ bình thường",
     badge: "Thành công nhanh",
-    type:  "success",
-    desc:  "Hành khách đặt xe Hà Nội đi Sa Pa tối nay, thông tin đầy đủ rõ ràng, thanh toán cọc nhanh chóng.",
+    type: "success",
+    desc: "Hành khách đặt xe Hà Nội đi Sa Pa tối nay, thông tin đầy đủ rõ ràng, thanh toán cọc nhanh chóng."
   },
   {
-    idx:   1,
+    idx: 1,
     title: "Kịch bản 2: Kỳ kèo cọc & Nghi ngờ Crypto",
     badge: "Dispute Risk cao",
-    type:  "warning",
-    desc:  "Khách nghi ngại cọc tiền, hỏi Solana có phải coin lừa đảo không, xác nhận mơ hồ. AI xử lý kéo giảm rủi ro.",
+    type: "warning",
+    desc: "Khách nghi ngại cọc tiền, hỏi Solana có phải coin lừa đảo không, xác nhận mơ hồ. AI xử lý kéo giảm rủi ro."
   },
   {
-    idx:   2,
+    idx: 2,
     title: "Kịch bản 3: Thay đổi số ghế giữa cuộc thoại",
     badge: "Sửa đổi Draft vé",
-    type:  "neutral",
-    desc:  "Khách đổi ý đặt 2 người rồi đổi sang 4 người, kỳ kèo chính sách và yêu cầu thay đổi giá tiền vé.",
+    type: "neutral",
+    desc: "Khách đổi ý đặt 2 người rồi đổi sang 4 người, kỳ kèo chính sách và yêu cầu thay đổi giá tiền vé."
   },
+  {
+    idx: 3,
+    title: "Kịch bản 4: Đà Nẵng → Hà Nội + Solana Devnet",
+    badge: "Quét ví Devnet",
+    type: "success",
+    desc: "Replay dữ liệu đặt 3 khách rồi đổi 4 khách; sau xác nhận sẽ mở QR Solana Devnet thật."
+  }
 ];
 
 export default function ScenarioSelector({ currentScenarioIdx, selectScenario }) {
@@ -34,7 +41,7 @@ export default function ScenarioSelector({ currentScenarioIdx, selectScenario })
       <h2 className="mb-4 border-l-[3px] border-[#059669] pl-2 text-sm leading-5 font-semibold text-[#374151] text-balance select-none">
         Chọn Kịch Bản Mô Phỏng Thuyết Trình
       </h2>
-      <div className="grid grid-cols-1 gap-3 min-[900px]:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 min-[900px]:grid-cols-2 min-[1200px]:grid-cols-4">
         {SCENARIOS.map((sc) => (
           <button
             key={sc.idx}

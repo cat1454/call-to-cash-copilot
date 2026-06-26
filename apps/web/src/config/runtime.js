@@ -15,3 +15,7 @@ export const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL?.trim() || null;
 
 /** Explicitly opt into the real Agora adapter. Replay remains the default fallback. */
 export const VOICE_PROVIDER = import.meta.env?.VITE_VOICE_PROVIDER?.trim() || "replay";
+
+export function getVoiceModeLabel(provider) {
+  return provider === "agora" ? "Agora Live" : "Replay Demo — không phải thoại trực tiếp";
+}

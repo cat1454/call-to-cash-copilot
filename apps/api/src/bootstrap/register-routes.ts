@@ -8,6 +8,7 @@ import { registerHealthRoutes } from "../modules/health/health.routes.js";
 import { registerPaymentRoutes } from "../modules/payment/payment.routes.js";
 import { registerReceiptRoutes } from "../modules/receipt/receipt.routes.js";
 import { registerVoiceSessionRoutes } from "../modules/voice-session/voice-session.routes.js";
+import { registerRevenueTwinRoutes } from "../modules/revenue-twin/revenue-twin.routes.js";
 import { ApiCommandError } from "../platform/http/api-command-error.js";
 import { errorEnvelope } from "../platform/http/api-response.js";
 import type { ApiDependencies } from "./types.js";
@@ -20,9 +21,19 @@ export function registerRoutes(app: FastifyInstance, dependencies: ApiDependenci
   registerPaymentRoutes(app, dependencies);
   registerReceiptRoutes(app, dependencies);
   registerVoiceSessionRoutes(app, dependencies);
+  registerRevenueTwinRoutes(app, dependencies);
 
-  app.setNotFoundHandler((request, reply) =>
-    reply.code(404).send(
+  app.setNotFoundHandler((request, reply) => {
+    request.log.warn(
+      {
+        event: "http.route_not_found",
+        requestId: request.id,
+        method: request.method,
+        path: request.url.split("?")[0]
+      },
+      "HTTP route was not found"
+    );
+    return reply.code(404).send(
       ApiErrorEnvelopeSchema.parse({
         success: false,
         error: {
@@ -32,8 +43,8 @@ export function registerRoutes(app: FastifyInstance, dependencies: ApiDependenci
           retryable: false
         }
       })
-    )
-  );
+    );
+  });
 
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof ApiCommandError) {

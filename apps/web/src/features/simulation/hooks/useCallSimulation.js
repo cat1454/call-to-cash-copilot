@@ -11,28 +11,28 @@ import {
   DEFAULT_PAYMENT_TIMER,
   DEFAULT_PHONE_STATUS
 } from "../simulationDefaults";
+import { inactiveAgreementConfirmation } from "./agreementConfirmation.js";
 import {
   issueBoardingPass,
   resetSimulationState,
   runWalletPaymentSequence,
-  startDialogueSimulation,
   tamperAgreement,
-  triggerPhonePaySheet
 } from "../simulationActions";
 import { useCallDurationTimer } from "./useCallDurationTimer";
 import { useReservationCountdown } from "./useReservationCountdown";
 import { useTimeoutRegistry } from "./useTimeoutRegistry";
 import { useViewportMode } from "./useViewportMode";
 import { useApiMode } from "./useApiMode";
+import { usePaymentIntentCountdown } from "./usePaymentIntentCountdown";
 import useServerSimulation from "./useServerSimulation";
 import { VOICE_PROVIDER } from "../../../config/runtime";
 import { useLiveVoiceSession } from "../../voice/useLiveVoiceSession";
-
 export default function useCallSimulation() {
   const isMobile = useViewportMode();
-  const { apiMode, apiBaseUrl, apiClient, isProbing } = useApiMode();
+  const { apiMode, apiBaseUrl, apiClient, isProbing, demoReady, demoReadiness, retryDemoReadiness } =
+    useApiMode();
   const [currentScenarioIdx, setCurrentScenarioIdx] = useState(0);
-
+  const [voiceMode, setVoiceMode] = useState(VOICE_PROVIDER);
   // ---- Mock simulation state (used only when apiMode=false) -----------
   const [isSimulating, setIsSimulating] = useState(false);
   const [simStatus, setSimStatus] = useState("Sẵn sàng");
@@ -59,7 +59,6 @@ export default function useCallSimulation() {
   const [timelineSteps, setTimelineSteps] = useState([]);
   const [ledgerLogs, setLedgerLogs] = useState(createInitialLedgerLogs);
   const { clearTimeouts, scheduleTimeout } = useTimeoutRegistry();
-
   const mockSetters = {
     setBookingData,
     setBrainMode,
@@ -86,7 +85,6 @@ export default function useCallSimulation() {
     setTimelineSteps,
     setTranscript
   };
-
   useCallDurationTimer({
     isWaveAnimating,
     callDuration,
@@ -100,7 +98,6 @@ export default function useCallSimulation() {
     setBtnPhonePayText,
     setDrawerTimerText
   });
-
   // ---- API simulation (always called unconditionally for hook rules) ---
   const server = useServerSimulation(
     apiMode ? apiClient : null,
@@ -108,10 +105,19 @@ export default function useCallSimulation() {
     currentScenarioIdx,
     scenarios
   );
+  const paymentCountdown = usePaymentIntentCountdown(
+    server.paymentIntent?.expiresAt,
+    apiMode && server.showPaymentDrawer
+  );
   const liveVoice = useLiveVoiceSession(
-    apiMode && VOICE_PROVIDER === "agora" ? apiClient : null,
+    apiMode && voiceMode === "agora" ? apiClient : null,
     (call) => server.connectLiveCall(call)
   );
+  const effectiveDemoReady = demoReady && server.streamStatus !== "error";
+  const effectiveDemoReadiness =
+    server.streamStatus === "error"
+      ? { status: "unreachable", message: "Kết nối realtime đã mất. Demo đã được khóa để bảo toàn trạng thái." }
+      : demoReadiness;
 
   useEffect(() => {
     if (!apiMode || !server.showBoardingPass) return;
@@ -123,24 +129,12 @@ export default function useCallSimulation() {
   const mockReset = () => resetSimulationState(mockSetters, clearTimeouts);
   const mockIssueReceipt = (currentBookingData) =>
     issueBoardingPass(currentBookingData, mockSetters);
-  const mockTriggerPayment = (depositAmount) => triggerPhonePaySheet(depositAmount, mockSetters);
   const mockSimulateWalletPayment = () => {
     runWalletPaymentSequence({
       bookingData,
       issueReceipt: mockIssueReceipt,
       scheduleTimeout,
       setters: mockSetters
-    });
-  };
-  const mockStartSimulation = () => {
-    startDialogueSimulation({
-      bookingData,
-      currentScenarioIdx,
-      isSimulating,
-      scenarios,
-      scheduleTimeout,
-      setters: mockSetters,
-      triggerPayment: mockTriggerPayment
     });
   };
   const mockHandleTamper = () => tamperAgreement(bookingData, mockSetters);
@@ -153,17 +147,45 @@ export default function useCallSimulation() {
       return;
     }
     setCurrentScenarioIdx(idx);
-    if (apiMode) server.resetSimulation();
+    // Named scenarios are deterministic replay fixtures.  Selecting one must
+    // not leave the next Start action pointed at the ambient Agora mode.
+    if (apiMode) {
+      setVoiceMode("replay");
+      server.resetSimulation();
+    }
     else mockReset();
   };
 
   // ---- Unified surface (picks API or mock branch) ----------------------
   if (apiMode) {
+    const retryLiveVoice = async () => {
+      await liveVoice.stop();
+      await liveVoice.start();
+    };
+    const continueInReplayMode = async () => {
+      await liveVoice.stop();
+      server.resetSimulation();
+      setVoiceMode("replay");
+      setTimeout(() => void server.startSimulation(), 0);
+    };
+    const endVoiceSession = async () => {
+      await liveVoice.stop();
+      server.resetSimulation();
+    };
+    const stopLiveVoice = async () => {
+      await liveVoice.stop();
+      server.startPostCallTranscriptSync();
+    };
     return {
       apiMode,
+      apiClient,
       isProbing,
+      demoReady: effectiveDemoReady,
+      demoReadiness: effectiveDemoReadiness,
+      retryDemoReadiness,
       streamStatus: server.streamStatus,
       paymentGate: server.paymentGate,
+      serverAuthority: { booking: server.booking, revenueTwin: server.revenueTwin },
       isMobile,
       currentScenarioIdx,
       isSimulating: server.isSimulating,
@@ -179,7 +201,7 @@ export default function useCallSimulation() {
       showBoardingPass: server.showBoardingPass,
       showPaymentDrawer: server.showPaymentDrawer,
       paymentIntent: server.paymentIntent,
-      drawerTimerText: DEFAULT_PAYMENT_TIMER,
+      drawerTimerText: paymentCountdown,
       btnPhonePayText: server.paymentActionPending
         ? "Đang xác minh thanh toán..."
         : DEFAULT_PAYMENT_BUTTON,
@@ -195,28 +217,42 @@ export default function useCallSimulation() {
       timelineSteps: server.timelineSteps,
       ledgerLogs: server.ledgerLogs,
       selectScenario,
-      startSimulation: VOICE_PROVIDER === "agora" ? liveVoice.start : server.startSimulation,
+      startSimulation: voiceMode === "agora" ? liveVoice.start : server.startSimulation,
+      applyLiveTranscriptFrame: server.applyLiveTranscriptFrame,
       resetSimulation: () => {
         setMobileTab("call");
         server.resetSimulation();
       },
       simulateWalletPayment: server.simulateWalletPayment,
+      acceptRevenueTwinOffer: server.acceptRevenueTwinOffer,
+      markPaymentWalletOpened: server.markPaymentWalletOpened,
       tamperAgreement: server.tamperAgreement,
+      agreementConfirmation: server.agreementConfirmation,
       serverCallId: server.callId,
       serverBookingId: server.bookingId,
       serverReceiptId: server.receiptId,
       serverError: server.error,
-      voiceConnectionState: VOICE_PROVIDER === "agora" ? liveVoice.connectionState : null,
-      stopLiveVoice: liveVoice.stop
+      voiceMode,
+      voiceConnectionState: voiceMode === "agora" ? liveVoice.connectionState : null,
+      stopLiveVoice,
+      postCallTranscriptSync: server.postCallTranscriptSync,
+      retryLiveVoice,
+      continueInReplayMode,
+      endVoiceSession
     };
   }
 
   // Mock branch — unchanged behaviour
   return {
     apiMode,
+    apiClient: null,
     isProbing,
+    demoReady,
+    demoReadiness,
+    retryDemoReadiness,
     streamStatus: isProbing ? "connecting" : "demo",
     paymentGate: null,
+    serverAuthority: { booking: null, revenueTwin: { evaluation: null, dashboard: null } },
     isMobile,
     currentScenarioIdx,
     isSimulating,
@@ -246,11 +282,18 @@ export default function useCallSimulation() {
     timelineSteps,
     ledgerLogs,
     selectScenario,
-    startSimulation: mockStartSimulation,
+    startSimulation: () => {}, applyLiveTranscriptFrame: () => {},
     resetSimulation: mockReset,
     simulateWalletPayment: mockSimulateWalletPayment,
+    acceptRevenueTwinOffer: async () => null,
+    markPaymentWalletOpened: () => {},
     tamperAgreement: mockHandleTamper,
+    agreementConfirmation: inactiveAgreementConfirmation,
     voiceConnectionState: null,
-    stopLiveVoice: () => {}
+    voiceMode: "replay",
+    stopLiveVoice: () => {},
+    postCallTranscriptSync: "IDLE",
+    retryLiveVoice: () => {},
+    continueInReplayMode: () => {}, endVoiceSession: () => {}
   };
 }

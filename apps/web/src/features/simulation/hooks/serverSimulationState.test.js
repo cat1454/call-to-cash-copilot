@@ -4,7 +4,8 @@ import { describe, test } from "node:test";
 import { EventName } from "@call-to-cash/shared";
 
 import { buildVerificationPayload } from "./serverPayment.js";
-import { scheduleSolanaPaymentPoll } from "./useSolanaPaymentPolling.js";
+import { getSolanaPollDelayMs, scheduleSolanaPaymentPoll } from "./useSolanaPaymentPolling.js";
+import { getAIDecision } from "../helpers/appHelpers.js";
 
 import {
   ACTION,
@@ -22,7 +23,7 @@ test("Solana verification sends only the server-owned payment intent ID", () => 
   );
 });
 
-test("Solana polling schedules one verification after three seconds and can be cancelled", () => {
+test("Solana polling uses bounded backoff and can be cancelled", () => {
   const scheduledDelays = [];
   const clearedTimers = [];
   let verificationCount = 0;
@@ -37,17 +38,16 @@ test("Solana polling schedules one verification after three seconds and can be c
     }
   };
 
-  const cancel = scheduleSolanaPaymentPoll(
-    () => {
-      verificationCount += 1;
-    },
-    timers
-  );
+  const cancel = scheduleSolanaPaymentPoll(() => {
+    verificationCount += 1;
+  }, 2, timers);
   cancel();
 
-  assert.deepEqual(scheduledDelays, [3_000]);
+  assert.deepEqual(scheduledDelays, [12_000]);
   assert.equal(verificationCount, 1);
   assert.deepEqual(clearedTimers, [17]);
+  assert.equal(getSolanaPollDelayMs(0), 3_000);
+  assert.equal(getSolanaPollDelayMs(5), 30_000);
 });
 
 function envelope(event, data, sequence = 1, overrides = {}) {
@@ -65,26 +65,6 @@ function envelope(event, data, sequence = 1, overrides = {}) {
 }
 
 describe("server simulation event projection", () => {
-  test("consumes canonical envelope data and masks raw PII defensively", () => {
-    const state = reducer(makeInitialState(), {
-      type: ACTION.SERVER_EVENT,
-      envelope: envelope(EventName.TranscriptTurnCreated, {
-        turnId: "turn_public1",
-        sequenceNo: 1,
-        speaker: "CUSTOMER",
-        content: "Call 0912345678 or person@example.com",
-        isFinal: true,
-        timestamp: occurredAt
-      })
-    });
-
-    assert.deepEqual(state.transcript, [
-      { sender: "customer", text: "Call [PHONE] or [EMAIL]", turnId: "turn_public1" }
-    ]);
-    assert.equal(JSON.stringify(state).includes("0912345678"), false);
-    assert.equal(JSON.stringify(state).includes("person@example.com"), false);
-  });
-
   test("deduplicates at-least-once delivery and flags sequence gaps for REST recovery", () => {
     const riskEvent = envelope(EventName.RiskScoreUpdated, {
       assessmentId: "risk_public1",
@@ -136,10 +116,38 @@ describe("server simulation event projection", () => {
     });
 
     assert.equal(projected.bookingId, "bk_public01");
+    assert.equal(projected.date, "22/06/2026");
+    assert.equal(projected.time, "22:30");
     assert.equal(projected.phone, "0912***678");
     assert.equal(projected.price, "1.050.000 ₫");
     assert.equal(JSON.stringify(projected).includes("0912345678"), false);
     assert.equal(JSON.stringify(projected).includes("private agreement"), false);
+
+    const receiptProjected = projectBookingForDisplay(
+      { fareTotalVnd: 1_050_000 },
+      {
+        booking: {
+          bookingId: "bk_public01",
+          route: "Ha Noi → Sa Pa",
+          departureAt: "2026-06-22T15:30:00.000Z",
+          passengerCount: 3,
+          contactPhoneMasked: "0912***678"
+        },
+        deposit: { amount: { minor: 300_000 } }
+      }
+    );
+    assert.equal(receiptProjected.date, projected.date);
+    assert.equal(receiptProjected.time, projected.time);
+  });
+
+  test("projects transcript analysis updates into the decision summary without raw PII", () => {
+    const analysis = { extractionId: "ext_public01", understood: { routeFrom: "Da Nang", routeTo: "Ha Noi", passengerCount: 4, contactPhoneMasked: "0901***567", contactPhone: "0901567890" }, missingFields: ["refundPolicyConfirmation"], contradictions: [], nextQuestion: "Confirm deposit terms." };
+    const state = reducer(makeInitialState(), { type: ACTION.SERVER_EVENT, envelope: envelope(EventName.TranscriptAnalysisUpdated, analysis, 2, { bookingId: "bk_public01" }) });
+    const decision = getAIDecision(state);
+    assert.equal(state.bookingId, "bk_public01");
+    assert.match(decision.understood, /Da Nang.*Ha Noi.*4.*0901\*\*\*567/u);
+    assert.deepEqual([decision.missing, decision.next], ["refundPolicyConfirmation", "Confirm deposit terms."]);
+    assert.doesNotMatch(JSON.stringify(decision), /0901567890/u);
   });
 
   test("REST recovery stores only whitelisted booking and receipt projections", () => {

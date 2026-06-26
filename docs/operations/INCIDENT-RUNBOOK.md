@@ -292,8 +292,9 @@ Usually `SEV-3`; `SEV-2` if it blocks the entire booking channel.
 
 ```text
 1. Check API health, token endpoint, channel/UID mapping, client browser permissions, and Agora status/configuration.
-2. Disable live voice only if necessary; do not disable booking/replay flow.
-3. Offer transcript replay, text intake, or operator handoff as fallback.
+2. For notification failures, inspect only call ID, notice ID, product/event type, signature result, and delivery age; never inspect or log raw transcript payloads.
+3. Disable live voice only if necessary; do not disable booking/replay flow.
+4. Offer transcript replay, text intake, or operator handoff as fallback.
 4. Preserve call lifecycle events without raw audio where recording failed.
 5. Do not infer missing fields from partial or low-confidence transcript.
 ```

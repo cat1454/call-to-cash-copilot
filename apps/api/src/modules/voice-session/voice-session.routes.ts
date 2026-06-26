@@ -4,7 +4,8 @@ import { z } from "zod";
 import {
   CallIdSchema,
   CreateVoiceSessionRequestSchema,
-  RecordLiveAudioConsentRequestSchema
+  RecordLiveAudioConsentRequestSchema,
+  StartVoiceSessionRequestSchema
 } from "@call-to-cash/shared";
 
 import type { ApiDependencies } from "../../bootstrap/types.js";
@@ -18,7 +19,11 @@ export function registerVoiceSessionRoutes(
   app: FastifyInstance,
   dependencies: ApiDependencies
 ): void {
-  const handlers = createVoiceSessionHandlers(dependencies.config, dependencies.databaseClient);
+  const handlers = createVoiceSessionHandlers(
+    dependencies.config,
+    dependencies.databaseClient,
+    app.log
+  );
   app.post("/v1/voice-sessions", async (request, reply) => {
     const body = parseWithSchema(CreateVoiceSessionRequestSchema, request.body);
     return reply.code(201).send(
@@ -50,9 +55,10 @@ export function registerVoiceSessionRoutes(
   });
   app.post("/v1/voice-sessions/:callId/start", async (request) => {
     const params = parseWithSchema(CallParamsSchema, request.params);
+    const body = parseWithSchema(StartVoiceSessionRequestSchema, request.body);
     return successEnvelope(
       request.id,
-      await handlers.start({ callId: params.callId, requestId: request.id })
+      await handlers.start({ callId: params.callId, requestId: request.id, ...body })
     );
   });
   app.post("/v1/voice-sessions/:callId/stop", async (request) => {
@@ -69,6 +75,20 @@ export function registerVoiceSessionRoutes(
       callId: params.callId,
       payload: request.body,
       ...(typeof signature === "string" ? { signature } : {}),
+      requestId: request.id
+    });
+    return reply.code(202).send(successEnvelope(request.id, data));
+  });
+  app.post("/v1/webhooks/agora/conversation-ai", async (request, reply) => {
+    const signature = request.headers["agora-signature-v2"];
+    const rawBody = (request as typeof request & { rawBody?: Buffer }).rawBody;
+    if (rawBody === undefined) {
+      throw new Error("Agora webhook raw body was not captured.");
+    }
+    const data = await handlers.reconcileAgoraNotification({
+      rawBody,
+      ...(typeof signature === "string" ? { signature } : {}),
+      payload: request.body,
       requestId: request.id
     });
     return reply.code(202).send(successEnvelope(request.id, data));

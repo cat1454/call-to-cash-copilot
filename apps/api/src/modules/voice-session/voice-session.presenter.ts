@@ -12,10 +12,7 @@ export function presentVoiceSession(input: {
   return {
     callId: input.callId,
     status:
-      input.rtc === undefined
-        ? (input.runtime?.status ??
-          (input.analysisConsent === "GRANTED" ? "READY" : "CONSENT_REQUIRED"))
-        : "CONNECTED",
+      input.runtime?.status ?? (input.analysisConsent === "GRANTED" ? "READY" : "CONSENT_REQUIRED"),
     analysisConsent: input.analysisConsent,
     channelName: input.channelName,
     agentStarted: input.runtime?.agentId !== undefined,

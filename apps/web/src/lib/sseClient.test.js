@@ -159,7 +159,12 @@ test("committed canonical SSE frames feed privacy-safe UI transcript state", asy
 
   await new Promise((resolve) => setTimeout(resolve, 0));
   assert.deepEqual(state.transcript, [
-    { sender: "customer", text: "Liên hệ [PHONE]", turnId: "turn_public1" }
+    {
+      sender: "customer",
+      text: "Liên hệ [PHONE]",
+      turnId: "turn_public1",
+      timestamp: "2026-06-21T10:00:00.000Z"
+    }
   ]);
   assert.equal(JSON.stringify(state).includes("0912345678"), false);
   client.disconnect();

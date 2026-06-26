@@ -1,17 +1,21 @@
 export const PAYMENT_PROVIDERS = ["mock", "solana_devnet"] as const;
 export const VOICE_PROVIDERS = ["replay", "agora"] as const;
-export const AI_PROVIDERS = ["deterministic", "llm"] as const;
+export const AI_PROVIDERS = ["deterministic", "openai"] as const;
+export const AI_EXTRACTION_MODES = ["deterministic", "hybrid"] as const;
 export const LOG_LEVELS = ["trace", "debug", "info", "warn", "error", "fatal", "silent"] as const;
 
 export type PaymentProvider = (typeof PAYMENT_PROVIDERS)[number];
 export type VoiceProvider = (typeof VOICE_PROVIDERS)[number];
 export type AiProvider = (typeof AI_PROVIDERS)[number];
+export type AiExtractionMode = (typeof AI_EXTRACTION_MODES)[number];
 export type LogLevel = (typeof LOG_LEVELS)[number];
 
 export type RuntimeConfig = {
   nodeEnv: string;
   host: string;
   port: number;
+  /** Exact browser origin allowed to call the production API. */
+  webOrigin: string;
   demoMode: boolean;
   paymentProvider: PaymentProvider;
   solanaDevnet: {
@@ -29,15 +33,31 @@ export type RuntimeConfig = {
     appCertificate: string;
     customerId: string;
     customerSecret: string;
-    webhookSecret: string;
+    /** Internal trusted-relay HMAC; never used for public Notifications. */
+    providerEventSecret: string;
+    /** Agora Notifications Center secret for Agora-Signature-V2. */
+    ncsWebhookSecret: string;
     agentProperties: Record<string, unknown>;
     tokenTtlSeconds: number;
     agentUid: number;
     agentName: string;
     baseUrl: string;
+    liveRelay: {
+      url: string;
+      controlSecret: string;
+      uid: number;
+      ready: boolean;
+    };
     ready: boolean;
   };
   aiProvider: AiProvider;
+  aiExtraction: {
+    mode: AiExtractionMode;
+    model: string;
+    apiKey: string;
+    timeoutMs: number;
+    promptVersion: string;
+  };
   /** Pino log level. Defaults to "info". Set LOG_LEVEL=debug for verbose output. */
   logLevel: LogLevel;
   /**
@@ -120,16 +140,37 @@ export function readRuntimeConfig(
   env: Readonly<Record<string, string | undefined>> = process.env
 ): RuntimeConfig {
   const recipientPublicKey = env.SOLANA_RECIPIENT_PUBLIC_KEY?.trim() ?? "";
+  const agoraAgentProperties = readJsonObject(
+    "AGORA_CAI_PROPERTIES_JSON",
+    env.AGORA_CAI_PROPERTIES_JSON
+  );
+  delete agoraAgentProperties.llm;
   const solanaCluster = readEnum(
     "SOLANA_CLUSTER",
     env.SOLANA_CLUSTER,
     ["devnet"] as const,
     "devnet"
   );
+  const aiProvider = readEnum("AI_PROVIDER", env.AI_PROVIDER, AI_PROVIDERS, "deterministic");
+  const aiExtraction = {
+    mode: readEnum("AI_EXTRACTION_MODE", env.AI_EXTRACTION_MODE, AI_EXTRACTION_MODES, "hybrid"),
+    model: env.OPENAI_MODEL?.trim() || "gpt-5-mini",
+    apiKey: env.OPENAI_API_KEY?.trim() ?? "",
+    timeoutMs: readStrictPositiveInt(
+      "AI_EXTRACTION_TIMEOUT_MS",
+      env.AI_EXTRACTION_TIMEOUT_MS,
+      1_500
+    ),
+    promptVersion: env.AI_EXTRACTION_PROMPT_VERSION?.trim() || "CTC-BOOKING-EXTRACTION-V1"
+  };
+  if (aiProvider === "openai" && aiExtraction.apiKey.length === 0) {
+    throw new Error("OPENAI_API_KEY is required when AI_PROVIDER=openai");
+  }
   return {
     nodeEnv: env.NODE_ENV ?? "development",
     host: env.API_HOST ?? "127.0.0.1",
     port: readPort(env.API_PORT),
+    webOrigin: env.WEB_ORIGIN?.trim() ?? "",
     demoMode: readBoolean("DEMO_MODE", env.DEMO_MODE, true),
     paymentProvider: readEnum("PAYMENT_PROVIDER", env.PAYMENT_PROVIDER, PAYMENT_PROVIDERS, "mock"),
     solanaDevnet: {
@@ -151,8 +192,11 @@ export function readRuntimeConfig(
       appCertificate: env.AGORA_APP_CERTIFICATE?.trim() ?? "",
       customerId: env.AGORA_CUSTOMER_ID?.trim() ?? "",
       customerSecret: env.AGORA_CUSTOMER_SECRET?.trim() ?? "",
-      webhookSecret: env.AGORA_WEBHOOK_SECRET?.trim() ?? "",
-      agentProperties: readJsonObject("AGORA_CAI_PROPERTIES_JSON", env.AGORA_CAI_PROPERTIES_JSON),
+      providerEventSecret: env.AGORA_PROVIDER_EVENT_SECRET?.trim() ?? "",
+      ncsWebhookSecret: env.AGORA_NCS_WEBHOOK_SECRET?.trim() ?? "",
+      // Agora's native configured pipeline owns its LLM settings. Discard a
+      // legacy app-side `llm` override so it cannot become an accidental hop.
+      agentProperties: agoraAgentProperties,
       tokenTtlSeconds: readStrictPositiveInt(
         "AGORA_TOKEN_TTL_SECONDS",
         env.AGORA_TOKEN_TTL_SECONDS,
@@ -161,16 +205,24 @@ export function readRuntimeConfig(
       agentUid: readStrictPositiveInt("AGORA_AGENT_UID", env.AGORA_AGENT_UID, 9_001),
       agentName: env.AGORA_CAI_AGENT_NAME?.trim() || "call-to-cash-agent",
       baseUrl: readHttpUrl("AGORA_API_BASE_URL", env.AGORA_API_BASE_URL, "https://api.agora.io"),
+      liveRelay: {
+        url: readHttpUrl("AGORA_RTM_RELAY_URL", env.AGORA_RTM_RELAY_URL, "http://127.0.0.1:3011"),
+        controlSecret: env.AGORA_RTM_RELAY_CONTROL_SECRET?.trim() ?? "",
+        uid: readStrictPositiveInt("AGORA_RTM_RELAY_UID", env.AGORA_RTM_RELAY_UID, 9_002),
+        ready: (env.AGORA_RTM_RELAY_CONTROL_SECRET?.trim().length ?? 0) > 0
+      },
       ready:
         (env.AGORA_APP_ID?.trim().length ?? 0) > 0 &&
         (env.AGORA_APP_CERTIFICATE?.trim().length ?? 0) > 0 &&
         (env.AGORA_CUSTOMER_ID?.trim().length ?? 0) > 0 &&
         (env.AGORA_CUSTOMER_SECRET?.trim().length ?? 0) > 0 &&
-        (env.AGORA_WEBHOOK_SECRET?.trim().length ?? 0) > 0 &&
-        Object.keys(readJsonObject("AGORA_CAI_PROPERTIES_JSON", env.AGORA_CAI_PROPERTIES_JSON))
-          .length > 0
+        (env.AGORA_PROVIDER_EVENT_SECRET?.trim().length ?? 0) > 0 &&
+        (env.AGORA_NCS_WEBHOOK_SECRET?.trim().length ?? 0) > 0 &&
+        (env.AGORA_RTM_RELAY_CONTROL_SECRET?.trim().length ?? 0) > 0 &&
+        Object.keys(agoraAgentProperties).length > 0
     },
-    aiProvider: readEnum("AI_PROVIDER", env.AI_PROVIDER, AI_PROVIDERS, "deterministic"),
+    aiProvider,
+    aiExtraction,
     logLevel: readEnum("LOG_LEVEL", env.LOG_LEVEL, LOG_LEVELS, "info"),
     rateLimitMax: readPositiveInt("RATE_LIMIT_MAX", env.RATE_LIMIT_MAX, 100)
   };

@@ -29,6 +29,7 @@ import {
   BookingIdSchema,
   CallIdSchema,
   CurrencySchema,
+  DepartureIdSchema,
   ExtractionIdSchema,
   InventoryReservationIdSchema,
   IsoTimestampSchema,
@@ -95,6 +96,46 @@ export const RISK_REASON_CODE_VALUES = [
 
 export const RiskReasonCodeSchema = z.enum(RISK_REASON_CODE_VALUES);
 export type RiskReasonCode = z.infer<typeof RiskReasonCodeSchema>;
+
+export const SCHEDULE_RESOLUTION_REASON_VALUES = [
+  "MISSING_ROUTE",
+  "MISSING_DATE",
+  "MISSING_TIME",
+  "AMBIGUOUS_ROUTE",
+  "AMBIGUOUS_DATE",
+  "AMBIGUOUS_TIME",
+  "AMBIGUOUS_PICKUP",
+  "ROUTE_NOT_FOUND",
+  "SERVICE_DATE_NOT_FOUND",
+  "DEPARTURE_NOT_FOUND",
+  "DEPARTURE_CANCELLED",
+  "PICKUP_NOT_SUPPORTED"
+] as const;
+
+export const ScheduleResolutionReasonSchema = z.enum(SCHEDULE_RESOLUTION_REASON_VALUES);
+
+export const ScheduleResolutionSchema = z.discriminatedUnion("status", [
+  z
+    .object({
+      status: z.literal("MATCHED"),
+      departureId: DepartureIdSchema,
+      reasons: z.array(ScheduleResolutionReasonSchema).default([])
+    })
+    .strict(),
+  z
+    .object({
+      status: z.literal("NEEDS_CLARIFICATION"),
+      reasons: z.array(ScheduleResolutionReasonSchema).min(1)
+    })
+    .strict(),
+  z
+    .object({
+      status: z.literal("NO_MATCH"),
+      reasons: z.array(ScheduleResolutionReasonSchema).min(1)
+    })
+    .strict()
+]);
+export type ScheduleResolution = z.infer<typeof ScheduleResolutionSchema>;
 
 export const FieldProvenanceSchema = z
   .object({

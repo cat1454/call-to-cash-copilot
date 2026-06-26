@@ -30,8 +30,12 @@ export type EndCallSessionInput = {
 
 export type AppendTranscriptTurnInput = {
   callId: string;
+  /** Internal-only guard for a final, signed provider history delivered after normal call end. */
+  trustedPostSessionIngress?: boolean;
   turn: {
     clientTurnId: string;
+    provider?: string | undefined;
+    providerTurnId?: string | undefined;
     sequenceNo: number;
     speaker: (typeof TranscriptSpeaker)[keyof typeof TranscriptSpeaker];
     content: string;
@@ -54,7 +58,9 @@ export type ExtractedFacts = {
   passengerCount?: number;
   pickupPoint?: string;
   contactPhoneMasked?: string;
-  departureHint?: "22:30";
+  departureLocalTime?: string;
+  departureDay?: number;
+  departureMonth?: number;
 };
 
 export type BookingForRisk = {

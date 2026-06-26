@@ -1,4 +1,9 @@
 import {
+  applyLiveTranscriptFrame,
+  projectRecoveredTranscript,
+  subtitleForBubble
+} from "./liveTranscriptProjection.js";
+import {
   applyServerEvent,
   emptyBooking,
   projectBookingForDisplay,
@@ -8,9 +13,8 @@ import {
   projectVerificationReadModel,
   projectReceiptReadModel
 } from "./serverEventProjection.js";
-
+import { hasCustomerAndAgentTurns } from "./transcriptCompleteness.js";
 export { projectBookingForDisplay } from "./serverEventProjection.js";
-
 export function makeInitialState() {
   return {
     callId: null,
@@ -23,8 +27,10 @@ export function makeInitialState() {
     paymentStatus: null,
     receipt: null,
     verification: null,
+    revenueTwin: { evaluation: null, dashboard: null },
     isSimulating: false,
     replayInputEnabled: false,
+    postCallTranscriptSync: "IDLE",
     simStatus: "Sẵn sàng",
     streamStatus: "idle",
     streamError: null,
@@ -35,47 +41,49 @@ export function makeInitialState() {
     scores: { completeness: 0, dispute: 0, readiness: 0 },
     paymentGate: "LOCKED",
     transcript: [],
+    liveTranscriptTurns: [],
+    transcriptAnalysis: null,
     subtitles: { speaker: "Tổng đài AI", text: "Đang chờ cuộc gọi..." },
     bookingData: { ...emptyBooking },
     timelineSteps: [],
     showPaymentDrawer: false,
     showBoardingPass: false,
     paymentActionPending: false,
+    paymentWalletOpened: false,
+    paymentPollAttempt: 0,
     isTampered: false,
-    ledgerLogs: {
-      txSig: null,
-      anchoredHash: null,
-      computedHash: null,
-      computedHashColor: null,
-      show: false
-    },
+    ledgerLogs: { txSig: null, anchoredHash: null, computedHash: null, computedHashColor: null, show: false },
     error: null
   };
 }
-
 export const ACTION = {
   START: "START",
   RESUME: "RESUME",
   CALL_CREATED: "CALL_CREATED",
   STREAM_STATUS: "STREAM_STATUS",
-  SERVER_EVENT: "SERVER_EVENT",
+  LIVE_TRANSCRIPT_FRAME: "LIVE_TRANSCRIPT_FRAME",
+  SERVER_EVENT: "SERVER_EVENT", SERVER_EVENTS: "SERVER_EVENTS",
   CALL_SYNCED: "CALL_SYNCED",
+  TRANSCRIPT_SYNCED: "TRANSCRIPT_SYNCED",
+  POST_CALL_TRANSCRIPT_SYNC_STARTED: "POST_CALL_TRANSCRIPT_SYNC_STARTED",
+  POST_CALL_TRANSCRIPT_SYNC_TIMED_OUT: "POST_CALL_TRANSCRIPT_SYNC_TIMED_OUT",
   RISK_SYNCED: "RISK_SYNCED",
   BOOKING_SYNCED: "BOOKING_SYNCED",
   BOOKING_CONFIRMED: "BOOKING_CONFIRMED",
   PAYMENT_INTENT_CREATED: "PAYMENT_INTENT_CREATED",
   PAYMENT_STATUS_SYNCED: "PAYMENT_STATUS_SYNCED",
   PAYMENT_ACTION_STARTED: "PAYMENT_ACTION_STARTED",
+  PAYMENT_WALLET_OPENED: "PAYMENT_WALLET_OPENED",
   PAYMENT_PENDING: "PAYMENT_PENDING",
   PAYMENT_VERIFIED: "PAYMENT_VERIFIED",
   PAYMENT_REJECTED: "PAYMENT_REJECTED",
   RECEIPT_SYNCED: "RECEIPT_SYNCED",
   VERIFICATION_SYNCED: "VERIFICATION_SYNCED",
+  REVENUE_TWIN_SYNCED: "REVENUE_TWIN_SYNCED",
   RECOVERY_COMPLETE: "RECOVERY_COMPLETE",
   RESET: "RESET",
   ERROR: "ERROR"
 };
-
 export function reducer(state, action) {
   switch (action.type) {
     case ACTION.START:
@@ -109,8 +117,11 @@ export function reducer(state, action) {
         streamStatus: action.status,
         streamError: action.error ?? (action.status === "open" ? null : state.streamError)
       };
-    case ACTION.SERVER_EVENT:
-      return applyServerEvent(state, action.envelope);
+    case ACTION.LIVE_TRANSCRIPT_FRAME:
+      return applyLiveTranscriptFrame(state, action.frame);
+    case ACTION.SERVER_EVENT: return applyServerEvent(state, action.envelope);
+    case ACTION.SERVER_EVENTS:
+      return action.envelopes.reduce((nextState, envelope) => applyServerEvent(nextState, envelope), state);
     case ACTION.CALL_SYNCED:
       return {
         ...state,
@@ -122,6 +133,38 @@ export function reducer(state, action) {
         simStatus: ["ENDED", "CANCELLED"].includes(action.call.status)
           ? "Đã hoàn thành"
           : state.simStatus
+      };
+    case ACTION.TRANSCRIPT_SYNCED: {
+      const transcript = projectRecoveredTranscript(action.transcript.turns);
+      const transcriptComplete = hasCustomerAndAgentTurns(transcript);
+      const latestTurn = transcript.at(-1);
+      return {
+        ...state,
+        transcript,
+        subtitles: latestTurn === undefined ? state.subtitles : subtitleForBubble(latestTurn),
+        postCallTranscriptSync:
+          state.postCallTranscriptSync === "PENDING" && transcriptComplete
+            ? "COMPLETE"
+            : state.postCallTranscriptSync,
+        simStatus:
+          state.postCallTranscriptSync === "PENDING" && transcriptComplete
+            ? "Đã hoàn thành"
+            : state.simStatus
+      };
+    }
+    case ACTION.POST_CALL_TRANSCRIPT_SYNC_STARTED:
+      return {
+        ...state,
+        isSimulating: false,
+        postCallTranscriptSync: "PENDING",
+        simStatus: "Đang đồng bộ hội thoại sau cuộc gọi..."
+      };
+    case ACTION.POST_CALL_TRANSCRIPT_SYNC_TIMED_OUT:
+      return {
+        ...state,
+        isSimulating: false,
+        postCallTranscriptSync: "TIMED_OUT",
+        simStatus: "Đã hoàn thành"
       };
     case ACTION.RISK_SYNCED:
       return {
@@ -156,6 +199,8 @@ export function reducer(state, action) {
         paymentIntent,
         paymentIntentId: paymentIntent.paymentIntentId,
         showPaymentDrawer: true,
+        paymentWalletOpened: false,
+        paymentPollAttempt: 0,
         simStatus: "Chờ thanh toán cọc"
       };
     }
@@ -171,10 +216,18 @@ export function reducer(state, action) {
     }
     case ACTION.PAYMENT_ACTION_STARTED:
       return { ...state, paymentActionPending: true, simStatus: "Đang xác minh thanh toán..." };
+    case ACTION.PAYMENT_WALLET_OPENED:
+      return {
+        ...state,
+        paymentWalletOpened: true,
+        paymentPollAttempt: 0,
+        simStatus: "Đã mở ví, đang chờ giao dịch trên Devnet..."
+      };
     case ACTION.PAYMENT_PENDING:
       return {
         ...state,
         paymentActionPending: false,
+        paymentPollAttempt: state.paymentPollAttempt + 1,
         showPaymentDrawer: true,
         error: null,
         simStatus: "Đang chờ giao dịch trên Devnet..."
@@ -225,6 +278,8 @@ export function reducer(state, action) {
         simStatus: mismatch ? "Cần kiểm tra thủ công" : "Đã hoàn thành"
       };
     }
+    case ACTION.REVENUE_TWIN_SYNCED:
+      return { ...state, revenueTwin: { ...state.revenueTwin, ...action.revenueTwin } };
     case ACTION.RECOVERY_COMPLETE:
       return { ...state, needsRecovery: false };
     case ACTION.RESET:

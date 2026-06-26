@@ -5,14 +5,19 @@ import { cn } from "../../../lib/cn";
 export default function PhoneReceiptView({
   showBoardingPass,
   isTampered,
-  bookingData
+  bookingData,
+  lang = "vi"
 }) {
   if (!showBoardingPass) {
     return (
       <EmptyState
         icon={<Ticket size={32} aria-hidden="true" />}
-        title="Chưa có vé xe khách điện tử."
-        description="Vui lòng hoàn thành cuộc gọi đàm thoại và cọc tiền để nhận vé bảo mật."
+        title={lang === "vi" ? "Chưa có vé xe khách điện tử." : "No electronic bus ticket yet."}
+        description={
+          lang === "vi"
+            ? "Vui lòng hoàn thành cuộc gọi đàm thoại và cọc tiền để nhận vé bảo mật."
+            : "Please complete the phone call and pay the deposit to receive a secure ticket."
+        }
         className="h-full justify-center py-20"
       />
     );
@@ -36,38 +41,45 @@ export default function PhoneReceiptView({
           <div className="flex items-center justify-center gap-1.5 mb-2">
             <BadgeCheck size={16} className={isTampered ? "text-[#f43f5e]" : "text-[#10b981]"} />
             <h4 className="m-0 text-sm leading-5 font-semibold text-[#111827] text-balance">
-              VÉ XE KHÁCH ĐIỆN TỬ (SECURE TICKET)
+              {lang === "vi" ? "VÉ XE KHÁCH ĐIỆN TỬ (SECURE TICKET)" : "SECURE TICKET (VERIFIED)"}
             </h4>
           </div>
 
           <div className="flex justify-between gap-3 py-1">
-            <span className="text-[#6b7280]">Mã Booking:</span>
+            <span className="text-[#6b7280]">{lang === "vi" ? "Mã Booking:" : "Booking ID:"}</span>
             <span className="font-bold text-[#111827] tabular-nums">{bookingData.bookingId}</span>
           </div>
           
           <div className="flex justify-between gap-3 py-1">
-            <span className="text-[#6b7280]">Tuyến xe:</span>
+            <span className="text-[#6b7280]">{lang === "vi" ? "Tuyến xe:" : "Route:"}</span>
             <span className={cn("font-bold text-[#111827]", isTampered && "text-[#f43f5e]")}>
               {bookingData.route}
             </span>
           </div>
           
           <div className="flex justify-between gap-3 py-1">
-            <span className="text-[#6b7280]">Khởi hành:</span>
+            <span className="text-[#6b7280]">{lang === "vi" ? "Ngày khởi hành:" : "Departure date:"}</span>
+            <span className="font-bold text-[#111827] tabular-nums">{bookingData.date}</span>
+          </div>
+
+          <div className="flex justify-between gap-3 py-1">
+            <span className="text-[#6b7280]">{lang === "vi" ? "Khởi hành:" : "Departure time:"}</span>
             <span className="font-bold text-[#111827] tabular-nums">{bookingData.time}</span>
           </div>
           
           <div className="flex justify-between gap-3 py-1">
-            <span className="text-[#6b7280]">Số ghế:</span>
+            <span className="text-[#6b7280]">{lang === "vi" ? "Số ghế:" : "Seats:"}</span>
             <span className={cn("font-bold text-[#111827]", isTampered && "text-[#f43f5e]")}>
-              {bookingData.seats}
+              {String(bookingData.seats)
+                .replace("ghe", lang === "vi" ? " ghế" : " seats")
+                .replace("ghế", lang === "vi" ? " ghế" : " seats")}
             </span>
           </div>
 
           <div className="border-t border-dashed border-[#e5e7eb] my-2.5" />
 
           <div className="flex items-end justify-between gap-3 py-1">
-            <span className="text-[#6b7280]">Đã thanh toán:</span>
+            <span className="text-[#6b7280]">{lang === "vi" ? "Đã thanh toán:" : "Amount paid:"}</span>
             <span className="text-xl leading-7 font-semibold text-[#065f46] tabular-nums">
               {bookingData.deposit}
             </span>
@@ -109,12 +121,12 @@ export default function PhoneReceiptView({
           {isTampered ? (
             <div className="mt-3 flex items-center justify-center gap-2 rounded-md border border-[#f43f5e] bg-[#fff1f2] p-3 text-center text-xs leading-[18px] font-semibold text-[#be123c] [animation:shake_0.5s_ease-in-out]">
               <AlertTriangle size={13} className="shrink-0" />
-              <span>Dữ liệu bị thay đổi — sai khớp hash</span>
+              <span>{lang === "vi" ? "Dữ liệu bị thay đổi — sai khớp hash" : "Data tampered — hash mismatch"}</span>
             </div>
           ) : (
             <div className="mt-3 flex items-center justify-center gap-2 rounded-md border border-[#10b981] bg-[#ecfdf5] p-3 text-center text-xs leading-[18px] font-semibold text-[#065f46]">
               <CheckCircle2 size={13} className="shrink-0" />
-              <span>Vé Hợp Lệ & Đã Đối Soát</span>
+              <span>{lang === "vi" ? "Vé Hợp Lệ & Đã Đối Soát" : "Ticket Valid & Verified"}</span>
             </div>
           )}
         </div>

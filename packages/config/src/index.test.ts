@@ -8,6 +8,7 @@ test("runtime config defaults to explicit deterministic demo providers", () => {
     nodeEnv: "development",
     host: "127.0.0.1",
     port: 3001,
+    webOrigin: "",
     demoMode: true,
     paymentProvider: "mock",
     solanaDevnet: {
@@ -25,18 +26,49 @@ test("runtime config defaults to explicit deterministic demo providers", () => {
       appCertificate: "",
       customerId: "",
       customerSecret: "",
-      webhookSecret: "",
+      providerEventSecret: "",
+      ncsWebhookSecret: "",
       agentProperties: {},
       tokenTtlSeconds: 600,
       agentUid: 9001,
       agentName: "call-to-cash-agent",
       baseUrl: "https://api.agora.io/",
+      liveRelay: {
+        url: "http://127.0.0.1:3011/",
+        controlSecret: "",
+        uid: 9002,
+        ready: false
+      },
       ready: false
     },
     aiProvider: "deterministic",
+    aiExtraction: {
+      mode: "hybrid",
+      model: "gpt-5-mini",
+      apiKey: "",
+      timeoutMs: 1_500,
+      promptVersion: "CTC-BOOKING-EXTRACTION-V1"
+    },
     logLevel: "info",
     rateLimitMax: 100
   });
+});
+
+test("OpenAI extraction config is server-only and validates its bounded timeout", () => {
+  const config = readRuntimeConfig({
+    AI_PROVIDER: "openai",
+    OPENAI_API_KEY: "server-only-test-key",
+    OPENAI_MODEL: "gpt-5-mini",
+    AI_EXTRACTION_TIMEOUT_MS: "1500"
+  });
+  assert.equal(config.aiProvider, "openai");
+  assert.equal(config.aiExtraction.apiKey, "server-only-test-key");
+  assert.equal(config.aiExtraction.timeoutMs, 1_500);
+});
+
+test("OpenAI extraction requires a server-only key only when selected", () => {
+  assert.throws(() => readRuntimeConfig({ AI_PROVIDER: "openai" }), /OPENAI_API_KEY is required/);
+  assert.equal(readRuntimeConfig({}).aiExtraction.apiKey, "");
 });
 
 test("Agora configuration is opt-in and rejects malformed agent properties", () => {
@@ -85,6 +117,40 @@ test("runtime config accepts the minimum complete Solana Devnet configuration", 
 
 test("runtime config parses an explicit false demo mode", () => {
   assert.equal(readRuntimeConfig({ DEMO_MODE: "false" }).demoMode, false);
+});
+
+test("Agora live readiness uses the native pipeline and needs no custom LLM gateway secret", () => {
+  const baseEnv = {
+    VOICE_PROVIDER: "agora",
+    AGORA_APP_ID: "app",
+    AGORA_APP_CERTIFICATE: "certificate",
+    AGORA_CUSTOMER_ID: "customer",
+    AGORA_CUSTOMER_SECRET: "secret",
+    AGORA_PROVIDER_EVENT_SECRET: "provider-secret",
+    AGORA_NCS_WEBHOOK_SECRET: "notifications-secret",
+    AGORA_CAI_PROPERTIES_JSON: '{"pipeline_id":"pipeline"}',
+    AGORA_RTM_RELAY_CONTROL_SECRET: "relay-control"
+  };
+
+  const config = readRuntimeConfig(baseEnv);
+  assert.equal(config.agora.liveRelay.ready, true);
+  assert.equal(config.agora.ready, true);
+});
+
+test("Agora config removes legacy custom LLM properties before the native pipeline joins", () => {
+  const config = readRuntimeConfig({
+    AGORA_CAI_PROPERTIES_JSON:
+      '{"pipeline_id":"pipeline","llm":{"url":"https://legacy-gateway.invalid"}}'
+  });
+
+  assert.deepEqual(config.agora.agentProperties, { pipeline_id: "pipeline" });
+});
+
+test("runtime config preserves the exact production web origin", () => {
+  assert.equal(
+    readRuntimeConfig({ WEB_ORIGIN: "https://ctc.danangtoiiu.live" }).webOrigin,
+    "https://ctc.danangtoiiu.live"
+  );
 });
 
 test("runtime config reads LOG_LEVEL and RATE_LIMIT_MAX", () => {

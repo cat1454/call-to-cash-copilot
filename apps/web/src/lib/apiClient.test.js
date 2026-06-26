@@ -84,6 +84,30 @@ test("createCall sends correct sourceMode and channel purpose", async () => {
   assert.equal(body.channelPurpose, "BOOKING");
 });
 
+
+test("startVoiceSession sends browser RTC readiness only after publishing", async () => {
+  const fetchMock = mockFetch(200, {
+    success: true,
+    data: { status: "CONNECTED" },
+    meta: { requestId: "r-start" }
+  });
+  const client = createApiClient(BASE_URL, fetchMock);
+
+  await client.startVoiceSession("call_abc", {
+    rtcConnected: true,
+    microphonePublished: true,
+    browserRtcUid: 10002
+  });
+
+  const firstCall = fetchMock.mock.calls[0];
+  assert.equal(firstCall.arguments[0], `${BASE_URL}/v1/voice-sessions/call_abc/start`);
+  assert.deepEqual(JSON.parse(firstCall.arguments[1].body), {
+    rtcConnected: true,
+    microphonePublished: true,
+    browserRtcUid: 10002
+  });
+});
+
 test("submitTranscriptTurn merges defaults correctly", async () => {
   const successBody = {
     success: true,
@@ -108,6 +132,7 @@ test("submitTranscriptTurn merges defaults correctly", async () => {
   assert.equal(body.turn.source, "REPLAY");
   assert.equal(body.turn.content, "Tôi muốn đặt vé");
 });
+
 
 test("confirmBooking sends Idempotency-Key header", async () => {
   const successBody = {

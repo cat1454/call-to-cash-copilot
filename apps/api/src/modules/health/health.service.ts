@@ -5,6 +5,14 @@ import type { PaymentProvider } from "@call-to-cash/solana";
 
 import { ApiCommandError } from "../../platform/http/api-command-error.js";
 
+export function getApiDiscovery() {
+  return {
+    service: "call-to-cash-api",
+    health: "/health",
+    readiness: "/ready"
+  };
+}
+
 export function getHealthStatus() {
   return {
     status: "ok",

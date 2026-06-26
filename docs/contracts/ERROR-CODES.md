@@ -195,3 +195,24 @@ Error codes are a product and integration contract. They let the web app display
 - [ ] API never returns raw provider errors, secrets, stack traces, wallet private data, or raw transcript in `details`;
 - [ ] non-terminal dependency failure is not mislabeled as payment rejection;
 - [ ] incident runbook references the same codes for operational response.
+
+---
+
+## 12. Phase 11.0 Revenue Twin errors
+
+| Code | HTTP | Retry? | Meaning / next action |
+|---|---:|---:|---|
+| `REVENUE_TWIN_EVALUATION_NOT_FOUND` | 404 | No | evaluation is not available for this call |
+| `REVENUE_TWIN_OFFER_NOT_FOUND` | 404 | No | offer is not available in the evaluation |
+| `REVENUE_TWIN_OFFER_EXPIRED` | 409 | Yes | re-evaluate safe alternatives |
+| `REVENUE_TWIN_OFFER_ALREADY_DECIDED` | 409 | No | return existing decision where idempotent |
+| `REVENUE_TWIN_NO_ELIGIBLE_ALTERNATIVE` | 422 | No | continue existing booking flow |
+| `REVENUE_TWIN_GROUP_CAPACITY_UNAVAILABLE` | 422 | No | no full-group alternative exists |
+| `REVENUE_TWIN_POLICY_DISABLED` | 422 | No | policy permits no discounted offer |
+| `REVENUE_TWIN_POLICY_REJECTED` | 422 | No | server policy rejected the offer |
+| `REVENUE_TWIN_UNVERIFIED_PARTNER` | 422 | No | partner status is not eligible |
+| `REVENUE_TWIN_INVENTORY_CHANGED` | 409 | Yes | re-evaluate against current inventory |
+| `REVENUE_TWIN_STALE_SNAPSHOT` | 409 | Yes | re-evaluate against current snapshot |
+| `REVENUE_TWIN_REEVALUATION_REQUIRED` | 409 | Yes | do not create a hold; re-evaluate |
+| `REVENUE_TWIN_INVALID_FLEXIBILITY` | 400 | No | correct customer-owned time preference |
+| `REVENUE_TWIN_IDEMPOTENCY_CONFLICT` | 409 | No | same key has different acceptance intent |

@@ -12,8 +12,29 @@ export const recoveryEvents = new Set([
   EventName.PaymentFailed,
   EventName.ReceiptCreated,
   EventName.ReceiptVerified,
-  EventName.CallEnded
+  EventName.CallEnded,
+  EventName.RevenueTwinEvaluated,
+  EventName.RevenueTwinOfferAccepted,
+  EventName.RevenueTwinOfferDeclined,
+  EventName.RevenueTwinOfferExpired,
+  EventName.RevenueTwinReevaluationRequired,
+  EventName.RevenueTwinWaitlistJoined
 ]);
+
+/**
+ * SSE deliberately carries only a compact, privacy-safe projection.  Reload
+ * the server read models after a state-changing event so the customer summary
+ * never has to reconstruct booking fields from event fragments.
+ */
+export function recoveryHintsForEvent(eventName, envelope) {
+  if (!recoveryEvents.has(eventName)) return null;
+  const data = envelope?.data ?? {};
+  return {
+    ...(typeof envelope?.bookingId === "string" ? { bookingId: envelope.bookingId } : {}),
+    ...(typeof data.paymentIntentId === "string" ? { paymentIntentId: data.paymentIntentId } : {}),
+    ...(typeof data.receiptId === "string" ? { receiptId: data.receiptId } : {})
+  };
+}
 
 export function isDefinitivePaymentMismatch(error) {
   return [
@@ -39,6 +60,9 @@ export async function recoverServerState(apiClient, dispatch, state, callId, hin
   const call = await apiClient.getCall(callId);
   result.call = call;
   dispatch({ type: ACTION.CALL_SYNCED, call });
+  const transcript = await apiClient.getTranscript(callId);
+  result.transcript = transcript;
+  dispatch({ type: ACTION.TRANSCRIPT_SYNCED, transcript });
 
   if (call.booking !== null) {
     const risk = await apiClient.getRisk(callId);
@@ -71,6 +95,26 @@ export async function recoverServerState(apiClient, dispatch, state, callId, hin
     result.verification = verification;
     dispatch({ type: ACTION.RECEIPT_SYNCED, receipt });
     dispatch({ type: ACTION.VERIFICATION_SYNCED, verification });
+  }
+
+  const canSyncRevenueTwin =
+    typeof apiClient.getLatestRevenueTwinEvaluation === "function" ||
+    typeof apiClient.getRevenueTwinDashboard === "function";
+  if (typeof apiClient.getLatestRevenueTwinEvaluation === "function") {
+    result.revenueTwinEvaluation = await apiClient.getLatestRevenueTwinEvaluation(callId);
+  }
+
+  if (typeof apiClient.getRevenueTwinDashboard === "function") {
+    result.revenueTwinDashboard = await apiClient.getRevenueTwinDashboard();
+  }
+  if (canSyncRevenueTwin) {
+    dispatch({
+      type: ACTION.REVENUE_TWIN_SYNCED,
+      revenueTwin: {
+        evaluation: result.revenueTwinEvaluation ?? null,
+        dashboard: result.revenueTwinDashboard ?? null
+      }
+    });
   }
 
   dispatch({ type: ACTION.RECOVERY_COMPLETE });

@@ -6,7 +6,7 @@ import { REFUND_POLICY } from "../../../data/refundPolicy";
 import { cn } from "../../../lib/cn";
 import { SolanaPayQR } from "./SolanaPayQR";
 
-function SolanaDevnetSection({ providerPayment }) {
+function SolanaDevnetSection({ providerPayment, onWalletOpened, lang = "vi" }) {
   const [copied, setCopied] = useState(false);
   const solanaPayUrl = providerPayment?.solanaPayUrl ?? "";
 
@@ -24,7 +24,11 @@ function SolanaDevnetSection({ providerPayment }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-start justify-between gap-3 rounded-xl border border-[#fcd34d] bg-[#fffbeb] p-3 text-xs leading-[18px] text-[#92400e]">
-        <span>Chỉ là giao dịch chứng minh trên Devnet, không phải thanh toán thật.</span>
+        <span>
+          {lang === "vi"
+            ? "Chỉ là giao dịch chứng minh trên Devnet, không phải thanh toán thật."
+            : "Devnet simulation only, not a real payment."}
+        </span>
         <strong className="shrink-0 whitespace-nowrap tabular-nums">
           {providerPayment?.amountSol} SOL
         </strong>
@@ -35,12 +39,13 @@ function SolanaDevnetSection({ providerPayment }) {
           <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#059669] text-[10px] text-white">
             1
           </span>
-          Gửi giao dịch bằng Phantom
+          {lang === "vi" ? "Gửi giao dịch bằng Phantom" : "Send transaction with Phantom"}
         </div>
 
         <a
           href={solanaPayUrl || undefined}
           aria-disabled={!solanaPayUrl}
+          onClick={onWalletOpened}
           className={cn(
             "hidden min-h-11 items-center justify-center gap-2 rounded-xl bg-[#059669] px-4 text-sm font-semibold text-white",
             "active:scale-[0.96] transition-transform duration-150 motion-reduce:transition-none",
@@ -49,23 +54,28 @@ function SolanaDevnetSection({ providerPayment }) {
           )}
         >
           <ExternalLink size={16} aria-hidden="true" />
-          Mở trong Phantom
+          {lang === "vi" ? "Mở trong Phantom" : "Open in Phantom"}
         </a>
 
         <div className="flex flex-col items-center gap-2 max-[768px]:hidden">
-          <p className="text-center text-xs text-[#6b7280]">Quét bằng Phantom trên điện thoại</p>
+          <p className="text-center text-xs text-[#6b7280]">
+            {lang === "vi" ? "Quét bằng Phantom trên điện thoại" : "Scan with Phantom on your phone"}
+          </p>
           {solanaPayUrl ? (
             <SolanaPayQR url={solanaPayUrl} size={148} />
           ) : (
             <div className="flex h-[148px] w-[148px] items-center justify-center rounded-xl bg-[#e5e7eb] text-xs text-[#9ca3af]">
-              Đang tạo QR…
+              {lang === "vi" ? "Đang tạo QR…" : "Generating QR..."}
             </div>
           )}
         </div>
+        <Button className="mt-3 w-full" size="sm" variant="secondary" onClick={onWalletOpened}>
+          {lang === "vi" ? "Tôi đã mở ví / quét QR" : "I have opened wallet / scanned QR"}
+        </Button>
 
         <details className="mt-3 text-xs text-[#6b7280]">
           <summary className="min-h-11 cursor-pointer content-center text-center font-medium">
-            Không mở được Phantom?
+            {lang === "vi" ? "Không mở được Phantom?" : "Phantom not opening?"}
           </summary>
           <button
             type="button"
@@ -84,7 +94,9 @@ function SolanaDevnetSection({ providerPayment }) {
             ) : (
               <Copy size={14} aria-hidden="true" />
             )}
-            {copied ? "Đã sao chép liên kết" : "Sao chép liên kết thanh toán"}
+            {copied
+              ? (lang === "vi" ? "Đã sao chép liên kết" : "Link copied")
+              : (lang === "vi" ? "Sao chép liên kết thanh toán" : "Copy payment link")}
           </button>
         </details>
       </section>
@@ -96,8 +108,14 @@ function SolanaDevnetSection({ providerPayment }) {
           className="shrink-0 animate-spin motion-reduce:animate-none"
         />
         <div>
-          <strong className="block font-semibold">Tự động chờ xác nhận</strong>
-          <span className="leading-[18px]">Bạn không cần sao chép mã giao dịch.</span>
+          <strong className="block font-semibold">
+            {lang === "vi" ? "Tự động chờ xác nhận" : "Automated confirmation check"}
+          </strong>
+          <span className="leading-[18px]">
+            {lang === "vi"
+              ? "Sau khi mở ví, hệ thống sẽ kiểm tra Devnet theo nhịp an toàn."
+              : "After opening the wallet, the system will check Devnet securely."}
+          </span>
         </div>
       </section>
     </div>
@@ -112,13 +130,46 @@ export default function PhonePaymentDrawer({
   simulateWalletPayment,
   btnPhonePayDisabled,
   btnPhonePayBg,
-  btnPhonePayText
+  btnPhonePayText,
+  markPaymentWalletOpened,
+  lang = "vi"
 }) {
   const isSolanaDevnet = paymentIntent?.provider === "solana_devnet";
   const providerPayment = paymentIntent?.providerPayment;
 
   const submitPayment = () => {
     void simulateWalletPayment();
+  };
+
+  const getTranslatedTimerText = (text) => {
+    if (lang === "vi") return text;
+    if (!text) return "";
+    if (text.includes("Thời gian giữ chỗ:")) {
+      return text.replace("Thời gian giữ chỗ:", "Reservation time:");
+    }
+    if (text.includes("Đã hết thời gian giữ chỗ!")) {
+      return "⏰ Reservation expired!";
+    }
+    if (text.includes("Giữ chỗ còn")) {
+      return text.replace("Giữ chỗ còn", "Booking expires in");
+    }
+    if (text.includes("Đang tạo thời hạn giữ chỗ...")) {
+      return "Creating booking deadline...";
+    }
+    return text;
+  };
+
+  const getTranslatedBtnPayText = (text) => {
+    if (lang === "vi") return text;
+    if (!text) return "Simulate Payment";
+    if (text === "Xác nhận chuyển cọc từ Ví") return "Confirm deposit transfer from Wallet";
+    if (text === "Thời gian giao dịch hết hạn") return "Transaction expired";
+    return text;
+  };
+
+  const getRefundPolicyText = () => {
+    if (lang === "vi") return REFUND_POLICY.customerSummary;
+    return "80% deposit refund if cancelled at least 12 hours before departure; no refund for late cancellations.";
   };
 
   return (
@@ -134,20 +185,22 @@ export default function PhonePaymentDrawer({
         <div className="mb-3 h-1 w-9 rounded-full bg-[#d1d5db] mx-auto" />
         <div className="mb-3 flex items-center justify-center gap-2 text-center text-sm font-semibold leading-5 text-[#111827] text-balance">
           <QrCode size={16} className="text-[#059669]" />
-          <span>{isSolanaDevnet ? "Xác minh thanh toán Devnet" : "Thanh toán mô phỏng"}</span>
+          <span>{isSolanaDevnet ? (lang === "vi" ? "Xác minh thanh toán Devnet" : "Verify Devnet Payment") : (lang === "vi" ? "Thanh toán mô phỏng" : "Simulate Payment")}</span>
         </div>
         <div className="mb-3 flex items-end justify-between gap-3 rounded-xl border border-[#e5e7eb] bg-[#f9fafb] p-3">
-          <span className="text-xs font-medium leading-4 text-[#6b7280]">Tiền cọc đơn hàng:</span>
+          <span className="text-xs font-medium leading-4 text-[#6b7280]">{lang === "vi" ? "Tiền cọc đơn hàng:" : "Order deposit:"}</span>
           <span className="text-xl font-semibold leading-7 text-[#059669] tabular-nums">
             {bookingData.deposit}
           </span>
         </div>
 
         {isSolanaDevnet ? (
-          <SolanaDevnetSection providerPayment={providerPayment} />
+          <SolanaDevnetSection providerPayment={providerPayment} onWalletOpened={markPaymentWalletOpened} lang={lang} />
         ) : (
           <p className="rounded-xl border border-[#e5e7eb] bg-[#f9fafb] p-3 text-center text-xs leading-[18px] text-[#6b7280]">
-            Máy chủ sẽ xác minh số tiền, người nhận và mã tham chiếu.
+            {lang === "vi"
+              ? "Máy chủ sẽ xác minh số tiền, người nhận và mã tham chiếu."
+              : "The server will verify the amount, recipient, and payment reference."}
           </p>
         )}
       </div>
@@ -155,7 +208,7 @@ export default function PhonePaymentDrawer({
       <div className="shrink-0 border-t border-[#e5e7eb] bg-white px-4 pb-4 pt-3 shadow-[0_-4px_16px_rgba(0,0,0,0.04)]">
         <div className="mb-2 flex items-center justify-center gap-2 text-xs font-medium leading-4 text-[#92400e] tabular-nums">
           <Timer size={14} className="shrink-0" />
-          <span>{drawerTimerText}</span>
+          <span>{getTranslatedTimerText(drawerTimerText)}</span>
         </div>
         {!isSolanaDevnet && (
           <Button
@@ -166,11 +219,11 @@ export default function PhonePaymentDrawer({
             style={btnPhonePayBg ? { background: btnPhonePayBg } : undefined}
             className="w-full"
           >
-            {btnPhonePayText || "Mô phỏng thanh toán"}
+            {getTranslatedBtnPayText(btnPhonePayText || "Mô phỏng thanh toán")}
           </Button>
         )}
         <p className="mt-2 text-center text-[10px] leading-[14px] text-[#6b7280] text-balance">
-          {REFUND_POLICY.customerSummary} · {REFUND_POLICY.id} v{REFUND_POLICY.version}
+          {getRefundPolicyText()} · {REFUND_POLICY.id} v{REFUND_POLICY.version}
         </p>
       </div>
     </div>

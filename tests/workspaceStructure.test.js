@@ -84,9 +84,11 @@ test("root manifest exposes the monorepo command surface", async () => {
   const manifest = JSON.parse(await readFile(path.join(repoRoot, "package.json"), "utf8"));
 
   assert.equal(manifest.name, "call-to-cash-risk-copilot");
-  assert.equal(manifest.packageManager, "pnpm@11.1.1");
-  assert.equal(manifest.devDependencies.pnpm, "11.1.1");
+  assert.equal(manifest.packageManager, "pnpm@10.34.4");
+  assert.equal(manifest.engines.node, "^20.19.0 || ^22.12.0 || >=24.0.0");
+  assert.equal(manifest.devDependencies.pnpm, "10.34.4");
   assert.equal(manifest.devDependencies.turbo, "2.9.18");
+  assert.equal(manifest.scripts.prebuild, "node scripts/prebuild-install.mjs");
 
   for (const script of [
     "dev",

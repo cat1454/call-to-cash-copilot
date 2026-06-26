@@ -1,4 +1,4 @@
-import { REFUND_POLICY } from "./refundPolicy";
+import { REFUND_POLICY } from "./refundPolicy.js";
 
 export const scenarios = [
   // Scenario 1: Normal Booking
@@ -30,7 +30,14 @@ export const scenarios = [
       sender: "customer",
       text: "Anh đi 3 người nhé, số điện thoại anh là 0912345678.",
       updates: {
-        entities: { route: "Hà Nội -> Sa Pa", time: "22:30", seats: "3 khách", phone: "0912345678", price: "1.050.000đ", deposit: "300.000đ" },
+        entities: {
+          route: "Hà Nội -> Sa Pa",
+          time: "22:30",
+          seats: "3 khách",
+          phone: "0912345678",
+          price: "1.050.000đ",
+          deposit: "300.000đ"
+        },
         scores: { completeness: 85, dispute: 5, readiness: 75 },
         performance: { ttfr: "310ms", turngap: "1.1s", clarify: 0, reduction: "40%" },
         brainMode: "fast",
@@ -41,7 +48,14 @@ export const scenarios = [
       sender: "ai",
       text: `Dạ em xin xác nhận lại thông tin: 3 vé xe đi Sa Pa chuyến 22:30 tối nay, đăng ký cho SĐT 0912345678. Tổng tiền vé là 1.050.000đ, anh cần đặt cọc trước 300.000đ để giữ ghế trong 10 phút. ${REFUND_POLICY.spokenSummary} Anh xác nhận thông tin này để em mở cổng cọc nhé?`,
       updates: {
-        entities: { route: "Hà Nội -> Sa Pa", time: "22:30", seats: "3 khách", phone: "0912345678", price: "1.050.000đ", deposit: "300.000đ" },
+        entities: {
+          route: "Hà Nội -> Sa Pa",
+          time: "22:30",
+          seats: "3 khách",
+          phone: "0912345678",
+          price: "1.050.000đ",
+          deposit: "300.000đ"
+        },
         scores: { completeness: 95, dispute: 5, readiness: 85 },
         performance: { ttfr: "240ms", turngap: "0.9s", clarify: 0, reduction: "60%" },
         brainMode: "fast",
@@ -52,7 +66,14 @@ export const scenarios = [
       sender: "customer",
       text: "Nhất trí em ơi, thông tin chuẩn rồi đó. Mở cổng để anh quét mã cọc luôn đi.",
       updates: {
-        entities: { route: "Hà Nội -> Sa Pa", time: "22:30", seats: "3 khách", phone: "0912345678", price: "1.050.000đ", deposit: "300.000đ" },
+        entities: {
+          route: "Hà Nội -> Sa Pa",
+          time: "22:30",
+          seats: "3 khách",
+          phone: "0912345678",
+          price: "1.050.000đ",
+          deposit: "300.000đ"
+        },
         scores: { completeness: 100, dispute: 5, readiness: 95 },
         performance: { ttfr: "290ms", turngap: "1.3s", clarify: 0, reduction: "95%" },
         brainMode: "fast",
@@ -91,7 +112,14 @@ export const scenarios = [
       sender: "customer",
       text: "Cho tớ chuyến 22:30 đi, đi 2 người nhé. SĐT tớ là 0987654321. Mà đi xe khách sao cứ bắt cọc trước vậy em? Lỡ bận không đi thì có được trả tiền không? Mà nghe nói thanh toán qua Solana, cái đó có phải coin lừa đảo không?",
       updates: {
-        entities: { route: "Hà Nội -> Sa Pa", time: "22:30", seats: "2 khách", phone: "0987654321", price: "700.000đ", deposit: "200.000đ" },
+        entities: {
+          route: "Hà Nội -> Sa Pa",
+          time: "22:30",
+          seats: "2 khách",
+          phone: "0987654321",
+          price: "700.000đ",
+          deposit: "200.000đ"
+        },
         scores: { completeness: 80, dispute: 80, readiness: 30 },
         performance: { ttfr: "450ms", turngap: "1.8s", clarify: 1, reduction: "-20%" },
         brainMode: "slow",
@@ -102,7 +130,14 @@ export const scenarios = [
       sender: "ai",
       text: `Dạ anh hoàn toàn yên tâm ạ. Trong demo này, thanh toán được mô phỏng deterministically; Solana chưa kết nối thật. Về cọc, ${REFUND_POLICY.spokenSummary} Anh xác nhận thông tin này chứ?`,
       updates: {
-        entities: { route: "Hà Nội -> Sa Pa", time: "22:30", seats: "2 khách", phone: "0987654321", price: "700.000đ", deposit: "200.000đ" },
+        entities: {
+          route: "Hà Nội -> Sa Pa",
+          time: "22:30",
+          seats: "2 khách",
+          phone: "0987654321",
+          price: "700.000đ",
+          deposit: "200.000đ"
+        },
         scores: { completeness: 90, dispute: 30, readiness: 75 },
         performance: { ttfr: "340ms", turngap: "1.2s", clarify: 1, reduction: "50%" },
         brainMode: "slow",
@@ -113,7 +148,14 @@ export const scenarios = [
       sender: "customer",
       text: "À, ra thế, chỉ là công cụ xác thực thôi đúng không. Được rồi, thế thì tớ đồng ý. Cậu mở cổng thanh toán đi tớ chuyển cọc luôn.",
       updates: {
-        entities: { route: "Hà Nội -> Sa Pa", time: "22:30", seats: "2 khách", phone: "0987654321", price: "700.000đ", deposit: "200.000đ" },
+        entities: {
+          route: "Hà Nội -> Sa Pa",
+          time: "22:30",
+          seats: "2 khách",
+          phone: "0987654321",
+          price: "700.000đ",
+          deposit: "200.000đ"
+        },
         scores: { completeness: 100, dispute: 25, readiness: 90 },
         performance: { ttfr: "290ms", turngap: "1.1s", clarify: 1, reduction: "85%" },
         brainMode: "slow",
@@ -152,7 +194,14 @@ export const scenarios = [
       sender: "customer",
       text: "Chuyến 22:00 nhé, số điện thoại tôi là 0909090909. À khoan em ơi, đợi chút, đứa bạn anh nó vừa gọi đòi đi chung nữa. Sửa lại cho anh thành 4 người đi chung chuyến đó được không em?",
       updates: {
-        entities: { route: "Hà Nội -> Sa Pa", time: "22:00", seats: "4 khách", phone: "0909090909", price: "1.400.000đ", deposit: "400.000đ" },
+        entities: {
+          route: "Hà Nội -> Sa Pa",
+          time: "22:00",
+          seats: "4 khách",
+          phone: "0909090909",
+          price: "1.400.000đ",
+          deposit: "400.000đ"
+        },
         scores: { completeness: 85, dispute: 35, readiness: 60 },
         performance: { ttfr: "420ms", turngap: "1.6s", clarify: 1, reduction: "20%" },
         brainMode: "slow",
@@ -164,7 +213,14 @@ export const scenarios = [
       sender: "ai",
       text: "Dạ được chứ ạ. Em đã cập nhật lại dự thảo booking: Vé đổi sang 4 người chuyến 22:00 đi Sa Pa cho SĐT 0909090909. Tổng tiền vé là 1.400.000đ, tiền cọc giữ ghế được điều chỉnh thành 400.000đ. Anh kiểm tra lại và xác nhận giúp em nhé?",
       updates: {
-        entities: { route: "Hà Nội -> Sa Pa", time: "22:00", seats: "4 khách", phone: "0909090909", price: "1.400.000đ", deposit: "400.000đ" },
+        entities: {
+          route: "Hà Nội -> Sa Pa",
+          time: "22:00",
+          seats: "4 khách",
+          phone: "0909090909",
+          price: "1.400.000đ",
+          deposit: "400.000đ"
+        },
         scores: { completeness: 95, dispute: 20, readiness: 85 },
         performance: { ttfr: "310ms", turngap: "1.1s", clarify: 1, reduction: "70%" },
         brainMode: "slow",
@@ -175,7 +231,14 @@ export const scenarios = [
       sender: "customer",
       text: "Ok chuẩn rồi em ơi, đúng 4 người chuyến 22:00 nha. Mở cổng cọc để anh quét tiền luôn.",
       updates: {
-        entities: { route: "Hà Nội -> Sa Pa", time: "22:00", seats: "4 khách", phone: "0909090909", price: "1.400.000đ", deposit: "400.000đ" },
+        entities: {
+          route: "Hà Nội -> Sa Pa",
+          time: "22:00",
+          seats: "4 khách",
+          phone: "0909090909",
+          price: "1.400.000đ",
+          deposit: "400.000đ"
+        },
         scores: { completeness: 100, dispute: 15, readiness: 95 },
         performance: { ttfr: "280ms", turngap: "1.0s", clarify: 1, reduction: "90%" },
         brainMode: "fast",
@@ -183,5 +246,30 @@ export const scenarios = [
         timeline: [1, 2, 3, 4, 5]
       }
     }
+  ],
+
+  // Scenario 4: Da Nang to Ha Noi replay with real Solana Devnet deposit
+  [
+    { sender: "customer", text: "Tôi muốn đặt vé xe từ Đà Nẵng đến Hà Nội.", updates: {} },
+    { sender: "customer", text: "Ngày khởi hành là ngày hai mươi tám tháng sáu.", updates: {} },
+    { sender: "customer", text: "Giờ khởi hành là mười chín giờ.", updates: {} },
+    { sender: "customer", text: "Số lượng hành khách là ba người.", updates: {} },
+    {
+      sender: "customer",
+      text: "Số điện thoại là không chín không một hai ba bốn năm sáu bảy.",
+      updates: {}
+    },
+    {
+      sender: "customer",
+      text: "Tôi muốn sửa số lượng hành khách từ ba người thành bốn người.",
+      updates: {}
+    },
+    { sender: "customer", text: "Điểm đốn là bảy xe trung tâm Đà Nẵng.", updates: {} },
+    {
+      sender: "ai",
+      text: `Dạ em xác nhận 4 khách tuyến Đà Nẵng đi Hà Nội lúc 19 giờ ngày 28 tháng 6. Tổng tiền 1.800.000 đồng, cọc 300.000 đồng. ${REFUND_POLICY.spokenSummary} Anh/chị xác nhận để mở cọc Devnet nhé?`,
+      updates: {}
+    },
+    { sender: "customer", text: "Tôi xác nhận đặt cọc theo điều khoản vừa đọc.", updates: {} }
   ]
 ];
