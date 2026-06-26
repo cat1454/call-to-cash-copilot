@@ -99,6 +99,64 @@
 }
 
 
+/* ── Technical Strip (Below Hero) ── */
+.technical-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  width: 100%;
+  max-width: 1480px;
+  margin: 0 auto 24px;
+}
+
+.technical-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  border: 1px solid #f1f5f9;
+  border-radius: 16px;
+  padding: 14px 20px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.02);
+}
+
+.tech-card-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tech-card-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.tech-card-dot-green { background: #10b981; }
+.tech-card-dot-amber { background: #f59e0b; }
+.tech-card-dot-purple { background: #8b5cf6; }
+
+.technical-card h3 {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.technical-card p {
+  font-size: 11px;
+  color: #64748b;
+  margin: 2px 0 0;
+}
+
+.tech-card-value {
+  font-size: 14px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+
+
 
 
 

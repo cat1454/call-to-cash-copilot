@@ -1,0 +1,127 @@
+/* ─── LIVE PIPELINE DEMO PANEL (High-Contrast Dark Theme) ─── */
+.hero-demo-panel {
+  background: #091a10;
+  border: 1px solid #10b981;
+  border-radius: 16px;
+  padding: 18px;
+  width: 300px;
+  color: #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 8px 32px rgba(9, 26, 16, 0.25);
+  flex-shrink: 0;
+}
+
+.demo-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid rgba(16, 185, 129, 0.2);
+  padding-bottom: 8px;
+}
+
+.demo-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  animation: demo-pulse-green 1.5s infinite;
+}
+
+@keyframes demo-pulse-green {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.demo-panel-header h3 {
+  font-size: 10px;
+  font-weight: 700;
+  color: #a7f3d0;
+  letter-spacing: 0.08em;
+  margin: 0;
+}
+
+.demo-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.demo-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  opacity: 0.45;
+  transition: opacity 0.3s ease;
+}
+
+.demo-step.active {
+  opacity: 1;
+}
+
+.step-num {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #10b981;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.demo-step.active .step-num {
+  background: #10b981;
+  color: #091a10;
+  border-color: #10b981;
+}
+
+.demo-step.active.success .step-num {
+  background: #10b981;
+  color: #091a10;
+}
+
+.demo-step div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.demo-step strong {
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.demo-step span {
+  font-size: 9px;
+  color: #a7f3d0;
+}
+
+.demo-hash-box {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px dashed rgba(16, 185, 129, 0.3);
+  border-radius: 8px;
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hash-label {
+  font-size: 8px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.hash-value {
+  font-size: 9px;
+  font-family: monospace;
+  color: #10b981;
+  word-break: break-all;
+}

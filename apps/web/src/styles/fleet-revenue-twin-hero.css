@@ -10,7 +10,7 @@
     radial-gradient(ellipse 60% 80% at 10% 50%, rgba(16, 185, 129, 0.06) 0%, transparent 60%),
     radial-gradient(ellipse 40% 60% at 90% 50%, rgba(16, 185, 129, 0.04) 0%, transparent 65%),
     linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 50%, #f0fdf4 100%);
-  padding: 24px 32px;
+  padding: 32px 40px;
   border: 1px solid #d1fae5;
   box-shadow:
     0 10px 30px rgba(5, 150, 105, 0.03),
@@ -53,7 +53,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
+  gap: 32px;
   flex-wrap: wrap; /* Wraps cleanly on smaller screens */
 }
 
@@ -61,9 +61,9 @@
 .hero-brand {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
   flex: 1;
-  min-width: 280px;
+  min-width: 320px;
 }
 
 .hero-logo-row {
@@ -112,7 +112,6 @@
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  margin-top: 2px;
 }
 
 .hero-partners-label {
@@ -153,12 +152,12 @@
 }
 
 .hero-headline {
-  font-size: clamp(20px, 2.2vw, 28px);
-  font-weight: 800;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
+  font-size: clamp(26px, 3.8vw, 42px);
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
   color: #0f172a;
-  margin: 2px 0 0;
+  margin: 4px 0 2px;
   text-wrap: balance;
 }
 
@@ -171,69 +170,38 @@
 }
 
 .hero-tagline {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: #475569;
-  line-height: 1.4;
+  line-height: 1.5;
   margin: 0;
 }
 
-/* ── Metric cards side - horizontal layout ── */
-.hero-metrics {
-  display: flex;
-  flex-direction: row;
-  gap: 10px;
-  flex-shrink: 0;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.hero-metric-card {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+/* ── CTA Button ── */
+.hero-cta-btn {
+  background: #059669;
+  color: #ffffff;
+  border: none;
   border-radius: 10px;
-  padding: 8px 12px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.01);
-  transition: all 0.2s ease;
-  min-width: 140px;
-}
-.hero-metric-card:hover {
-  background: #f0fdf4;
-  border-color: rgba(5, 150, 105, 0.25);
-  transform: translateY(-1px);
-}
-
-/* Colored status dots */
-.hero-metric-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  box-shadow: 0 0 4px currentColor;
-}
-.hero-metric-dot-green  { background: #059669; color: #059669; box-shadow: 0 0 6px rgba(5,150,105,0.3); }
-.hero-metric-dot-amber  { background: #d97706; color: #d97706; box-shadow: 0 0 6px rgba(217,119,6,0.2); }
-.hero-metric-dot-purple { background: #7c3aed; color: #7c3aed; box-shadow: 0 0 6px rgba(124,58,237,0.2); }
-
-.hero-metric-card div {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.hero-metric-card strong {
-  font-size: 12px;
+  padding: 10px 20px;
   font-weight: 700;
-  color: #0f172a;
-  line-height: 1.1;
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.15);
+  transition: all 0.2s ease;
+}
+.hero-cta-btn:hover {
+  background: #047857;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(5, 150, 105, 0.2);
+}
+.hero-cta-btn:active {
+  transform: translateY(0);
 }
 
-.hero-metric-card span {
-  font-size: 10px;
-  font-weight: 500;
-  color: #475569;
-  line-height: 1.2;
-}
+/* Demo panel is moved to fleet-revenue-twin-demo.css */
+/* Technical strip is moved to fleet-revenue-twin-layout.css */
+
